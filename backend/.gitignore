@@ -1,0 +1,28 @@
+# Maven
+target/
+.m2/
+*.jar
+*.war
+*.ear
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Spring Boot
+application.properties
+application.yml
+application-*.yml
+application-*.properties
+
+# Environment
+.env
+.env.local
+
+# Logs
+logs/
+*.log
