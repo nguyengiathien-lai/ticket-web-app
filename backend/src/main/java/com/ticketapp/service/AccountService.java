@@ -29,6 +29,9 @@ public class AccountService {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    @Autowired
+    private OtpService otpService;
+
     /**
      * Register a new account
      */
@@ -40,15 +43,15 @@ public class AccountService {
             throw new IllegalArgumentException("Email already registered");
         }
 
-        // Validate phone is unique
-        if (phoneNumber != null && accountRepository.existsByPhoneNumber(phoneNumber)) {
-            throw new IllegalArgumentException("Phone number already registered");
-        }
+        // // Validate phone is unique
+        // if (phoneNumber != null && accountRepository.existsByPhoneNumber(phoneNumber)) {
+        //     throw new IllegalArgumentException("Phone number already registered");
+        // }
 
-        // Validate personal ID is unique
-        if (personalId != null && accountRepository.existsByPersonalId(personalId)) {
-            throw new IllegalArgumentException("Personal ID already registered");
-        }
+        // // Validate personal ID is unique
+        // if (personalId != null && accountRepository.existsByPersonalId(personalId)) {
+        //     throw new IllegalArgumentException("Personal ID already registered");
+        // }
 
         Account account = new Account();
         account.setId(UUID.randomUUID().toString());
@@ -70,26 +73,53 @@ public class AccountService {
         account.getRoles().add(passengerRole);
 
         Account savedAccount = accountRepository.save(account);
+        otpService.sendEmailVerificationOtp(savedAccount);
         log.info("Account registered: {} ({})", savedAccount.getId(), savedAccount.getEmail());
 
         return savedAccount;
     }
 
     /**
-     * Verify account email
+     * Verify account email using an OTP sent during registration
      */
     @Transactional
-    public Account verifyEmail(String accountId) {
-        Account account = accountRepository.findById(accountId)
+    public Account verifyEmailWithOtp(String email, String code) {
+        Account account = accountRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("Account not found"));
+
+        if (account.getIsEmailVerified()) {
+            return account;
+        }
+
+        otpService.verifyEmailOtp(account, code);
 
         account.setIsEmailVerified(true);
         account.setUpdatedAt(LocalDateTime.now());
 
         Account updated = accountRepository.save(account);
-        log.info("Email verified for account: {}", accountId);
+        log.info("Email verified with OTP for account: {}", account.getId());
 
         return updated;
+    }
+
+    /**
+     * Send a new email verification OTP for an unverified account
+     */
+    @Transactional
+    public void resendEmailVerificationOtp(String email) {
+        Account account = accountRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("Account not found"));
+
+        if (!account.getIsActive()) {
+            throw new IllegalArgumentException("Account is inactive");
+        }
+
+        if (account.getIsEmailVerified()) {
+            throw new IllegalArgumentException("Email is already verified");
+        }
+
+        otpService.sendEmailVerificationOtp(account);
+        log.info("Email verification OTP resent for account: {}", account.getId());
     }
 
     /**
