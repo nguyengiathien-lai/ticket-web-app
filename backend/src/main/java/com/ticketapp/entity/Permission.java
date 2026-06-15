@@ -10,8 +10,6 @@ import lombok.Setter;
 @Data
 @Entity
 @Table(name = "permissions")
-@Getter
-@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 public class Permission {
