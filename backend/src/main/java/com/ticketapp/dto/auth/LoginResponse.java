@@ -8,6 +8,7 @@ import lombok.Data;
 public class LoginResponse {
     private String token;
     private String tokenType;
+    private Long expiresAt;
     private Boolean mustChangePassword;
     private AccountResponse account;
 }

@@ -6,7 +6,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
+import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 @Slf4j
@@ -17,6 +20,11 @@ public class AuthenticationService {
 
     @Autowired
     private AuthorizationService authorizationService;
+
+    @Autowired
+    private JwtService jwtService;
+
+    private final Map<String, Long> revokedTokens = new ConcurrentHashMap<>();
 
     /**
      * Authenticate user with email and password
@@ -120,6 +128,17 @@ public class AuthenticationService {
     }
 
     /**
+     * Get account details from a validated JWT.
+     */
+    public Optional<Account> getAuthenticatedAccountByToken(String token) {
+        if (!validateToken(token)) {
+            return Optional.empty();
+        }
+
+        return getAuthenticatedAccount(jwtService.extractAccountId(token));
+    }
+
+    /**
      * Check if account password change is required
      */
     public boolean isPasswordChangeRequired(String accountId) {
@@ -129,22 +148,43 @@ public class AuthenticationService {
     }
 
     /**
-     * Validate authentication token (basic implementation)
-     * In production, this would validate JWT tokens
+     * Validate signed JWT and ensure the account is active and verified.
      */
-    public boolean validateToken(String accountId) {
-        return accountService.findById(accountId)
-                .map(Account::getIsActive)
-                .orElse(false);
+    public boolean validateToken(String token) {
+        removeExpiredRevokedTokens();
+
+        if (token == null || token.isBlank() || revokedTokens.containsKey(token)) {
+            return false;
+        }
+
+        if (!jwtService.isTokenValid(token)) {
+            return false;
+        }
+
+        return isAccountValid(jwtService.extractAccountId(token));
     }
 
     /**
-     * Logout (token invalidation in real implementation with JWT)
+     * Revoke the JWT until it naturally expires. This is process-local.
      */
     @Transactional
-    public void logout(String accountId) {
-        log.info("User logout: {}", accountId);
-        // In production with JWT, you would add token to blacklist
-        // or invalidate refresh tokens
+    public void logout(String token) {
+        if (jwtService.isTokenValid(token)) {
+            revokedTokens.put(token, jwtService.extractExpirationEpochSeconds(token));
+            log.info("User logout: {}", jwtService.extractAccountId(token));
+        }
+    }
+
+    public String generateToken(Account account) {
+        return jwtService.generateToken(account);
+    }
+
+    public long getTokenExpirationEpochSeconds(String token) {
+        return jwtService.extractExpirationEpochSeconds(token);
+    }
+
+    private void removeExpiredRevokedTokens() {
+        long now = Instant.now().getEpochSecond();
+        revokedTokens.entrySet().removeIf(entry -> entry.getValue() <= now);
     }
 }

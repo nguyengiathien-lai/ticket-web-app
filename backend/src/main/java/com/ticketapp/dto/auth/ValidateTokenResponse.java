@@ -7,4 +7,9 @@ import lombok.Data;
 @AllArgsConstructor
 public class ValidateTokenResponse {
     private boolean valid;
+    private AccountResponse account;
+
+    public ValidateTokenResponse(boolean valid) {
+        this.valid = valid;
+    }
 }

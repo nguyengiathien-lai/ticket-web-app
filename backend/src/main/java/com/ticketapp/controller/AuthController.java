@@ -17,6 +17,7 @@ import com.ticketapp.service.AuthenticationService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -28,7 +29,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Optional;
 
 @RestController
-@RequestMapping("/api/auth")
+@RequestMapping("/auth")
 public class AuthController {
 
     private final AuthenticationService authenticationService;
@@ -71,9 +72,11 @@ public class AuthController {
         }
 
         Account authenticatedAccount = account.get();
+        String token = authenticationService.generateToken(authenticatedAccount);
         LoginResponse response = LoginResponse.builder()
-                .token(authenticatedAccount.getId())
-                .tokenType("AccountId")
+                .token(token)
+                .tokenType("Bearer")
+                .expiresAt(authenticationService.getTokenExpirationEpochSeconds(token))
                 .mustChangePassword(authenticatedAccount.getMustChangePassword())
                 .account(AccountResponse.from(authenticatedAccount))
                 .build();
@@ -84,9 +87,9 @@ public class AuthController {
     @PostMapping("/validate-token")
     public ResponseEntity<ApiResponse<ValidateTokenResponse>> validateToken(
             @Valid @RequestBody TokenValidationRequest request) {
-        boolean valid = authenticationService.validateToken(request.getToken());
+        Optional<Account> account = authenticationService.getAuthenticatedAccountByToken(request.getToken());
 
-        if (!valid) {
+        if (account.isEmpty()) {
             return ResponseEntity
                     .status(HttpStatus.UNAUTHORIZED)
                     .body(ApiResponse.<ValidateTokenResponse>builder()
@@ -97,24 +100,37 @@ public class AuthController {
                             .build());
         }
 
-        return ResponseEntity.ok(ApiResponse.success(new ValidateTokenResponse(true), "Token is valid"));
+        return ResponseEntity.ok(ApiResponse.success(
+                new ValidateTokenResponse(true, AccountResponse.from(account.get())),
+                "Token is valid"));
     }
 
     @PostMapping("/logout")
     public ResponseEntity<ApiResponse<Void>> logout(@Valid @RequestBody LogoutRequest request) {
-        if (!authenticationService.validateToken(request.getAccountId())) {
+        if (!authenticationService.validateToken(request.getToken())) {
             return ResponseEntity
                     .status(HttpStatus.UNAUTHORIZED)
-                    .body(ApiResponse.error("Invalid account id"));
+                    .body(ApiResponse.error("Invalid token"));
         }
 
-        authenticationService.logout(request.getAccountId());
+        authenticationService.logout(request.getToken());
         return ResponseEntity.ok(ApiResponse.success(null, "Logout successful"));
     }
 
-    @GetMapping("/me/{accountId}")
-    public ResponseEntity<ApiResponse<AccountResponse>> getAuthenticatedAccount(@PathVariable String accountId) {
-        return authenticationService.getAuthenticatedAccount(accountId)
+    @GetMapping("/me")
+    public ResponseEntity<ApiResponse<AccountResponse>> getAuthenticatedAccount(
+            @RequestHeader(name = "Authorization", required = false) String authorizationHeader) {
+        return authenticationService.getAuthenticatedAccountByToken(extractBearerToken(authorizationHeader))
+                .map(account -> ResponseEntity.ok(
+                        ApiResponse.success(AccountResponse.from(account), "Account retrieved successfully")))
+                .orElseGet(() -> ResponseEntity
+                        .status(HttpStatus.UNAUTHORIZED)
+                        .body(ApiResponse.error("Account is not authenticated or is inactive")));
+    }
+
+    @GetMapping("/me/{token}")
+    public ResponseEntity<ApiResponse<AccountResponse>> getAuthenticatedAccountByTokenPath(@PathVariable String token) {
+        return authenticationService.getAuthenticatedAccountByToken(token)
                 .map(account -> ResponseEntity.ok(
                         ApiResponse.success(AccountResponse.from(account), "Account retrieved successfully")))
                 .orElseGet(() -> ResponseEntity
@@ -144,5 +160,17 @@ public class AuthController {
     public ResponseEntity<ApiResponse<Void>> resendEmailOtp(@Valid @RequestBody ResendEmailOtpRequest request) {
         accountService.resendEmailVerificationOtp(request.getEmail());
         return ResponseEntity.ok(ApiResponse.success(null, "Verification code sent"));
+    }
+
+    private String extractBearerToken(String authorizationHeader) {
+        if (authorizationHeader == null || authorizationHeader.isBlank()) {
+            return "";
+        }
+
+        if (authorizationHeader.regionMatches(true, 0, "Bearer ", 0, 7)) {
+            return authorizationHeader.substring(7).trim();
+        }
+
+        return authorizationHeader.trim();
     }
 }
