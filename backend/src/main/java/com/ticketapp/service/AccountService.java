@@ -36,31 +36,17 @@ public class AccountService {
      * Register a new account
      */
     @Transactional
-    public Account registerAccount(String email, String password, String fullName, 
-                                   String phoneNumber, String personalId, String address) {
+    public Account registerAccount(String email, String password, String firstName, String lastName) {
         // Validate email is unique
         if (accountRepository.existsByEmail(email)) {
             throw new IllegalArgumentException("Email already registered");
         }
 
-        // // Validate phone is unique
-        // if (phoneNumber != null && accountRepository.existsByPhoneNumber(phoneNumber)) {
-        //     throw new IllegalArgumentException("Phone number already registered");
-        // }
-
-        // // Validate personal ID is unique
-        // if (personalId != null && accountRepository.existsByPersonalId(personalId)) {
-        //     throw new IllegalArgumentException("Personal ID already registered");
-        // }
-
         Account account = new Account();
         account.setId(UUID.randomUUID().toString());
         account.setEmail(email);
         account.setPassword(passwordEncoder.encode(password));
-        account.setFullName(fullName);
-        account.setPhoneNumber(phoneNumber);
-        account.setPersonalId(personalId);
-        account.setAddress(address);
+        account.setFullName(buildFullName(firstName, lastName));
         account.setIsActive(true);
         account.setIsEmailVerified(false);
         account.setMustChangePassword(false);
@@ -77,6 +63,10 @@ public class AccountService {
         log.info("Account registered: {} ({})", savedAccount.getId(), savedAccount.getEmail());
 
         return savedAccount;
+    }
+
+    private String buildFullName(String firstName, String lastName) {
+        return (firstName.trim() + " " + lastName.trim()).trim();
     }
 
     /**
