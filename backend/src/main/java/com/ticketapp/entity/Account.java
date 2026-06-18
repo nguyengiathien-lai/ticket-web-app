@@ -45,7 +45,7 @@ public class Account {
     @Column(length = 200)
     private String address;
 
-    @Column(nullable = false, unique = true, length = 12)
+    @Column(unique = true, length = 12)
     private String personalId;
 
     @Column(nullable = false)

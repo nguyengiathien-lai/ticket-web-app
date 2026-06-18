@@ -17,3 +17,5 @@ public class GateValidationRequest {
     @NotBlank
     private String stationId;
 }
+
+
