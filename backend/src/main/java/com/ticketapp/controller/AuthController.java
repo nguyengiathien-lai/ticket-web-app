@@ -45,10 +45,8 @@ public class AuthController {
         Account account = accountService.registerAccount(
                 request.getEmail(),
                 request.getPassword(),
-                request.getFullName(),
-                request.getPhoneNumber(),
-                request.getPersonalId(),
-                request.getAddress()
+                request.getFirstName(),
+                request.getLastName()
         );
 
         return ResponseEntity
