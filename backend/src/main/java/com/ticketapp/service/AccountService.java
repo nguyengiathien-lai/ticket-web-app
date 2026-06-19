@@ -3,6 +3,7 @@ package com.ticketapp.service;
 import com.ticketapp.entity.Account;
 import com.ticketapp.entity.Role;
 import com.ticketapp.repository.AccountRepository;
+import com.ticketapp.repository.OtpCodeRepository;
 import com.ticketapp.repository.RoleRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,6 +26,9 @@ public class AccountService {
 
     @Autowired
     private RoleRepository roleRepository;
+
+    @Autowired
+    private OtpCodeRepository otpCodeRepository;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -190,6 +194,13 @@ public class AccountService {
     }
 
     /**
+     * Get all accounts for system admin management
+     */
+    public List<Account> getAllAccounts() {
+        return accountRepository.findAll();
+    }
+
+    /**
      * Assign role to account
      */
     @Transactional
@@ -265,6 +276,37 @@ public class AccountService {
     @Transactional
     public Account activateAccount(String accountId) {
         return updateStatus(accountId, true);
+    }
+
+    /**
+     * Update email verification status
+     */
+    @Transactional
+    public Account updateEmailVerificationStatus(String accountId, Boolean isEmailVerified) {
+        Account account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new IllegalArgumentException("Account not found"));
+
+        account.setIsEmailVerified(isEmailVerified);
+        account.setUpdatedAt(LocalDateTime.now());
+
+        Account updated = accountRepository.save(account);
+        log.info("Account {} email verification status updated to: {}", accountId, isEmailVerified);
+
+        return updated;
+    }
+
+    /**
+     * Permanently delete an account
+     */
+    @Transactional
+    public void deleteAccount(String accountId) {
+        Account account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new IllegalArgumentException("Account not found"));
+
+        otpCodeRepository.deleteByAccount(account);
+        account.getRoles().clear();
+        accountRepository.delete(account);
+        log.info("Account deleted: {}", accountId);
     }
 
     /**
