@@ -6,10 +6,12 @@ import com.ticketapp.dto.purchase.TicketPurchaseRequest;
 import com.ticketapp.dto.purchase.TicketPurchaseResponse;
 import com.ticketapp.dto.ticket.TicketRequest;
 import com.ticketapp.dto.ticket.TicketResponse;
+import com.ticketapp.entity.CardType;
 import com.ticketapp.entity.Order;
 import com.ticketapp.entity.OrderItem;
 import com.ticketapp.entity.Payment;
 import com.ticketapp.entity.PhysicalCard;
+import com.ticketapp.entity.TicketType;
 import com.ticketapp.repository.OrderRepository;
 import com.ticketapp.repository.PaymentRepository;
 import com.ticketapp.repository.PhysicalCardRepository;
@@ -20,23 +22,13 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 @Service
 public class PurchaseService {
 
-    private static final String CURRENCY = "VND";
-    private static final Map<String, PurchaseCatalogItem> TICKET_TYPES = Map.of(
-            "single_trip", new PurchaseCatalogItem("single_trip", "Single Trip", new BigDecimal("15000"), 1),
-            "route001", new PurchaseCatalogItem("route001", "Airport Route", new BigDecimal("15000"), 1),
-            "day_pass", new PurchaseCatalogItem("day_pass", "Day Pass", new BigDecimal("50000"), 1),
-            "weekly_pass", new PurchaseCatalogItem("weekly_pass", "Weekly Pass", new BigDecimal("200000"), 1));
-    private static final Map<String, PurchaseCatalogItem> CARD_PACKAGES = Map.of(
-            "pkg001", new PurchaseCatalogItem("pkg001", "Student Pass", new BigDecimal("150000"), 1),
-            "pkg002", new PurchaseCatalogItem("pkg002", "Commuter Pass", new BigDecimal("300000"), 1));
-
     private final AccountService accountService;
+    private final CatalogService catalogService;
     private final TicketRequestService ticketRequestService;
     private final OrderRepository orderRepository;
     private final PaymentRepository paymentRepository;
@@ -44,11 +36,13 @@ public class PurchaseService {
 
     public PurchaseService(
             AccountService accountService,
+            CatalogService catalogService,
             TicketRequestService ticketRequestService,
             OrderRepository orderRepository,
             PaymentRepository paymentRepository,
             PhysicalCardRepository physicalCardRepository) {
         this.accountService = accountService;
+        this.catalogService = catalogService;
         this.ticketRequestService = ticketRequestService;
         this.orderRepository = orderRepository;
         this.paymentRepository = paymentRepository;
@@ -58,15 +52,21 @@ public class PurchaseService {
     @Transactional
     public TicketPurchaseResponse purchaseTicket(TicketPurchaseRequest request) {
         requirePurchasableAccount(request.getUserId());
-        PurchaseCatalogItem ticketType = requireCatalogItem(TICKET_TYPES, request.getTicketType(), "Ticket type");
+        TicketType ticketType = catalogService.requireActiveTicketType(request.getTicketType());
         LocalDateTime now = LocalDateTime.now();
 
         Order order = createOrder(
                 request.getUserId(),
-                ticketType.price(),
+                ticketType.getPrice(),
+                ticketType.getCurrency(),
                 "COMPLETED",
                 now,
-                List.of(createOrderItem("TICKET", ticketType)));
+                List.of(createOrderItem(
+                        "TICKET",
+                        ticketType.getCode(),
+                        ticketType.getName(),
+                        1,
+                        ticketType.getPrice())));
         Payment payment = createCompletedPayment(order, request.getUserId(), request.getPaymentMethod(), now);
 
         TicketRequest ticketRequest = new TicketRequest();
@@ -79,7 +79,7 @@ public class PurchaseService {
                 .ticketId(ticket.getExternalTicketId())
                 .orderId(order.getExternalOrderId())
                 .userId(request.getUserId())
-                .ticketType(request.getTicketType())
+                .ticketType(ticketType.getCode())
                 .origin("Central Station")
                 .destination("Airport Terminal")
                 .totalPrice(order.getTotalAmount())
@@ -96,15 +96,21 @@ public class PurchaseService {
     @Transactional
     public CardPurchaseResponse purchaseCard(CardPurchaseRequest request) {
         requirePurchasableAccount(request.getUserId());
-        PurchaseCatalogItem cardPackage = requireCatalogItem(CARD_PACKAGES, request.getPackageId(), "Card package");
+        CardType cardType = catalogService.requireActiveCardType(request.getPackageId());
         LocalDateTime now = LocalDateTime.now();
 
         Order order = createOrder(
                 request.getUserId(),
-                cardPackage.price(),
+                cardType.getPrice(),
+                cardType.getCurrency(),
                 "PROCESSING",
                 now,
-                List.of(createOrderItem("PHYSICAL_CARD", cardPackage)));
+                List.of(createOrderItem(
+                        "PHYSICAL_CARD",
+                        cardType.getCode(),
+                        cardType.getName(),
+                        1,
+                        cardType.getPrice())));
         Payment payment = createCompletedPayment(order, request.getUserId(), request.getPaymentMethod(), now);
 
         PhysicalCard card = new PhysicalCard();
@@ -121,7 +127,7 @@ public class PurchaseService {
 
         TicketRequest ticketRequest = new TicketRequest();
         ticketRequest.setPassengerAccountId(request.getUserId());
-        ticketRequest.setTicketTypeCode(request.getPackageId());
+        ticketRequest.setTicketTypeCode(cardType.getCode());
         ticketRequest.setPhysicalCardExternalId(savedCard.getExternalCardId());
         ticketRequest.setIdempotencyKey(order.getExternalOrderId());
         ticketRequestService.requestTicket(ticketRequest);
@@ -132,7 +138,7 @@ public class PurchaseService {
                 .cardId(savedCard.getExternalCardId())
                 .cardUid(savedCard.getCardUid())
                 .maskedCardNumber(savedCard.getMaskedCardNumber())
-                .packageId(request.getPackageId())
+                .packageId(cardType.getCode())
                 .status("in delivery")
                 .deliveryAddress(request.getDeliveryAddress())
                 .estimatedDelivery(LocalDate.now().plusDays(3))
@@ -150,20 +156,10 @@ public class PurchaseService {
                 .orElseThrow(() -> new IllegalArgumentException("Passenger account not found, inactive, or unverified"));
     }
 
-    private PurchaseCatalogItem requireCatalogItem(
-            Map<String, PurchaseCatalogItem> catalog,
-            String itemCode,
-            String label) {
-        PurchaseCatalogItem item = catalog.get(itemCode);
-        if (item == null) {
-            throw new IllegalArgumentException(label + " not found: " + itemCode);
-        }
-        return item;
-    }
-
     private Order createOrder(
             String userId,
             BigDecimal totalAmount,
+            String currency,
             String status,
             LocalDateTime now,
             List<OrderItem> items) {
@@ -172,7 +168,7 @@ public class PurchaseService {
         order.setPassengerAccountId(userId);
         order.setOrderCode("CONF" + shortToken().toUpperCase());
         order.setTotalAmount(totalAmount);
-        order.setCurrency(CURRENCY);
+        order.setCurrency(currency);
         order.setStatus(status);
         order.setOrderedAt(now);
         order.setPaidAt(now);
@@ -182,15 +178,15 @@ public class PurchaseService {
         return orderRepository.save(order);
     }
 
-    private OrderItem createOrderItem(String itemType, PurchaseCatalogItem item) {
+    private OrderItem createOrderItem(String itemType, String itemCode, String itemName, int quantity, BigDecimal price) {
         return new OrderItem(
                 "item_" + shortToken(),
                 itemType,
-                item.code(),
-                item.name(),
-                item.quantity(),
-                item.price(),
-                item.price());
+                itemCode,
+                itemName,
+                quantity,
+                price,
+                price.multiply(BigDecimal.valueOf(quantity)));
     }
 
     private Payment createCompletedPayment(Order order, String userId, String paymentMethod, LocalDateTime now) {
@@ -216,8 +212,5 @@ public class PurchaseService {
     private String randomDigits(int length) {
         String value = UUID.randomUUID().toString().replaceAll("\\D", "");
         return value.substring(0, Math.min(length, value.length()));
-    }
-
-    private record PurchaseCatalogItem(String code, String name, BigDecimal price, int quantity) {
     }
 }

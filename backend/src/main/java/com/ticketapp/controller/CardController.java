@@ -1,9 +1,11 @@
 package com.ticketapp.controller;
 
 import com.ticketapp.dto.ApiResponse;
+import com.ticketapp.dto.catalog.CardTypeSyncRequest;
 import com.ticketapp.dto.purchase.CardPurchaseRequest;
 import com.ticketapp.dto.purchase.CardPurchaseResponse;
 import com.ticketapp.dto.purchase.CardTypeResponse;
+import com.ticketapp.service.CatalogService;
 import com.ticketapp.service.PurchaseService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -21,16 +23,26 @@ import java.util.List;
 public class CardController {
 
     private final PurchaseService purchaseService;
+    private final CatalogService catalogService;
 
-    public CardController(PurchaseService purchaseService) {
+    public CardController(PurchaseService purchaseService, CatalogService catalogService) {
         this.purchaseService = purchaseService;
+        this.catalogService = catalogService;
     }
 
     @GetMapping("/types")
     public ResponseEntity<ApiResponse<List<CardTypeResponse>>> getCardTypes() {
         return ResponseEntity.ok(ApiResponse.success(
-                purchaseService.getCardTypes(),
-                "Card types retrieved successfully"));
+                catalogService.getActiveCardTypes(),
+                "Cached card types retrieved successfully"));
+    }
+
+    @PostMapping("/types/cache")
+    public ResponseEntity<ApiResponse<List<CardTypeResponse>>> cacheCardTypes(
+            @Valid @RequestBody List<@Valid CardTypeSyncRequest> request) {
+        return ResponseEntity.ok(ApiResponse.success(
+                catalogService.cacheCardTypes(request),
+                "Card types cached successfully"));
     }
 
     @PostMapping("/purchase")

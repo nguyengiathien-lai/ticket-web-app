@@ -1,8 +1,14 @@
 package com.ticketapp.controller;
 
 import com.ticketapp.dto.ApiResponse;
+import com.ticketapp.dto.catalog.TicketTypeSyncRequest;
+import com.ticketapp.dto.purchase.TicketPurchaseRequest;
+import com.ticketapp.dto.purchase.TicketPurchaseResponse;
 import com.ticketapp.dto.ticket.TicketRequest;
 import com.ticketapp.dto.ticket.TicketResponse;
+import com.ticketapp.dto.ticket.TicketTypeResponse;
+import com.ticketapp.service.CatalogService;
+import com.ticketapp.service.PurchaseService;
 import com.ticketapp.service.TicketRequestService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -21,9 +27,31 @@ import java.util.List;
 public class TicketController {
 
     private final TicketRequestService ticketRequestService;
+    private final PurchaseService purchaseService;
+    private final CatalogService catalogService;
 
-    public TicketController(TicketRequestService ticketRequestService) {
+    public TicketController(
+            TicketRequestService ticketRequestService,
+            PurchaseService purchaseService,
+            CatalogService catalogService) {
         this.ticketRequestService = ticketRequestService;
+        this.purchaseService = purchaseService;
+        this.catalogService = catalogService;
+    }
+
+    @GetMapping("/types")
+    public ResponseEntity<ApiResponse<List<TicketTypeResponse>>> getTicketTypes() {
+        return ResponseEntity.ok(ApiResponse.success(
+                catalogService.getActiveTicketTypes(),
+                "Cached ticket types retrieved successfully"));
+    }
+
+    @PostMapping("/types/cache")
+    public ResponseEntity<ApiResponse<List<TicketTypeResponse>>> cacheTicketTypes(
+            @Valid @RequestBody List<@Valid TicketTypeSyncRequest> request) {
+        return ResponseEntity.ok(ApiResponse.success(
+                catalogService.cacheTicketTypes(request),
+                "Ticket types cached successfully"));
     }
 
     @PostMapping("/request")
@@ -34,6 +62,16 @@ public class TicketController {
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(ApiResponse.success(ticket, "Ticket requested from external system and cached locally"));
+    }
+
+    @PostMapping("/purchase")
+    public ResponseEntity<ApiResponse<TicketPurchaseResponse>> purchaseTicket(
+            @Valid @RequestBody TicketPurchaseRequest request) {
+        TicketPurchaseResponse purchase = purchaseService.purchaseTicket(request);
+
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(ApiResponse.success(purchase, "Ticket purchased successfully"));
     }
 
     @GetMapping("/{ticketCode}")

@@ -17,6 +17,7 @@ public class DataInitializer implements CommandLineRunner {
     @Override
     public void run(String... args) {
         createRoleIfMissing("PASSENGER", "Default passenger account role");
+        createRoleIfMissing("APP_ADMIN", "System administrator account role");
     }
 
     private void createRoleIfMissing(String name, String description) {

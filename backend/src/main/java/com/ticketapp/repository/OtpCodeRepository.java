@@ -14,4 +14,6 @@ public interface OtpCodeRepository extends JpaRepository<OtpCode, String> {
     Optional<OtpCode> findFirstByAccountAndTypeAndIsUsedFalseOrderByCreatedAtDesc(Account account, String type);
 
     List<OtpCode> findByAccountAndTypeAndIsUsedFalse(Account account, String type);
+
+    void deleteByAccount(Account account);
 }

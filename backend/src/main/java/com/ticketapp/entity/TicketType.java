@@ -15,12 +15,22 @@ import java.time.LocalDateTime;
 public class TicketType {
 
     private String externalTicketTypeId;
+
     private String code;
+
     private String name;
+
     private Integer durationDays;
+
     private BigDecimal price;
+
     private String currency;
+
     private String description;
+
+    private Boolean active = true;
+
     private LocalDateTime cachedAt;
+
     private LocalDateTime expiresAt;
 }
