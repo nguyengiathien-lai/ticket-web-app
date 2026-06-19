@@ -76,30 +76,30 @@ public class AccountController {
         return ResponseEntity.ok(ApiResponse.success(AccountResponse.from(account), "Account activated successfully"));
     }
 
-    @PutMapping("/{accountId}/inactivate")
-    public ResponseEntity<ApiResponse<AccountResponse>> inactivateAccount(
+    @PutMapping("/{accountId}/deactivate")
+    public ResponseEntity<ApiResponse<AccountResponse>> deactivateAccount(
             @RequestHeader(name = "Authorization", required = false) String authorizationHeader,
             @PathVariable String accountId) {
         Account admin = requireAdmin(authorizationHeader);
-        preventSelfManagement(admin, accountId, "inactivate your own admin account");
+        preventSelfManagement(admin, accountId, "deactivate your own admin account");
 
         Account account = accountService.deactivateAccount(accountId);
         return ResponseEntity.ok(ApiResponse.success(AccountResponse.from(account), "Account inactivated successfully"));
     }
 
-    @PutMapping("/{accountId}/status")
-    public ResponseEntity<ApiResponse<AccountResponse>> updateAccountStatus(
-            @RequestHeader(name = "Authorization", required = false) String authorizationHeader,
-            @PathVariable String accountId,
-            @Valid @RequestBody AccountStatusRequest request) {
-        Account admin = requireAdmin(authorizationHeader);
-        if (!request.getActive()) {
-            preventSelfManagement(admin, accountId, "inactivate your own admin account");
-        }
+    // @PutMapping("/{accountId}/status")
+    // public ResponseEntity<ApiResponse<AccountResponse>> updateAccountStatus(
+    //         @RequestHeader(name = "Authorization", required = false) String authorizationHeader,
+    //         @PathVariable String accountId,
+    //         @Valid @RequestBody AccountStatusRequest request) {
+    //     Account admin = requireAdmin(authorizationHeader);
+    //     if (!request.getActive()) {
+    //         preventSelfManagement(admin, accountId, "inactivate your own admin account");
+    //     }
 
-        Account account = accountService.updateStatus(accountId, request.getActive());
-        return ResponseEntity.ok(ApiResponse.success(AccountResponse.from(account), "Account status updated successfully"));
-    }
+    //     Account account = accountService.updateStatus(accountId, request.getActive());
+    //     return ResponseEntity.ok(ApiResponse.success(AccountResponse.from(account), "Account status updated successfully"));
+    // }
 
     @PutMapping("/{accountId}/email-verification")
     public ResponseEntity<ApiResponse<AccountResponse>> updateEmailVerificationStatus(
