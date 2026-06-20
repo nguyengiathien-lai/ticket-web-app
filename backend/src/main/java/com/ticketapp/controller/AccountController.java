@@ -6,10 +6,14 @@ import com.ticketapp.dto.account.AccountRoleRequest;
 import com.ticketapp.dto.account.AccountStatusRequest;
 import com.ticketapp.dto.account.AdminResetPasswordRequest;
 import com.ticketapp.dto.auth.AccountResponse;
+import com.ticketapp.dto.card.PhysicalCardResponse;
+import com.ticketapp.dto.ticket.TicketResponse;
 import com.ticketapp.entity.Account;
 import com.ticketapp.service.AccountService;
 import com.ticketapp.service.AuthenticationService;
 import com.ticketapp.service.AuthorizationService;
+import com.ticketapp.service.PhysicalCardService;
+import com.ticketapp.service.TicketRequestService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -31,14 +35,42 @@ public class AccountController {
     private final AccountService accountService;
     private final AuthenticationService authenticationService;
     private final AuthorizationService authorizationService;
+    private final TicketRequestService ticketRequestService;
+    private final PhysicalCardService physicalCardService;
 
     public AccountController(
             AccountService accountService,
             AuthenticationService authenticationService,
-            AuthorizationService authorizationService) {
+            AuthorizationService authorizationService,
+            TicketRequestService ticketRequestService,
+            PhysicalCardService physicalCardService) {
         this.accountService = accountService;
         this.authenticationService = authenticationService;
         this.authorizationService = authorizationService;
+        this.ticketRequestService = ticketRequestService;
+        this.physicalCardService = physicalCardService;
+    }
+
+    @GetMapping("/{accountId}/tickets")
+    public ResponseEntity<ApiResponse<List<TicketResponse>>> getPastTickets(
+            @RequestHeader(name = "Authorization", required = false) String authorizationHeader,
+            @PathVariable String accountId) {
+        requireSelfOrAdmin(authorizationHeader, accountId);
+
+        return ResponseEntity.ok(ApiResponse.success(
+                ticketRequestService.getCachedTicketsForPassenger(accountId),
+                "Past tickets retrieved successfully"));
+    }
+
+    @GetMapping("/{accountId}/cards")
+    public ResponseEntity<ApiResponse<List<PhysicalCardResponse>>> getPastCards(
+            @RequestHeader(name = "Authorization", required = false) String authorizationHeader,
+            @PathVariable String accountId) {
+        requireSelfOrAdmin(authorizationHeader, accountId);
+
+        return ResponseEntity.ok(ApiResponse.success(
+                physicalCardService.getCardsForPassenger(accountId),
+                "Past cards retrieved successfully"));
     }
 
     @GetMapping
@@ -168,6 +200,20 @@ public class AccountController {
                     return account;
                 })
                 .orElseThrow(() -> new SecurityException("Valid admin token is required"));
+    }
+
+    private Account requireSelfOrAdmin(String authorizationHeader, String targetAccountId) {
+        Account authenticatedAccount = authenticationService
+                .getAuthenticatedAccountByToken(extractBearerToken(authorizationHeader))
+                .orElseThrow(() -> new SecurityException("Valid authentication token is required"));
+
+        if (!authenticatedAccount.getId().equals(targetAccountId)) {
+            authorizationService.requireAdmin(authenticatedAccount.getId());
+            accountService.findById(targetAccountId)
+                    .orElseThrow(() -> new IllegalArgumentException("Account not found"));
+        }
+
+        return authenticatedAccount;
     }
 
     private void preventSelfManagement(Account admin, String targetAccountId, String action) {
