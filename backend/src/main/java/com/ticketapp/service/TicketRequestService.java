@@ -63,6 +63,7 @@ public class TicketRequestService {
                 .orElseThrow(() -> new IllegalArgumentException("Ticket not found"));
     }
 
+    @Transactional(readOnly = true)
     public List<TicketResponse> getCachedTicketsForPassenger(String passengerAccountId) {
         return ticketRepository.findByPassengerAccountIdOrderByIssuedAtDesc(passengerAccountId)
                 .stream()
