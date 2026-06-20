@@ -24,6 +24,9 @@ public class AuthenticationService {
     @Autowired
     private JwtService jwtService;
 
+    @Autowired(required = false)
+    private AuditService auditService;
+
     private final Map<String, Long> revokedTokens = new ConcurrentHashMap<>();
 
     /**
@@ -35,6 +38,8 @@ public class AuthenticationService {
 
         if (account.isEmpty()) {
             log.warn("Authentication failed: Account not found or inactive for email: {}", email);
+            recordAuthenticationActivity(null, email, AuditService.LOGIN_FAILURE,
+                    "Account was not found or is inactive");
             return Optional.empty();
         }
 
@@ -43,16 +48,22 @@ public class AuthenticationService {
         // Check if email is verified
         if (!acc.getIsEmailVerified()) {
             log.warn("Authentication failed: Email not verified for: {}", email);
+            recordAuthenticationActivity(acc.getId(), email, AuditService.LOGIN_FAILURE,
+                    "Email is not verified");
             return Optional.empty();
         }
 
         // Verify password
         if (!accountService.verifyPassword(password, acc.getPassword())) {
             log.warn("Authentication failed: Invalid password for email: {}", email);
+            recordAuthenticationActivity(acc.getId(), email, AuditService.LOGIN_FAILURE,
+                    "Invalid credentials");
             return Optional.empty();
         }
 
         log.info("Authentication successful for: {}", email);
+        recordAuthenticationActivity(acc.getId(), email, AuditService.LOGIN_SUCCESS,
+                "Credentials authenticated successfully");
         return account;
     }
 
@@ -170,8 +181,11 @@ public class AuthenticationService {
     @Transactional
     public void logout(String token) {
         if (jwtService.isTokenValid(token)) {
+            String accountId = jwtService.extractAccountId(token);
             revokedTokens.put(token, jwtService.extractExpirationEpochSeconds(token));
-            log.info("User logout: {}", jwtService.extractAccountId(token));
+            log.info("User logout: {}", accountId);
+            recordAuthenticationActivity(accountId, null, AuditService.LOGOUT_SUCCESS,
+                    "Session logged out successfully");
         }
     }
 
@@ -186,5 +200,21 @@ public class AuthenticationService {
     private void removeExpiredRevokedTokens() {
         long now = Instant.now().getEpochSecond();
         revokedTokens.entrySet().removeIf(entry -> entry.getValue() <= now);
+    }
+
+    private void recordAuthenticationActivity(
+            String accountId,
+            String attemptedEmail,
+            String action,
+            String details) {
+        if (auditService == null) {
+            return;
+        }
+
+        try {
+            auditService.recordAuthenticationActivity(accountId, attemptedEmail, action, details);
+        } catch (RuntimeException exception) {
+            log.error("Unable to persist authentication audit event {}", action, exception);
+        }
     }
 }
