@@ -8,10 +8,15 @@ import {
 } from "lucide-react";
 
 const resultView = {
-  VALID: {
-    label: "Access granted",
+  SENT: {
+    label: "Event sent",
     className: "valid",
     icon: CheckCircle2
+  },
+  DELIVERY_FAILED: {
+    label: "Delivery failed",
+    className: "warning",
+    icon: AlertTriangle
   },
   USED: {
     label: "Already used",
@@ -73,7 +78,7 @@ export default function ValidationResult({ loading, result }) {
       <dl className="result-meta">
         <div>
           <dt>Ticket</dt>
-          <dd>{result.ticketCode}</dd>
+          <dd>{result.ticketId}</dd>
         </div>
         <div>
           <dt>Gate</dt>

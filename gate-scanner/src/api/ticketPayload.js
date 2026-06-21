@@ -34,9 +34,13 @@ function extractFromJson(payload) {
     }
 
     return (
+      value.ticketId ??
+      value.externalTicketId ??
       value.ticketCode ??
       value.code ??
+      value.ticket_id ??
       value.ticket_code ??
+      value.ticket?.ticketId ??
       value.ticket?.ticketCode ??
       value.ticket?.code ??
       ""
@@ -50,8 +54,11 @@ function extractFromUrl(payload) {
   try {
     const url = new URL(payload);
     const queryCode =
+      url.searchParams.get("ticketId") ??
+      url.searchParams.get("externalTicketId") ??
       url.searchParams.get("ticketCode") ??
       url.searchParams.get("code") ??
+      url.searchParams.get("ticket_id") ??
       url.searchParams.get("ticket_code");
 
     if (queryCode) {

@@ -1,23 +1,32 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080";
 
-export async function validateTicket({ ticketCode, gateId, stationId }) {
+export async function validateTicket({ ticketId, gateId, stationId, eventType }) {
   const response = await fetch(`${API_BASE_URL}/api/gate/validate-ticket`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
     },
     body: JSON.stringify({
-      ticketCode,
+      ticketId,
       gateId,
-      stationId
+      stationId,
+      eventType,
+      recordedTime: new Date().toISOString()
     })
   });
 
   const payload = await response.json();
 
-  if (!response.ok || !payload.success) {
+  if (!response.ok) {
     throw new Error(payload.message || "Ticket validation failed");
   }
 
-  return payload.data;
+  return {
+    status: "SENT",
+    ticketId,
+    gateId,
+    stationId,
+    eventType,
+    message: payload.message
+  };
 }

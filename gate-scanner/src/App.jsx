@@ -6,6 +6,7 @@ import ValidationResult from "./components/ValidationResult";
 
 const GATE_ID = import.meta.env.VITE_GATE_ID ?? "GATE-01";
 const STATION_ID = import.meta.env.VITE_STATION_ID ?? "STATION-01";
+const EVENT_TYPE = import.meta.env.VITE_GATE_EVENT_TYPE ?? "CHECK_IN";
 
 export default function App() {
   const [loading, setLoading] = useState(false);
@@ -14,14 +15,15 @@ export default function App() {
 
   const gateLabel = useMemo(() => `${STATION_ID} / ${GATE_ID}`, []);
 
-  const handleScan = useCallback(async ticketCode => {
+  const handleScan = useCallback(async ticketId => {
     setLoading(true);
 
     try {
       const validation = await validateTicket({
-        ticketCode,
+        ticketId,
         gateId: GATE_ID,
-        stationId: STATION_ID
+        stationId: STATION_ID,
+        eventType: EVENT_TYPE
       });
 
       setResult(validation);
@@ -29,7 +31,7 @@ export default function App() {
     } catch (error) {
       const failedResult = {
         status: "ERROR",
-        ticketCode,
+        ticketId,
         gateId: GATE_ID,
         stationId: STATION_ID,
         message: error.message
@@ -63,11 +65,11 @@ export default function App() {
           ) : (
             <ol>
               {history.map((item, index) => (
-                <li key={`${item.ticketCode}-${index}`}>
+                <li key={`${item.ticketId}-${index}`}>
                   <span className={`history-status ${item.status.toLowerCase()}`}>
                     {item.status}
                   </span>
-                  <span>{item.ticketCode}</span>
+                  <span>{item.ticketId}</span>
                 </li>
               ))}
             </ol>
