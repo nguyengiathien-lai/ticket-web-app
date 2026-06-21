@@ -13,10 +13,9 @@ target/
 *~
 .DS_Store
 
-# Spring Boot
+# Spring Boot configuration is safe to track when it contains environment
+# references only. Keep machine-specific property overrides out of Git.
 application.properties
-application.yml
-application-*.yml
 application-*.properties
 
 # Environment

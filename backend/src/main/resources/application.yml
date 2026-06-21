@@ -1,0 +1,69 @@
+spring:
+  application:
+    name: ticket-backend
+
+  config:
+    import: optional:file:.env[.properties],optional:file:../.env[.properties]
+  
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/ticket_app}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${DB_PASSWORD:}
+    driver-class-name: org.postgresql.Driver
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      database: ${REDIS_DATABASE:0}
+      repositories:
+        enabled: false
+  
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        use_sql_comments: true
+    show-sql: false
+  
+  profiles:
+    active: dev
+
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+
+logging:
+  level:
+    root: INFO
+    com.ticketapp: DEBUG
+
+
+app:
+  mail:
+    from: ${MAIL_FROM:${MAIL_USERNAME:}}
+  jwt:
+    secret: ${JWT_SECRET:change-this-local-dev-secret-that-is-at-least-32-bytes}
+    expiration-seconds: ${JWT_EXPIRATION_SECONDS:86400}
+  external-ticket:
+    base-url: ${EXTERNAL_TICKET_BASE_URL:}
+    request-path: ${EXTERNAL_TICKET_REQUEST_PATH:/api/tickets/request}
+    scan-record-path: ${EXTERNAL_SCAN_RECORD_PATH:/scan-record}
+    mock-enabled: ${EXTERNAL_TICKET_MOCK_ENABLED:true}
