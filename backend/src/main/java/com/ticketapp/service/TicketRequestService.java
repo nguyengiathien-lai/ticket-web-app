@@ -1,6 +1,6 @@
 package com.ticketapp.service;
 
-import com.ticketapp.client.ExternalTicketClient;
+import com.ticketapp.client.level5.Level5Client;
 import com.ticketapp.dto.external.ExternalTicketRequest;
 import com.ticketapp.dto.external.ExternalTicketResponse;
 import com.ticketapp.dto.ticket.TicketRequest;
@@ -17,15 +17,15 @@ import java.util.List;
 public class TicketRequestService {
 
     private final AccountService accountService;
-    private final ExternalTicketClient externalTicketClient;
+    private final Level5Client level5Client;
     private final TicketRepository ticketRepository;
 
     public TicketRequestService(
             AccountService accountService,
-            ExternalTicketClient externalTicketClient,
+            Level5Client level5Client,
             TicketRepository ticketRepository) {
         this.accountService = accountService;
-        this.externalTicketClient = externalTicketClient;
+        this.level5Client = level5Client;
         this.ticketRepository = ticketRepository;
     }
 
@@ -35,7 +35,7 @@ public class TicketRequestService {
                 .filter(account -> account.getIsActive() && account.getIsEmailVerified())
                 .orElseThrow(() -> new IllegalArgumentException("Passenger account not found, inactive, or unverified"));
 
-        ExternalTicketResponse externalTicket = externalTicketClient.requestTicket(
+        ExternalTicketResponse externalTicket = level5Client.requestTicket(
                 ExternalTicketRequest.builder()
                         .passengerAccountId(request.getPassengerAccountId())
                         .ticketTypeCode(request.getTicketTypeCode())

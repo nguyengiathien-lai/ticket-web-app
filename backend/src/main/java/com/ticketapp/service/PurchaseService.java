@@ -1,5 +1,12 @@
 package com.ticketapp.service;
 
+import com.ticketapp.client.level4.Level4Client;
+import com.ticketapp.client.level5.Level5Client;
+import com.ticketapp.dto.external.ExternalCardRequest;
+import com.ticketapp.dto.external.ExternalCardResponse;
+import com.ticketapp.dto.external.PurchaseActivityRequest;
+import com.ticketapp.dto.external.QrCodeRequest;
+import com.ticketapp.dto.external.QrCodeResponse;
 import com.ticketapp.dto.purchase.CardPurchaseRequest;
 import com.ticketapp.dto.purchase.CardPurchaseResponse;
 import com.ticketapp.dto.purchase.TicketPurchaseRequest;
@@ -33,6 +40,8 @@ public class PurchaseService {
     private final OrderRepository orderRepository;
     private final PaymentRepository paymentRepository;
     private final PhysicalCardRepository physicalCardRepository;
+    private final Level4Client level4Client;
+    private final Level5Client level5Client;
 
     public PurchaseService(
             AccountService accountService,
@@ -40,13 +49,17 @@ public class PurchaseService {
             TicketRequestService ticketRequestService,
             OrderRepository orderRepository,
             PaymentRepository paymentRepository,
-            PhysicalCardRepository physicalCardRepository) {
+            PhysicalCardRepository physicalCardRepository,
+            Level4Client level4Client,
+            Level5Client level5Client) {
         this.accountService = accountService;
         this.catalogService = catalogService;
         this.ticketRequestService = ticketRequestService;
         this.orderRepository = orderRepository;
         this.paymentRepository = paymentRepository;
         this.physicalCardRepository = physicalCardRepository;
+        this.level4Client = level4Client;
+        this.level5Client = level5Client;
     }
 
     @Transactional
@@ -74,6 +87,8 @@ public class PurchaseService {
         ticketRequest.setTicketTypeCode(request.getTicketType());
         ticketRequest.setIdempotencyKey(order.getExternalOrderId());
         TicketResponse ticket = ticketRequestService.requestTicket(ticketRequest);
+        QrCodeResponse qrCode = level4Client.generateQrCode(new QrCodeRequest(ticket.getExternalTicketId()));
+        recordPurchase(order, payment, request.getUserId(), ticket.getExternalTicketId(), "TICKET_PURCHASE", now);
 
         return TicketPurchaseResponse.builder()
                 .ticketId(ticket.getExternalTicketId())
@@ -85,7 +100,7 @@ public class PurchaseService {
                 .totalPrice(order.getTotalAmount())
                 .currency(order.getCurrency())
                 .status("confirmed")
-                .qrCode(ticket.getTicketCode())
+                .qrCode(qrCode.getQrCode())
                 .confirmationNumber(order.getOrderCode())
                 .paymentId(payment.getExternalPaymentId())
                 .paymentStatus(payment.getStatus())
@@ -113,16 +128,24 @@ public class PurchaseService {
                         cardType.getPrice())));
         Payment payment = createCompletedPayment(order, request.getUserId(), request.getPaymentMethod(), now);
 
+        ExternalCardResponse externalCard = level5Client.requestCard(ExternalCardRequest.builder()
+                .passengerAccountId(request.getUserId())
+                .cardTypeCode(cardType.getCode())
+                .orderId(order.getExternalOrderId())
+                .requestSource("TICKET_WEB_APP")
+                .build());
+        requireCompleteCard(externalCard);
+
         PhysicalCard card = new PhysicalCard();
-        card.setExternalCardId("card_" + shortToken());
+        card.setExternalCardId(externalCard.getExternalCardId());
         card.setPassengerAccountId(request.getUserId());
-        card.setCardUid("UID-" + shortToken().toUpperCase());
-        card.setMaskedCardNumber("**** **** **** " + randomDigits(4));
-        card.setStatus("INACTIVE");
-        card.setIssuedAt(now);
-        card.setExpiredAt(now.plusDays(30));
+        card.setCardUid(externalCard.getCardUid());
+        card.setMaskedCardNumber(externalCard.getMaskedCardNumber());
+        card.setStatus(externalCard.getStatus());
+        card.setIssuedAt(externalCard.getIssuedAt() == null ? now : externalCard.getIssuedAt());
+        card.setExpiredAt(externalCard.getExpiresAt());
         card.setCachedAt(now);
-        card.setExpiresAt(now.plusDays(30));
+        card.setExpiresAt(externalCard.getExpiresAt());
         PhysicalCard savedCard = physicalCardRepository.save(card);
 
         TicketRequest ticketRequest = new TicketRequest();
@@ -131,6 +154,7 @@ public class PurchaseService {
         ticketRequest.setPhysicalCardExternalId(savedCard.getExternalCardId());
         ticketRequest.setIdempotencyKey(order.getExternalOrderId());
         ticketRequestService.requestTicket(ticketRequest);
+        recordPurchase(order, payment, request.getUserId(), savedCard.getExternalCardId(), "CARD_PURCHASE", now);
 
         return CardPurchaseResponse.builder()
                 .orderId(order.getExternalOrderId())
@@ -205,12 +229,34 @@ public class PurchaseService {
         return paymentRepository.save(payment);
     }
 
+    private void recordPurchase(
+            Order order,
+            Payment payment,
+            String passengerAccountId,
+            String purchasedItemId,
+            String activityType,
+            LocalDateTime occurredAt) {
+        level5Client.recordPurchase(PurchaseActivityRequest.builder()
+                .orderId(order.getExternalOrderId())
+                .activityType(activityType)
+                .passengerAccountId(passengerAccountId)
+                .purchasedItemId(purchasedItemId)
+                .amount(order.getTotalAmount())
+                .currency(order.getCurrency())
+                .paymentId(payment.getExternalPaymentId())
+                .occurredAt(occurredAt)
+                .build());
+    }
+
+    private void requireCompleteCard(ExternalCardResponse card) {
+        if (card == null || card.getExternalCardId() == null || card.getCardUid() == null
+                || card.getMaskedCardNumber() == null || card.getStatus() == null) {
+            throw new IllegalStateException("Level 5 returned an incomplete card");
+        }
+    }
+
     private String shortToken() {
         return UUID.randomUUID().toString().replace("-", "").substring(0, 12);
     }
 
-    private String randomDigits(int length) {
-        String value = UUID.randomUUID().toString().replaceAll("\\D", "");
-        return value.substring(0, Math.min(length, value.length()));
-    }
 }
