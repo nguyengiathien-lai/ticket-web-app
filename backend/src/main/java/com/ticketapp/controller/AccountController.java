@@ -9,11 +9,13 @@ import com.ticketapp.dto.auth.AccountResponse;
 import com.ticketapp.dto.card.PhysicalCardResponse;
 import com.ticketapp.dto.ticket.TicketResponse;
 import com.ticketapp.entity.Account;
+import com.ticketapp.entity.TravelHistory;
 import com.ticketapp.service.AccountService;
 import com.ticketapp.service.AuthenticationService;
 import com.ticketapp.service.AuthorizationService;
 import com.ticketapp.service.PhysicalCardService;
 import com.ticketapp.service.TicketRequestService;
+import com.ticketapp.service.TravelHistoryService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -37,18 +39,21 @@ public class AccountController {
     private final AuthorizationService authorizationService;
     private final TicketRequestService ticketRequestService;
     private final PhysicalCardService physicalCardService;
+    private final TravelHistoryService travelHistoryService;
 
     public AccountController(
             AccountService accountService,
             AuthenticationService authenticationService,
             AuthorizationService authorizationService,
             TicketRequestService ticketRequestService,
-            PhysicalCardService physicalCardService) {
+            PhysicalCardService physicalCardService,
+            TravelHistoryService travelHistoryService) {
         this.accountService = accountService;
         this.authenticationService = authenticationService;
         this.authorizationService = authorizationService;
         this.ticketRequestService = ticketRequestService;
         this.physicalCardService = physicalCardService;
+        this.travelHistoryService = travelHistoryService;
     }
 
     @GetMapping("/{accountId}/tickets")
@@ -71,6 +76,17 @@ public class AccountController {
         return ResponseEntity.ok(ApiResponse.success(
                 physicalCardService.getCardsForPassenger(accountId),
                 "Past cards retrieved successfully"));
+    }
+
+    @GetMapping("/{accountId}/travels")
+    public ResponseEntity<ApiResponse<List<TravelHistory>>> getTravelHistory(
+            @RequestHeader(name = "Authorization", required = false) String authorizationHeader,
+            @PathVariable String accountId) {
+        requireSelfOrAdmin(authorizationHeader, accountId);
+
+        return ResponseEntity.ok(ApiResponse.success(
+                travelHistoryService.getTravelHistoryForPassenger(accountId),
+                "Travel history retrieved successfully"));
     }
 
     @GetMapping
