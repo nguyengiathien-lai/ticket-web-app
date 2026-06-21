@@ -1,11 +1,12 @@
 package com.ticketapp.controller;
 
-import com.ticketapp.dto.ApiResponse;
-import com.ticketapp.dto.gate.GateValidationRequest;
-import com.ticketapp.dto.gate.GateValidationResponse;
+import com.ticketapp.dto.gate.ValidationRecordRequest;
+import com.ticketapp.dto.gate.ValidationRecordResponse;
 import com.ticketapp.service.GateValidationService;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -22,9 +23,15 @@ public class GateController {
     }
 
     @PostMapping("/validate-ticket")
-    public ResponseEntity<ApiResponse<GateValidationResponse>> validateTicket(
-            @Valid @RequestBody GateValidationRequest request) {
-        GateValidationResponse response = gateValidationService.validateTicket(request);
-        return ResponseEntity.ok(ApiResponse.success(response, response.getMessage()));
+    public ResponseEntity<ValidationRecordResponse> validateTicket(
+            @Valid @RequestBody ValidationRecordRequest request) {
+        return ResponseEntity.ok(gateValidationService.recordValidation(request));
+    }
+
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<ValidationRecordResponse> handleDeliveryFailure(IllegalStateException exception) {
+        return ResponseEntity
+                .status(HttpStatus.BAD_GATEWAY)
+                .body(new ValidationRecordResponse("Scan record was not received by the higher system"));
     }
 }
