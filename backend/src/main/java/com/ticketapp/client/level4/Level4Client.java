@@ -8,5 +8,5 @@ import com.ticketapp.dto.gate.ValidationRecordResponse;
 public interface Level4Client {
     QrCodeResponse generateQrCode(QrCodeRequest request);
 
-    ValidationRecordResponse recordScan(ValidationRecordRequest request);
+    ValidationRecordResponse send(ValidationRecordRequest request);
 }

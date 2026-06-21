@@ -15,9 +15,35 @@ public class GateValidationService {
     }
 
     public ValidationRecordResponse recordValidation(ValidationRecordRequest request) {
-        request.setTicketId(request.getTicketId().trim());
-        request.setGateId(request.getGateId().trim());
-        request.setStationId(request.getStationId().trim());
-        return level4Client.recordScan(request);
+        if (request == null) {
+            throw new IllegalArgumentException("Validation record is required");
+        }
+
+        ValidationRecordRequest outboundRecord = new ValidationRecordRequest();
+        outboundRecord.setTicketId(requireText(request.getTicketId(), "Ticket ID"));
+        outboundRecord.setGateId(requireText(request.getGateId(), "Gate ID"));
+        outboundRecord.setStationId(requireText(request.getStationId(), "Station ID"));
+
+        if (request.getEventType() == null) {
+            throw new IllegalArgumentException("Event type is required");
+        }
+        if (request.getRecordedTime() == null) {
+            throw new IllegalArgumentException("Recorded time is required");
+        }
+        outboundRecord.setEventType(request.getEventType());
+        outboundRecord.setRecordedTime(request.getRecordedTime());
+
+        ValidationRecordResponse response = level4Client.recordScan(outboundRecord);
+        if (response == null || response.getMessage() == null || response.getMessage().isBlank()) {
+            throw new IllegalStateException("Level 4 returned an incomplete scan response");
+        }
+        return response;
+    }
+
+    private String requireText(String value, String fieldName) {
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException(fieldName + " is required");
+        }
+        return value.trim();
     }
 }
