@@ -3,7 +3,6 @@ package com.ticketapp.controller;
 import com.ticketapp.dto.ApiResponse;
 import com.ticketapp.dto.account.AccountEmailVerificationRequest;
 import com.ticketapp.dto.account.AccountRoleRequest;
-import com.ticketapp.dto.account.AccountStatusRequest;
 import com.ticketapp.dto.account.AdminResetPasswordRequest;
 import com.ticketapp.dto.auth.AccountResponse;
 import com.ticketapp.dto.card.PhysicalCardResponse;
