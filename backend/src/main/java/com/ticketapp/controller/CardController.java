@@ -34,7 +34,7 @@ public class CardController {
     public ResponseEntity<ApiResponse<List<CardTypeResponse>>> getCardTypes() {
         return ResponseEntity.ok(ApiResponse.success(
                 catalogService.getActiveCardTypes(),
-                "Cached card types retrieved successfully"));
+                "Card types retrieved successfully"));
     }
 
     @PostMapping("/types/cache")

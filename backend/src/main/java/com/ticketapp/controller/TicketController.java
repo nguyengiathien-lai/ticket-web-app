@@ -63,19 +63,19 @@ public class TicketController {
                 .body(ApiResponse.success(purchase, "Ticket purchased successfully"));
     }
 
-    @GetMapping("/{ticketCode}")
-    public ResponseEntity<ApiResponse<TicketResponse>> getCachedTicketByCode(
-            @PathVariable String ticketCode) {
-        return ResponseEntity.ok(ApiResponse.success(
-                ticketRequestService.getCachedTicketByCode(ticketCode),
-                "Cached ticket retrieved"));
-    }
+//     @GetMapping("/{ticketCode}")
+//     public ResponseEntity<ApiResponse<TicketResponse>> getCachedTicketByCode(
+//             @PathVariable String ticketCode) {
+//         return ResponseEntity.ok(ApiResponse.success(
+//                 ticketRequestService.getCachedTicketByCode(ticketCode),
+//                 "Cached ticket retrieved"));
+//     }
 
-    @GetMapping("/passenger/{passengerAccountId}")
-    public ResponseEntity<ApiResponse<List<TicketResponse>>> getCachedTicketsForPassenger(
-            @PathVariable String passengerAccountId) {
-        return ResponseEntity.ok(ApiResponse.success(
-                ticketRequestService.getTicketsForPassenger(passengerAccountId),
-                "Cached tickets retrieved"));
-    }
+//     @GetMapping("/passenger/{passengerAccountId}")
+//     public ResponseEntity<ApiResponse<List<TicketResponse>>> getCachedTicketsForPassenger(
+//             @PathVariable String passengerAccountId) {
+//         return ResponseEntity.ok(ApiResponse.success(
+//                 ticketRequestService.getTicketsForPassenger(passengerAccountId),
+//                 "Cached tickets retrieved"));
+//     }
 }
