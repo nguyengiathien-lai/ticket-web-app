@@ -4,7 +4,8 @@ import com.ticketapp.client.level4.Level4Client;
 import com.ticketapp.client.level5.Level5Client;
 import com.ticketapp.dto.external.ExternalCardRequest;
 import com.ticketapp.dto.external.ExternalCardResponse;
-import com.ticketapp.dto.external.PurchaseActivityRequest;
+import com.ticketapp.dto.external.ExternalTicketRequest;
+import com.ticketapp.dto.external.ExternalTicketResponse;
 import com.ticketapp.dto.external.QrCodeRequest;
 import com.ticketapp.dto.external.QrCodeResponse;
 import com.ticketapp.dto.purchase.CardPurchaseRequest;
@@ -86,9 +87,19 @@ public class PurchaseService {
         ticketRequest.setPassengerAccountId(request.getUserId());
         ticketRequest.setTicketTypeCode(request.getTicketType());
         ticketRequest.setIdempotencyKey(order.getExternalOrderId());
-        TicketResponse ticket = ticketRequestService.requestTicket(ticketRequest);
+        ExternalTicketResponse externalTicket = level5Client.purchaseTicket(ExternalTicketRequest.builder()
+                .passengerAccountId(request.getUserId())
+                .ticketTypeCode(ticketType.getCode())
+                .idempotencyKey(order.getExternalOrderId())
+                .requestSource("TICKET_WEB_APP")
+                .orderId(order.getExternalOrderId())
+                .paymentId(payment.getExternalPaymentId())
+                .paymentMethod(request.getPaymentMethod())
+                .amount(order.getTotalAmount())
+                .currency(order.getCurrency())
+                .build());
+        TicketResponse ticket = ticketRequestService.cacheExternalTicket(ticketRequest, externalTicket);
         QrCodeResponse qrCode = level4Client.generateQrCode(new QrCodeRequest(ticket.getExternalTicketId()));
-        recordPurchase(order, payment, request.getUserId(), ticket.getExternalTicketId(), "TICKET_PURCHASE", now);
 
         return TicketPurchaseResponse.builder()
                 .ticketId(ticket.getExternalTicketId())
@@ -128,33 +139,30 @@ public class PurchaseService {
                         cardType.getPrice())));
         Payment payment = createCompletedPayment(order, request.getUserId(), request.getPaymentMethod(), now);
 
-        ExternalCardResponse externalCard = level5Client.requestCard(ExternalCardRequest.builder()
+        ExternalCardResponse externalCard = level5Client.purchaseCard(ExternalCardRequest.builder()
                 .passengerAccountId(request.getUserId())
                 .cardTypeCode(cardType.getCode())
                 .orderId(order.getExternalOrderId())
                 .requestSource("TICKET_WEB_APP")
+                .paymentId(payment.getExternalPaymentId())
+                .paymentMethod(request.getPaymentMethod())
+                .amount(order.getTotalAmount())
+                .currency(order.getCurrency())
+                .deliveryAddress(request.getDeliveryAddress())
                 .build());
         requireCompleteCard(externalCard);
 
         PhysicalCard card = new PhysicalCard();
         card.setExternalCardId(externalCard.getExternalCardId());
         card.setPassengerAccountId(request.getUserId());
-        card.setCardUid(externalCard.getCardUid());
+        card.setCardUid(coalesce(externalCard.getCardUid(), externalCard.getExternalCardId()));
         card.setMaskedCardNumber(externalCard.getMaskedCardNumber());
-        card.setStatus(externalCard.getStatus());
+        card.setStatus(coalesce(externalCard.getStatus(), "INACTIVE"));
         card.setIssuedAt(externalCard.getIssuedAt() == null ? now : externalCard.getIssuedAt());
         card.setExpiredAt(externalCard.getExpiresAt());
         card.setCachedAt(now);
         card.setExpiresAt(externalCard.getExpiresAt());
         PhysicalCard savedCard = physicalCardRepository.save(card);
-
-        TicketRequest ticketRequest = new TicketRequest();
-        ticketRequest.setPassengerAccountId(request.getUserId());
-        ticketRequest.setTicketTypeCode(cardType.getCode());
-        ticketRequest.setPhysicalCardExternalId(savedCard.getExternalCardId());
-        ticketRequest.setIdempotencyKey(order.getExternalOrderId());
-        ticketRequestService.requestTicket(ticketRequest);
-        recordPurchase(order, payment, request.getUserId(), savedCard.getExternalCardId(), "CARD_PURCHASE", now);
 
         return CardPurchaseResponse.builder()
                 .orderId(order.getExternalOrderId())
@@ -229,30 +237,14 @@ public class PurchaseService {
         return paymentRepository.save(payment);
     }
 
-    private void recordPurchase(
-            Order order,
-            Payment payment,
-            String passengerAccountId,
-            String purchasedItemId,
-            String activityType,
-            LocalDateTime occurredAt) {
-        level5Client.recordPurchase(PurchaseActivityRequest.builder()
-                .orderId(order.getExternalOrderId())
-                .activityType(activityType)
-                .passengerAccountId(passengerAccountId)
-                .purchasedItemId(purchasedItemId)
-                .amount(order.getTotalAmount())
-                .currency(order.getCurrency())
-                .paymentId(payment.getExternalPaymentId())
-                .occurredAt(occurredAt)
-                .build());
-    }
-
     private void requireCompleteCard(ExternalCardResponse card) {
-        if (card == null || card.getExternalCardId() == null || card.getCardUid() == null
-                || card.getMaskedCardNumber() == null || card.getStatus() == null) {
+        if (card == null || card.getExternalCardId() == null || card.getExternalCardId().isBlank()) {
             throw new IllegalStateException("Level 5 returned an incomplete card");
         }
+    }
+
+    private String coalesce(String first, String second) {
+        return first == null || first.isBlank() ? second : first;
     }
 
     private String shortToken() {

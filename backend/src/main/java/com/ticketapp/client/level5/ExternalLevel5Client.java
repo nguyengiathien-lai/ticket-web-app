@@ -4,8 +4,6 @@ import com.ticketapp.dto.external.ExternalCardRequest;
 import com.ticketapp.dto.external.ExternalCardResponse;
 import com.ticketapp.dto.external.ExternalTicketRequest;
 import com.ticketapp.dto.external.ExternalTicketResponse;
-import com.ticketapp.dto.external.PurchaseActivityRequest;
-import com.ticketapp.dto.external.PurchaseActivityResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
@@ -29,21 +27,21 @@ public class ExternalLevel5Client implements Level5Client {
 
     private final RestClient restClient;
     private final String ticketRequestPath;
-    private final String cardRequestPath;
-    private final String purchaseActivityPath;
+    private final String ticketPurchasePath;
+    private final String cardPurchasePath;
     private final boolean mockEnabled;
 
     public ExternalLevel5Client(
             RestClient.Builder builder,
             @Value("${app.level5.base-url:}") String baseUrl,
             @Value("${app.level5.ticket-request-path:/tickets/request}") String ticketRequestPath,
-            @Value("${app.level5.card-request-path:/cards/request}") String cardRequestPath,
-            @Value("${app.level5.purchase-activity-path:/purchase-activities}") String purchaseActivityPath,
+            @Value("${app.level5.ticket-purchase-path:/api/ticket/purchase}") String ticketPurchasePath,
+            @Value("${app.level5.card-purchase-path:/api/card/purchase}") String cardPurchasePath,
             @Value("${app.level5.mock-enabled:true}") boolean mockEnabled) {
         this.restClient = baseUrl.isBlank() ? builder.build() : builder.baseUrl(baseUrl).build();
         this.ticketRequestPath = ticketRequestPath;
-        this.cardRequestPath = cardRequestPath;
-        this.purchaseActivityPath = purchaseActivityPath;
+        this.ticketPurchasePath = ticketPurchasePath;
+        this.cardPurchasePath = cardPurchasePath;
         this.mockEnabled = mockEnabled;
     }
 
@@ -56,7 +54,15 @@ public class ExternalLevel5Client implements Level5Client {
     }
 
     @Override
-    public ExternalCardResponse requestCard(ExternalCardRequest request) {
+    public ExternalTicketResponse purchaseTicket(ExternalTicketRequest request) {
+        if (mockEnabled) {
+            return mockTicket(request);
+        }
+        return post(ticketPurchasePath, request, ExternalTicketResponse.class, "ticket purchase");
+    }
+
+    @Override
+    public ExternalCardResponse purchaseCard(ExternalCardRequest request) {
         if (mockEnabled) {
             LocalDateTime now = LocalDateTime.now();
             ExternalCardResponse response = new ExternalCardResponse();
@@ -68,17 +74,7 @@ public class ExternalLevel5Client implements Level5Client {
             response.setExpiresAt(now.plusDays(30));
             return response;
         }
-        return post(cardRequestPath, request, ExternalCardResponse.class, "card request");
-    }
-
-    @Override
-    public PurchaseActivityResponse recordPurchase(PurchaseActivityRequest request) {
-        if (mockEnabled) {
-            PurchaseActivityResponse response = new PurchaseActivityResponse();
-            response.setMessage("Purchase activity received successfully");
-            return response;
-        }
-        return post(purchaseActivityPath, request, PurchaseActivityResponse.class, "purchase activity");
+        return post(cardPurchasePath, request, ExternalCardResponse.class, "card purchase");
     }
 
     private ExternalTicketResponse mockTicket(ExternalTicketRequest request) {

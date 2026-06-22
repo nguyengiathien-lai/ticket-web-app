@@ -1,5 +1,6 @@
 package com.ticketapp.dto.external;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -10,6 +11,7 @@ import java.time.LocalDateTime;
 @Setter
 public class ExternalTicketResponse {
 
+    @JsonAlias({"ticketId", "ticketID"})
     private String externalTicketId;
     private String passengerAccountId;
     private String ticketTypeCode;

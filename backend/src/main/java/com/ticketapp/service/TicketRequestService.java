@@ -44,8 +44,13 @@ public class TicketRequestService {
                         .requestSource("TICKET_WEB_APP")
                         .build());
 
+        return cacheExternalTicket(request, externalTicket);
+    }
+
+    @Transactional
+    public TicketResponse cacheExternalTicket(TicketRequest request, ExternalTicketResponse externalTicket) {
         if (externalTicket == null || externalTicket.getExternalTicketId() == null
-                || externalTicket.getTicketCode() == null) {
+                || externalTicket.getExternalTicketId().isBlank()) {
             throw new IllegalStateException("External ticket system returned an incomplete ticket");
         }
 
@@ -83,7 +88,7 @@ public class TicketRequestService {
         ticket.setPhysicalCardExternalId(coalesce(
                 externalTicket.getPhysicalCardExternalId(),
                 request.getPhysicalCardExternalId()));
-        ticket.setTicketCode(externalTicket.getTicketCode());
+        ticket.setTicketCode(coalesce(externalTicket.getTicketCode(), externalTicket.getExternalTicketId()));
         ticket.setStatus(coalesce(externalTicket.getStatus(), "ACTIVE"));
         ticket.setFare(externalTicket.getFare());
         ticket.setCurrency(coalesce(externalTicket.getCurrency(), "VND"));

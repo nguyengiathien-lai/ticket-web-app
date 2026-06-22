@@ -4,13 +4,11 @@ import com.ticketapp.dto.external.ExternalCardRequest;
 import com.ticketapp.dto.external.ExternalCardResponse;
 import com.ticketapp.dto.external.ExternalTicketRequest;
 import com.ticketapp.dto.external.ExternalTicketResponse;
-import com.ticketapp.dto.external.PurchaseActivityRequest;
-import com.ticketapp.dto.external.PurchaseActivityResponse;
 
 public interface Level5Client {
     ExternalTicketResponse requestTicket(ExternalTicketRequest request);
 
-    ExternalCardResponse requestCard(ExternalCardRequest request);
+    ExternalTicketResponse purchaseTicket(ExternalTicketRequest request);
 
-    PurchaseActivityResponse recordPurchase(PurchaseActivityRequest request);
+    ExternalCardResponse purchaseCard(ExternalCardRequest request);
 }
