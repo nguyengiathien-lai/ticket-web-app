@@ -161,16 +161,16 @@ public class TicketRequestService {
                 externalTicket.getTicketTypeCode(), request.getTicketTypeCode(),
                 ticket.getTicketTypeCode()), "ticket type code");
         BigDecimal fare = firstValue(externalTicket.getFare(), ticket.getFare());
-        Integer remainingUses = firstValue(externalTicket.getRemainingUses(), ticket.getRemainingUses());
+        // Integer remainingUses = firstValue(externalTicket.getRemainingUses(), ticket.getRemainingUses());
         LocalDateTime validFrom = firstValue(externalTicket.getValidFrom(), ticket.getValidFrom());
         LocalDateTime validUntil = firstValue(externalTicket.getValidUntil(), ticket.getValidUntil());
 
         if (fare != null && fare.signum() < 0) {
             throw new IllegalStateException("Level 5 returned a negative ticket fare");
         }
-        if (remainingUses != null && remainingUses < 0) {
-            throw new IllegalStateException("Level 5 returned negative remaining uses");
-        }
+        // if (remainingUses != null && remainingUses < 0) {
+        //     throw new IllegalStateException("Level 5 returned negative remaining uses");
+        // }
         if (validFrom != null && validUntil != null && validUntil.isBefore(validFrom)) {
             throw new IllegalStateException("Level 5 returned an invalid ticket validity period");
         }
@@ -187,7 +187,7 @@ public class TicketRequestService {
         ticket.setCurrency(firstText(externalTicket.getCurrency(), ticket.getCurrency(), "VND"));
         ticket.setValidFrom(validFrom);
         ticket.setValidUntil(validUntil);
-        ticket.setRemainingUses(remainingUses);
+        // ticket.setRemainingUses(remainingUses);
         ticket.setIssuedAt(firstValue(externalTicket.getIssuedAt(), ticket.getIssuedAt(), now));
         ticket.setCachedAt(now);
         ticket.setExpiresAt(firstValue(externalTicket.getExpiresAt(), ticket.getExpiresAt(), validUntil));
