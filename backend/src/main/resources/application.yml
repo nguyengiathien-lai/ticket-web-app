@@ -62,8 +62,14 @@ app:
   jwt:
     secret: ${JWT_SECRET:change-this-local-dev-secret-that-is-at-least-32-bytes}
     expiration-seconds: ${JWT_EXPIRATION_SECONDS:86400}
-  external-ticket:
-    base-url: ${EXTERNAL_TICKET_BASE_URL:}
-    request-path: ${EXTERNAL_TICKET_REQUEST_PATH:/api/tickets/request}
-    scan-record-path: ${EXTERNAL_SCAN_RECORD_PATH:/scan-record}
-    mock-enabled: ${EXTERNAL_TICKET_MOCK_ENABLED:true}
+  level5:
+    base-url: ${LEVEL5_BASE_URL:}
+    ticket-request-path: ${LEVEL5_TICKET_REQUEST_PATH:/tickets/request}
+    card-request-path: ${LEVEL5_CARD_REQUEST_PATH:/cards/request}
+    purchase-activity-path: ${LEVEL5_PURCHASE_ACTIVITY_PATH:/purchase-activities}
+    mock-enabled: ${LEVEL5_MOCK_ENABLED:true}
+  level4:
+    base-url: ${LEVEL4_BASE_URL:}
+    qr-code-path: ${LEVEL4_QR_CODE_PATH:/qr-codes}
+    scan-record-path: ${LEVEL4_SCAN_RECORD_PATH:/scan-record}
+    mock-enabled: ${LEVEL4_MOCK_ENABLED:true}
