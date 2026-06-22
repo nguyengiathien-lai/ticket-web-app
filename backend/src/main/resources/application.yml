@@ -64,10 +64,15 @@ app:
     expiration-seconds: ${JWT_EXPIRATION_SECONDS:86400}
   level5:
     base-url: ${LEVEL5_BASE_URL:}
-    ticket-request-path: ${LEVEL5_TICKET_REQUEST_PATH:/tickets/request}
-    card-request-path: ${LEVEL5_CARD_REQUEST_PATH:/cards/request}
-    purchase-activity-path: ${LEVEL5_PURCHASE_ACTIVITY_PATH:/purchase-activities}
+    ticket-purchase-path: ${LEVEL5_TICKET_PURCHASE_PATH:/api/ticket/purchase}
+    card-purchase-path: ${LEVEL5_CARD_PURCHASE_PATH:/api/card/purchase}
+    ticket-history-path: ${LEVEL5_TICKET_HISTORY_PATH:/api/{accountId}/tickets}
+    card-history-path: ${LEVEL5_CARD_HISTORY_PATH:/api/{accountId}/cards}
+    ticket-types-path: ${LEVEL5_TICKET_TYPES_PATH:/api/ticket-types}
+    card-types-path: ${LEVEL5_CARD_TYPES_PATH:/api/card-types}
     mock-enabled: ${LEVEL5_MOCK_ENABLED:true}
+  cache:
+    catalog-refresh-ttl-seconds: ${CATALOG_REFRESH_TTL_SECONDS:600}
   level4:
     base-url: ${LEVEL4_BASE_URL:}
     qr-code-path: ${LEVEL4_QR_CODE_PATH:/qr-codes}
