@@ -4,7 +4,6 @@ import com.ticketapp.dto.ApiResponse;
 import com.ticketapp.dto.catalog.TicketTypeSyncRequest;
 import com.ticketapp.dto.purchase.TicketPurchaseRequest;
 import com.ticketapp.dto.purchase.TicketPurchaseResponse;
-import com.ticketapp.dto.ticket.TicketRequest;
 import com.ticketapp.dto.ticket.TicketResponse;
 import com.ticketapp.dto.ticket.TicketTypeResponse;
 import com.ticketapp.service.CatalogService;
@@ -52,16 +51,6 @@ public class TicketController {
         return ResponseEntity.ok(ApiResponse.success(
                 catalogService.cacheTicketTypes(request),
                 "Ticket types cached successfully"));
-    }
-
-    @PostMapping("/request")
-    public ResponseEntity<ApiResponse<TicketResponse>> requestTicket(
-            @Valid @RequestBody TicketRequest request) {
-        TicketResponse ticket = ticketRequestService.requestTicket(request);
-
-        return ResponseEntity
-                .status(HttpStatus.CREATED)
-                .body(ApiResponse.success(ticket, "Ticket requested from external system and cached locally"));
     }
 
     @PostMapping("/purchase")

@@ -2,9 +2,7 @@ package com.ticketapp.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -19,7 +17,12 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name = "tickets")
+@Table(
+        name = "tickets",
+        indexes = {
+                @Index(name = "idx_tickets_passenger_issued", columnList = "passenger_account_id, issued_at"),
+                @Index(name = "idx_tickets_physical_card", columnList = "physical_card_external_id")
+        })
 public class Ticket extends BaseEntity {
 
     @Column(name = "external_ticket_id", nullable = false, unique = true, length = 100)
@@ -33,14 +36,6 @@ public class Ticket extends BaseEntity {
 
     @Column(name = "physical_card_external_id", length = 100)
     private String physicalCardExternalId;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(
-            name = "physical_card_external_id",
-            referencedColumnName = "external_card_id",
-            insertable = false,
-            updatable = false)
-    private PhysicalCard physicalCard;
 
     @Column(name = "ticket_code", nullable = false, unique = true, length = 120)
     private String ticketCode;

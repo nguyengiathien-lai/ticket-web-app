@@ -6,8 +6,6 @@ import com.ticketapp.dto.external.ExternalTicketRequest;
 import com.ticketapp.dto.external.ExternalTicketResponse;
 
 public interface Level5Client {
-    ExternalTicketResponse requestTicket(ExternalTicketRequest request);
-
     ExternalTicketResponse purchaseTicket(ExternalTicketRequest request);
 
     ExternalCardResponse purchaseCard(ExternalCardRequest request);

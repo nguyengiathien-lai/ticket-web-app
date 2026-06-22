@@ -1,7 +1,5 @@
 package com.ticketapp.service;
 
-import com.ticketapp.client.level5.Level5Client;
-import com.ticketapp.dto.external.ExternalTicketRequest;
 import com.ticketapp.dto.external.ExternalTicketResponse;
 import com.ticketapp.dto.ticket.TicketRequest;
 import com.ticketapp.dto.ticket.TicketResponse;
@@ -10,51 +8,27 @@ import com.ticketapp.repository.TicketRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
 public class TicketRequestService {
 
-    private final AccountService accountService;
-    private final Level5Client level5Client;
     private final TicketRepository ticketRepository;
 
-    public TicketRequestService(
-            AccountService accountService,
-            Level5Client level5Client,
-            TicketRepository ticketRepository) {
-        this.accountService = accountService;
-        this.level5Client = level5Client;
+    public TicketRequestService(TicketRepository ticketRepository) {
         this.ticketRepository = ticketRepository;
     }
 
     @Transactional
-    public TicketResponse requestTicket(TicketRequest request) {
-        accountService.findById(request.getPassengerAccountId())
-                .filter(account -> account.getIsActive() && account.getIsEmailVerified())
-                .orElseThrow(() -> new IllegalArgumentException("Passenger account not found, inactive, or unverified"));
-
-        ExternalTicketResponse externalTicket = level5Client.requestTicket(
-                ExternalTicketRequest.builder()
-                        .passengerAccountId(request.getPassengerAccountId())
-                        .ticketTypeCode(request.getTicketTypeCode())
-                        .physicalCardExternalId(request.getPhysicalCardExternalId())
-                        .idempotencyKey(request.getIdempotencyKey())
-                        .requestSource("TICKET_WEB_APP")
-                        .build());
-
-        return cacheExternalTicket(request, externalTicket);
-    }
-
-    @Transactional
     public TicketResponse cacheExternalTicket(TicketRequest request, ExternalTicketResponse externalTicket) {
-        if (externalTicket == null || externalTicket.getExternalTicketId() == null
-                || externalTicket.getExternalTicketId().isBlank()) {
+        if (request == null || externalTicket == null) {
             throw new IllegalStateException("External ticket system returned an incomplete ticket");
         }
+        String externalTicketId = requireText(externalTicket.getExternalTicketId(), "ticket ID");
 
-        Ticket ticket = ticketRepository.findByExternalTicketId(externalTicket.getExternalTicketId())
+        Ticket ticket = ticketRepository.findByExternalTicketId(externalTicketId)
                 .orElseGet(Ticket::new);
 
         applyExternalTicket(ticket, request, externalTicket);
@@ -80,31 +54,78 @@ public class TicketRequestService {
             Ticket ticket,
             TicketRequest request,
             ExternalTicketResponse externalTicket) {
+        if (ticket == null || request == null || externalTicket == null) {
+            throw new IllegalArgumentException("Ticket mapping inputs must not be null");
+        }
+
         LocalDateTime now = LocalDateTime.now();
 
-        ticket.setExternalTicketId(externalTicket.getExternalTicketId());
-        ticket.setPassengerAccountId(coalesce(externalTicket.getPassengerAccountId(), request.getPassengerAccountId()));
-        ticket.setTicketTypeCode(coalesce(externalTicket.getTicketTypeCode(), request.getTicketTypeCode()));
-        ticket.setPhysicalCardExternalId(coalesce(
+        String externalTicketId = requireText(externalTicket.getExternalTicketId(), "ticket ID");
+        String passengerAccountId = requireText(firstText(
+                externalTicket.getPassengerAccountId(),
+                request.getPassengerAccountId(),
+                ticket.getPassengerId()), "passenger account ID");
+        String ticketTypeCode = requireText(firstText(
+                externalTicket.getTicketTypeCode(),
+                request.getTicketTypeCode(),
+                ticket.getTicketType()), "ticket type code");
+
+        BigDecimal fare = firstValue(externalTicket.getFare(), ticket.getFare());
+        // Integer remainingUses = firstValue(externalTicket.getRemainingUses(), ticket.getRemainingUses());
+        LocalDateTime validFrom = firstValue(externalTicket.getValidFrom(), ticket.getValidFrom());
+        LocalDateTime validUntil = firstValue(externalTicket.getValidUntil(), ticket.getValidUntil());
+
+        if (fare != null && fare.signum() < 0) {
+            throw new IllegalStateException("Level 5 returned a negative ticket fare");
+        }
+        // if (remainingUses != null && remainingUses < 0) {
+        //     throw new IllegalStateException("Level 5 returned negative remaining uses");
+        // }
+        // if (validFrom != null && validUntil != null && validUntil.isBefore(validFrom)) {
+        //     throw new IllegalStateException("Level 5 returned an invalid ticket validity period");
+        // }
+
+        ticket.setTicketId(externalTicketId);
+        ticket.setPassengerId(passengerAccountId);
+        ticket.setTicketType(ticketTypeCode);
+        ticket.setPhysicalCardExternalId(firstText(
                 externalTicket.getPhysicalCardExternalId(),
-                request.getPhysicalCardExternalId()));
-        ticket.setTicketCode(coalesce(externalTicket.getTicketCode(), externalTicket.getExternalTicketId()));
-        ticket.setStatus(coalesce(externalTicket.getStatus(), "ACTIVE"));
-        ticket.setFare(externalTicket.getFare());
-        ticket.setCurrency(coalesce(externalTicket.getCurrency(), "VND"));
-        ticket.setValidFrom(externalTicket.getValidFrom());
-        ticket.setValidUntil(externalTicket.getValidUntil());
-        ticket.setRemainingUses(externalTicket.getRemainingUses());
-        ticket.setIssuedAt(coalesce(externalTicket.getIssuedAt(), now));
+                request.getPhysicalCardExternalId(),
+                ticket.getPhysicalCardExternalId()));
+        ticket.setTicketCode(firstText(externalTicket.getTicketCode(), ticket.getTicketCode(), externalTicketId));
+        ticket.setStatus(firstText(externalTicket.getStatus(), ticket.getStatus(), "ACTIVE"));
+        ticket.setFare(fare);
+        ticket.setCurrency(firstText(externalTicket.getCurrency(), ticket.getCurrency(), "VND"));
+        ticket.setValidFrom(validFrom);
+        ticket.setValidUntil(validUntil);
+        ticket.setIssuedAt(firstValue(externalTicket.getIssuedAt(), ticket.getIssuedAt(), now));
         ticket.setCachedAt(now);
-        ticket.setExpiresAt(coalesce(externalTicket.getExpiresAt(), externalTicket.getValidUntil()));
+        ticket.setExpiresAt(firstValue(externalTicket.getExpiresAt(), ticket.getExpiresAt(), validUntil));
     }
 
-    private String coalesce(String first, String second) {
-        return first == null || first.isBlank() ? second : first;
+    private String requireText(String value, String fieldName) {
+        if (value == null || value.isBlank()) {
+            throw new IllegalStateException("Missing " + fieldName + " in ticket data");
+        }
+        return value.trim();
     }
 
-    private LocalDateTime coalesce(LocalDateTime first, LocalDateTime second) {
-        return first == null ? second : first;
+    private String firstText(String... values) {
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value.trim();
+            }
+        }
+        return null;
+    }
+
+    @SafeVarargs
+    private final <T> T firstValue(T... values) {
+        for (T value : values) {
+            if (value != null) {
+                return value;
+            }
+        }
+        return null;
     }
 }

@@ -26,7 +26,6 @@ public class ExternalLevel5Client implements Level5Client {
             "pkg002", new TicketDefaults(new BigDecimal("300000"), 60, 50));
 
     private final RestClient restClient;
-    private final String ticketRequestPath;
     private final String ticketPurchasePath;
     private final String cardPurchasePath;
     private final boolean mockEnabled;
@@ -34,23 +33,13 @@ public class ExternalLevel5Client implements Level5Client {
     public ExternalLevel5Client(
             RestClient.Builder builder,
             @Value("${app.level5.base-url:}") String baseUrl,
-            @Value("${app.level5.ticket-request-path:/tickets/request}") String ticketRequestPath,
             @Value("${app.level5.ticket-purchase-path:/api/ticket/purchase}") String ticketPurchasePath,
             @Value("${app.level5.card-purchase-path:/api/card/purchase}") String cardPurchasePath,
             @Value("${app.level5.mock-enabled:true}") boolean mockEnabled) {
         this.restClient = baseUrl.isBlank() ? builder.build() : builder.baseUrl(baseUrl).build();
-        this.ticketRequestPath = ticketRequestPath;
         this.ticketPurchasePath = ticketPurchasePath;
         this.cardPurchasePath = cardPurchasePath;
         this.mockEnabled = mockEnabled;
-    }
-
-    @Override
-    public ExternalTicketResponse requestTicket(ExternalTicketRequest request) {
-        if (mockEnabled) {
-            return mockTicket(request);
-        }
-        return post(ticketRequestPath, request, ExternalTicketResponse.class, "ticket request");
     }
 
     @Override
