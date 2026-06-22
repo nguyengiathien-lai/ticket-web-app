@@ -64,11 +64,11 @@ public class TicketRequestService {
         String passengerAccountId = requireText(firstText(
                 externalTicket.getPassengerAccountId(),
                 request.getPassengerAccountId(),
-                ticket.getPassengerId()), "passenger account ID");
+                ticket.getPassengerAccountId()), "passenger account ID");
         String ticketTypeCode = requireText(firstText(
                 externalTicket.getTicketTypeCode(),
                 request.getTicketTypeCode(),
-                ticket.getTicketType()), "ticket type code");
+                ticket.getTicketTypeCode()), "ticket type code");
 
         BigDecimal fare = firstValue(externalTicket.getFare(), ticket.getFare());
         // Integer remainingUses = firstValue(externalTicket.getRemainingUses(), ticket.getRemainingUses());
@@ -81,13 +81,13 @@ public class TicketRequestService {
         // if (remainingUses != null && remainingUses < 0) {
         //     throw new IllegalStateException("Level 5 returned negative remaining uses");
         // }
-        // if (validFrom != null && validUntil != null && validUntil.isBefore(validFrom)) {
-        //     throw new IllegalStateException("Level 5 returned an invalid ticket validity period");
-        // }
+        if (validFrom != null && validUntil != null && validUntil.isBefore(validFrom)) {
+            throw new IllegalStateException("Level 5 returned an invalid ticket validity period");
+        }
 
-        ticket.setTicketId(externalTicketId);
-        ticket.setPassengerId(passengerAccountId);
-        ticket.setTicketType(ticketTypeCode);
+        ticket.setExternalTicketId(externalTicketId);
+        ticket.setPassengerAccountId(passengerAccountId);
+        ticket.setTicketTypeCode(ticketTypeCode);
         ticket.setPhysicalCardExternalId(firstText(
                 externalTicket.getPhysicalCardExternalId(),
                 request.getPhysicalCardExternalId(),
@@ -98,6 +98,7 @@ public class TicketRequestService {
         ticket.setCurrency(firstText(externalTicket.getCurrency(), ticket.getCurrency(), "VND"));
         ticket.setValidFrom(validFrom);
         ticket.setValidUntil(validUntil);
+        // ticket.setRemainingUses(remainingUses);
         ticket.setIssuedAt(firstValue(externalTicket.getIssuedAt(), ticket.getIssuedAt(), now));
         ticket.setCachedAt(now);
         ticket.setExpiresAt(firstValue(externalTicket.getExpiresAt(), ticket.getExpiresAt(), validUntil));

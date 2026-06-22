@@ -33,7 +33,7 @@ public class GateValidationService {
         outboundRecord.setEventType(request.getEventType());
         outboundRecord.setRecordedTime(request.getRecordedTime());
 
-        ValidationRecordResponse response = level4Client.recordScan(outboundRecord);
+        ValidationRecordResponse response = level4Client.send(outboundRecord);
         if (response == null || response.getMessage() == null || response.getMessage().isBlank()) {
             throw new IllegalStateException("Level 4 returned an incomplete scan response");
         }
