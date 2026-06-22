@@ -2,13 +2,17 @@ package com.ticketapp.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ticketapp.client.level5.Level5Client;
 import com.ticketapp.dto.catalog.CardTypeSyncRequest;
 import com.ticketapp.dto.catalog.TicketTypeSyncRequest;
+import com.ticketapp.dto.external.ExternalCardTypeResponse;
+import com.ticketapp.dto.external.ExternalTicketTypeResponse;
 import com.ticketapp.dto.purchase.CardTypeResponse;
 import com.ticketapp.dto.ticket.TicketTypeResponse;
 import com.ticketapp.entity.CardType;
 import com.ticketapp.entity.TicketType;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -27,16 +31,27 @@ public class CatalogService {
     private static final String TICKET_TYPE_CODES_KEY = "catalog:ticket-types:codes";
     private static final String CARD_TYPE_KEY_PREFIX = "catalog:card-types:";
     private static final String TICKET_TYPE_KEY_PREFIX = "catalog:ticket-types:";
+    private static final String CARD_TYPES_LOADED_KEY = "catalog:card-types:loaded";
+    private static final String TICKET_TYPES_LOADED_KEY = "catalog:ticket-types:loaded";
 
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
+    private final Level5Client level5Client;
+    private final Duration catalogRefreshTtl;
 
-    public CatalogService(StringRedisTemplate redisTemplate, ObjectMapper objectMapper) {
+    public CatalogService(
+            StringRedisTemplate redisTemplate,
+            ObjectMapper objectMapper,
+            Level5Client level5Client,
+            @Value("${app.cache.catalog-refresh-ttl-seconds:600}") long catalogRefreshTtlSeconds) {
         this.redisTemplate = redisTemplate;
         this.objectMapper = objectMapper;
+        this.level5Client = level5Client;
+        this.catalogRefreshTtl = Duration.ofSeconds(Math.max(catalogRefreshTtlSeconds, 1));
     }
 
     public List<CardTypeResponse> getActiveCardTypes() {
+        ensureCardTypesLoaded();
         return getCardTypesFromRedis()
                 .stream()
                 .filter(cardType -> Boolean.TRUE.equals(cardType.getActive()))
@@ -46,6 +61,7 @@ public class CatalogService {
     }
 
     public List<TicketTypeResponse> getActiveTicketTypes() {
+        ensureTicketTypesLoaded();
         return getTicketTypesFromRedis()
                 .stream()
                 .filter(ticketType -> Boolean.TRUE.equals(ticketType.getActive()))
@@ -55,6 +71,7 @@ public class CatalogService {
     }
 
     public CardType requireActiveCardType(String code) {
+        ensureCardTypesLoaded();
         CardType cardType = getCardTypeFromRedis(code)
                 .orElseThrow(() -> new IllegalArgumentException("Card type not found in Redis cache: " + code));
 
@@ -66,6 +83,7 @@ public class CatalogService {
     }
 
     public TicketType requireActiveTicketType(String code) {
+        ensureTicketTypesLoaded();
         TicketType ticketType = getTicketTypeFromRedis(code)
                 .orElseThrow(() -> new IllegalArgumentException("Ticket type not found in Redis cache: " + code));
 
@@ -77,17 +95,71 @@ public class CatalogService {
     }
 
     public List<CardTypeResponse> cacheCardTypes(List<CardTypeSyncRequest> requests) {
-        return requests.stream()
+        List<CardType> cached = requests.stream()
                 .map(this::cacheCardType)
+                .toList();
+        markCatalogLoaded(CARD_TYPES_LOADED_KEY, requests.stream()
+                .map(CardTypeSyncRequest::getExpiresAt)
+                .toList());
+        return cached.stream()
                 .map(CardTypeResponse::from)
                 .toList();
     }
 
     public List<TicketTypeResponse> cacheTicketTypes(List<TicketTypeSyncRequest> requests) {
-        return requests.stream()
+        List<TicketType> cached = requests.stream()
                 .map(this::cacheTicketType)
+                .toList();
+        markCatalogLoaded(TICKET_TYPES_LOADED_KEY, requests.stream()
+                .map(TicketTypeSyncRequest::getExpiresAt)
+                .toList());
+        return cached.stream()
                 .map(TicketTypeResponse::from)
                 .toList();
+    }
+
+    private void ensureCardTypesLoaded() {
+        if (catalogLoaded(CARD_TYPES_LOADED_KEY)) {
+            return;
+        }
+        redisTemplate.delete(CARD_TYPE_CODES_KEY);
+        cacheCardTypes(level5Client.getCardTypes().stream().map(this::toSyncRequest).toList());
+    }
+
+    private void ensureTicketTypesLoaded() {
+        if (catalogLoaded(TICKET_TYPES_LOADED_KEY)) {
+            return;
+        }
+        redisTemplate.delete(TICKET_TYPE_CODES_KEY);
+        cacheTicketTypes(level5Client.getTicketTypes().stream().map(this::toSyncRequest).toList());
+    }
+
+    private CardTypeSyncRequest toSyncRequest(ExternalCardTypeResponse external) {
+        CardTypeSyncRequest request = new CardTypeSyncRequest();
+        request.setExternalCardTypeId(external.getExternalCardTypeId());
+        request.setCode(external.getCode());
+        request.setName(external.getName());
+        request.setDurationDays(external.getDurationDays());
+        request.setPrice(external.getPrice());
+        request.setCurrency(external.getCurrency());
+        request.setDescription(external.getDescription());
+        request.setActive(external.getActive());
+        request.setExpiresAt(external.getExpiresAt());
+        return request;
+    }
+
+    private TicketTypeSyncRequest toSyncRequest(ExternalTicketTypeResponse external) {
+        TicketTypeSyncRequest request = new TicketTypeSyncRequest();
+        request.setExternalTicketTypeId(external.getExternalTicketTypeId());
+        request.setCode(external.getCode());
+        request.setName(external.getName());
+        request.setDurationDays(external.getDurationDays());
+        request.setPrice(external.getPrice());
+        request.setCurrency(external.getCurrency());
+        request.setDescription(external.getDescription());
+        request.setActive(external.getActive());
+        request.setExpiresAt(external.getExpiresAt());
+        return request;
     }
 
     private CardType cacheCardType(CardTypeSyncRequest request) {
@@ -194,6 +266,21 @@ public class CatalogService {
         long nowEpoch = LocalDateTime.now().atZone(ZoneId.systemDefault()).toEpochSecond();
         long seconds = expiresAtEpoch - nowEpoch;
         return Duration.ofSeconds(Math.max(seconds, 1));
+    }
+
+    private boolean catalogLoaded(String key) {
+        return "true".equals(redisTemplate.opsForValue().get(key));
+    }
+
+    private void markCatalogLoaded(String key, List<LocalDateTime> expirations) {
+        Duration markerTtl = expirations.stream()
+                .filter(Objects::nonNull)
+                .map(this::ttlUntil)
+                .filter(ttl -> !ttl.isNegative() && !ttl.isZero())
+                .min(Duration::compareTo)
+                .map(ttl -> ttl.compareTo(catalogRefreshTtl) < 0 ? ttl : catalogRefreshTtl)
+                .orElse(catalogRefreshTtl);
+        redisTemplate.opsForValue().set(key, "true", markerTtl);
     }
 
     private String cardTypeKey(String code) {

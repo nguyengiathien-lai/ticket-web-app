@@ -75,7 +75,7 @@ public class TicketController {
     public ResponseEntity<ApiResponse<List<TicketResponse>>> getCachedTicketsForPassenger(
             @PathVariable String passengerAccountId) {
         return ResponseEntity.ok(ApiResponse.success(
-                ticketRequestService.getCachedTicketsForPassenger(passengerAccountId),
+                ticketRequestService.getTicketsForPassenger(passengerAccountId),
                 "Cached tickets retrieved"));
     }
 }

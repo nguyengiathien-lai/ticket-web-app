@@ -65,7 +65,7 @@ public class TicketRequestService {
                 .orElseThrow(() -> new IllegalArgumentException("Ticket not found"));
     }
 
-    public List<TicketResponse> getCachedTicketsForPassenger(String passengerAccountId) {
+    public List<TicketResponse> getTicketsForPassenger(String passengerAccountId) {
         String normalizedAccountId = requireText(passengerAccountId, "passenger account ID");
         if (!historyLoaded(passengerTicketsLoadedKey(normalizedAccountId))) {
             level5Client.getTickets(normalizedAccountId)

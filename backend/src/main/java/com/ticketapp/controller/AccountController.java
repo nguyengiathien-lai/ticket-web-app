@@ -62,7 +62,7 @@ public class AccountController {
         requireSelfOrAdmin(authorizationHeader, accountId);
 
         return ResponseEntity.ok(ApiResponse.success(
-                ticketRequestService.getCachedTicketsForPassenger(accountId),
+                ticketRequestService.getTicketsForPassenger(accountId),
                 "Past tickets retrieved successfully"));
     }
 
