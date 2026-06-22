@@ -22,7 +22,6 @@ import com.ticketapp.entity.PhysicalCard;
 import com.ticketapp.entity.TicketType;
 import com.ticketapp.repository.OrderRepository;
 import com.ticketapp.repository.PaymentRepository;
-import com.ticketapp.repository.PhysicalCardRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,7 +39,7 @@ public class PurchaseService {
     private final TicketRequestService ticketRequestService;
     private final OrderRepository orderRepository;
     private final PaymentRepository paymentRepository;
-    private final PhysicalCardRepository physicalCardRepository;
+    private final PhysicalCardService physicalCardService;
     private final Level4Client level4Client;
     private final Level5Client level5Client;
 
@@ -50,7 +49,7 @@ public class PurchaseService {
             TicketRequestService ticketRequestService,
             OrderRepository orderRepository,
             PaymentRepository paymentRepository,
-            PhysicalCardRepository physicalCardRepository,
+            PhysicalCardService physicalCardService,
             Level4Client level4Client,
             Level5Client level5Client) {
         this.accountService = accountService;
@@ -58,7 +57,7 @@ public class PurchaseService {
         this.ticketRequestService = ticketRequestService;
         this.orderRepository = orderRepository;
         this.paymentRepository = paymentRepository;
-        this.physicalCardRepository = physicalCardRepository;
+        this.physicalCardService = physicalCardService;
         this.level4Client = level4Client;
         this.level5Client = level5Client;
     }
@@ -162,7 +161,7 @@ public class PurchaseService {
         card.setExpiredAt(externalCard.getExpiresAt());
         card.setCachedAt(now);
         card.setExpiresAt(externalCard.getExpiresAt());
-        PhysicalCard savedCard = physicalCardRepository.save(card);
+        PhysicalCard savedCard = physicalCardService.cacheCard(card);
 
         return CardPurchaseResponse.builder()
                 .orderId(order.getExternalOrderId())

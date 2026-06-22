@@ -2,8 +2,10 @@ package com.ticketapp.client.level5;
 
 import com.ticketapp.dto.external.ExternalCardRequest;
 import com.ticketapp.dto.external.ExternalCardResponse;
+import com.ticketapp.dto.external.ExternalCardHistoryResponse;
 import com.ticketapp.dto.external.ExternalTicketRequest;
 import com.ticketapp.dto.external.ExternalTicketResponse;
+import com.ticketapp.dto.external.ExternalTicketHistoryResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
@@ -12,6 +14,8 @@ import org.springframework.web.client.RestClient;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Map;
+import java.util.Arrays;
+import java.util.List;
 import java.util.UUID;
 
 @Component
@@ -28,6 +32,8 @@ public class ExternalLevel5Client implements Level5Client {
     private final RestClient restClient;
     private final String ticketPurchasePath;
     private final String cardPurchasePath;
+    private final String ticketHistoryPath;
+    private final String cardHistoryPath;
     private final boolean mockEnabled;
 
     public ExternalLevel5Client(
@@ -35,10 +41,14 @@ public class ExternalLevel5Client implements Level5Client {
             @Value("${app.level5.base-url:}") String baseUrl,
             @Value("${app.level5.ticket-purchase-path:/api/ticket/purchase}") String ticketPurchasePath,
             @Value("${app.level5.card-purchase-path:/api/card/purchase}") String cardPurchasePath,
+            @Value("${app.level5.ticket-history-path:/api/{accountId}/tickets}") String ticketHistoryPath,
+            @Value("${app.level5.card-history-path:/api/{accountId}/cards}") String cardHistoryPath,
             @Value("${app.level5.mock-enabled:true}") boolean mockEnabled) {
         this.restClient = baseUrl.isBlank() ? builder.build() : builder.baseUrl(baseUrl).build();
         this.ticketPurchasePath = ticketPurchasePath;
         this.cardPurchasePath = cardPurchasePath;
+        this.ticketHistoryPath = ticketHistoryPath;
+        this.cardHistoryPath = cardHistoryPath;
         this.mockEnabled = mockEnabled;
     }
 
@@ -66,6 +76,24 @@ public class ExternalLevel5Client implements Level5Client {
         return post(cardPurchasePath, request, ExternalCardResponse.class, "card purchase");
     }
 
+    @Override
+    public List<ExternalTicketHistoryResponse> getTickets(String accountId) {
+        if (mockEnabled) {
+            return List.of();
+        }
+        return Arrays.asList(get(
+                ticketHistoryPath, accountId, ExternalTicketHistoryResponse[].class, "ticket history"));
+    }
+
+    @Override
+    public List<ExternalCardHistoryResponse> getCards(String accountId) {
+        if (mockEnabled) {
+            return List.of();
+        }
+        return Arrays.asList(get(
+                cardHistoryPath, accountId, ExternalCardHistoryResponse[].class, "card history"));
+    }
+
     private ExternalTicketResponse mockTicket(ExternalTicketRequest request) {
         LocalDateTime now = LocalDateTime.now();
         TicketDefaults defaults = TICKET_DEFAULTS.getOrDefault(
@@ -91,6 +119,14 @@ public class ExternalLevel5Client implements Level5Client {
     private <T> T post(String path, Object body, Class<T> responseType, String operation) {
         T response = restClient.post().uri(path).contentType(MediaType.APPLICATION_JSON)
                 .body(body).retrieve().body(responseType);
+        if (response == null) {
+            throw new IllegalStateException("Level 5 returned an empty response for " + operation);
+        }
+        return response;
+    }
+
+    private <T> T get(String path, String accountId, Class<T> responseType, String operation) {
+        T response = restClient.get().uri(path, accountId).retrieve().body(responseType);
         if (response == null) {
             throw new IllegalStateException("Level 5 returned an empty response for " + operation);
         }
