@@ -1,6 +1,6 @@
-package com.ticketapp.entity;
+package com.validationgate.entity;
 
-import com.ticketapp.dto.gate.GateEventType;
+import com.validationgate.dto.GateEventType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;

@@ -77,7 +77,4 @@ app:
   level4:
     base-url: ${LEVEL4_BASE_URL:}
     qr-code-path: ${LEVEL4_QR_CODE_PATH:/qr-codes}
-    scan-record-batch-path: ${LEVEL4_SCAN_RECORD_BATCH_PATH:/scan-record/batch}
-    scan-record-batch-size: ${LEVEL4_SCAN_RECORD_BATCH_SIZE:100}
-    scan-record-flush-delay-ms: ${LEVEL4_SCAN_RECORD_FLUSH_DELAY_MS:30000}
     mock-enabled: ${LEVEL4_MOCK_ENABLED:true}

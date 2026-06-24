@@ -2,7 +2,7 @@ package com.ticketapp.service;
 
 import com.ticketapp.client.level5.Level5Client;
 import com.ticketapp.dto.external.ExternalTravelHistoryResponse;
-import com.ticketapp.entity.TravelHistory;
+import com.ticketapp.dto.travel.TravelHistoryResponse;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDateTime;
@@ -25,10 +25,10 @@ class TravelHistoryServiceTest {
         when(level5Client.getTravelHistory("user-1"))
                 .thenReturn(List.of(oldJourney, newJourney));
 
-        List<TravelHistory> result = service.getTravelHistoryForPassenger(" user-1 ");
+        List<TravelHistoryResponse> result = service.getTravelHistoryForPassenger(" user-1 ");
 
-        assertThat(result).extracting(TravelHistory::getExternalTripId).containsExactly("trip-2", "trip-1");
-        assertThat(result).extracting(TravelHistory::getPassengerAccountId).containsExactly("user-1", "user-1");
+        assertThat(result).extracting(TravelHistoryResponse::getExternalTripId).containsExactly("trip-2", "trip-1");
+        assertThat(result).extracting(TravelHistoryResponse::getPassengerAccountId).containsExactly("user-1", "user-1");
         verify(level5Client).getTravelHistory("user-1");
     }
 

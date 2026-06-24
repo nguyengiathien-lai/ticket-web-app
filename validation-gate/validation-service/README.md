@@ -1,13 +1,29 @@
 # Validation Service
 
-This folder marks the validation service boundary for the validation gate.
+Spring Boot service for the validation gate.
 
-The runnable implementation currently lives in the shared Spring Boot backend at `../../ticket-web-app/backend`:
+This service owns the gate-side validation endpoint and scan-record batching. It is intentionally separate from `../../ticket-web-app/backend`.
 
-- `src/main/java/com/ticketapp/controller/GateController.java`
-- `src/main/java/com/ticketapp/service/GateValidationService.java`
-- `src/main/java/com/ticketapp/dto/gate/`
-- `src/main/java/com/ticketapp/entity/GateEvent.java`
-- `src/main/java/com/ticketapp/repository/GateEventRepository.java`
+## Endpoint
 
-The scanner posts scans to `/api/gate/validate-ticket`.
+- `POST /api/gate/validate-ticket`
+
+The scanner posts ticket/card scan records here. The service stores records in `gate_event` for retryable batch delivery to Level 4.
+
+## Run
+
+```bash
+./mvnw spring-boot:run
+```
+
+Default URL: `http://localhost:8081/api`
+
+## Configuration
+
+- `VALIDATION_SERVICE_PORT` - defaults to `8081`
+- `VALIDATION_DATASOURCE_URL` - defaults to `jdbc:postgresql://localhost:5432/ticket_app`
+- `VALIDATION_DATASOURCE_USERNAME` - defaults to `postgres`
+- `VALIDATION_DB_PASSWORD` or `DB_PASSWORD`
+- `LEVEL4_BASE_URL`
+- `LEVEL4_SCAN_RECORD_BATCH_PATH` - defaults to `/scan-record/batch`
+- `LEVEL4_MOCK_ENABLED` - defaults to `true`

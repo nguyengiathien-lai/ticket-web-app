@@ -1,9 +1,8 @@
-package com.ticketapp.dto.gate;
+package com.validationgate.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-
 
 @Getter
 @NoArgsConstructor

@@ -50,14 +50,11 @@ Following the specification provided, the following entities have been created t
 - **Relationships**: Many-to-One with Account
 
 ### TravelHistory
-- **Table**: `travel_history`
-- **Key Fields**: id (auto-increment), checkinTime, checkoutTime, transportId
-- **Relationships**:
-  - Many-to-One with Account
-  - Many-to-One with PhysicalCard
-  - Many-to-One with Ticket
-  - Many-to-One with Station (checkin & checkout)
-- **Purpose**: Track passenger journeys
+- **Local Table**: none
+- **Source**: Level 5 travel history API
+- **Response DTO**: `TravelHistoryResponse`
+- **Key Fields**: externalTripId, passengerAccountId, checkinTime, checkoutTime, transportId
+- **Purpose**: Display passenger journeys without storing travel records in this database
 
 ## Order & Payment Entities
 
@@ -122,12 +119,11 @@ Following the specification provided, the following entities have been created t
 - account ↔ wallet
 
 ### One-to-Many (Reverse relationships)
-- account → tickets, physical_cards, otp_codes, notifications, travel_history, orders, wallet
+- account → tickets, physical_cards, otp_codes, notifications, orders, wallet
 - role → account_roles
 - permission → role_permissions
 - ticket_type → tickets, order_items
-- physical_card → tickets, travel_history, order_items
-- station → travel_history (checkin/checkout)
+- physical_card → tickets, order_items
 - order → order_items, payments
 - wallet → wallet_transactions
 

@@ -1,13 +1,13 @@
-package com.ticketapp.service;
+package com.validationgate.service;
 
-import com.ticketapp.client.level4.Level4Client;
-import com.ticketapp.dto.external.ExternalGateEventBatchRequest;
-import com.ticketapp.dto.external.ExternalGateEventRequest;
-import com.ticketapp.dto.gate.GateEventType;
-import com.ticketapp.dto.gate.ValidationRecordRequest;
-import com.ticketapp.dto.gate.ValidationRecordResponse;
-import com.ticketapp.entity.GateEvent;
-import com.ticketapp.repository.GateEventRepository;
+import com.validationgate.client.Level4Client;
+import com.validationgate.dto.ExternalGateEventBatchRequest;
+import com.validationgate.dto.ExternalGateEventRequest;
+import com.validationgate.dto.GateEventType;
+import com.validationgate.dto.ValidationRecordRequest;
+import com.validationgate.dto.ValidationRecordResponse;
+import com.validationgate.entity.GateEvent;
+import com.validationgate.repository.GateEventRepository;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.data.domain.Pageable;

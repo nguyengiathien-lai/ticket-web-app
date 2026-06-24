@@ -7,8 +7,8 @@ import com.ticketapp.dto.account.AdminResetPasswordRequest;
 import com.ticketapp.dto.auth.AccountResponse;
 import com.ticketapp.dto.card.PhysicalCardResponse;
 import com.ticketapp.dto.ticket.TicketResponse;
+import com.ticketapp.dto.travel.TravelHistoryResponse;
 import com.ticketapp.entity.Account;
-import com.ticketapp.entity.TravelHistory;
 import com.ticketapp.service.AccountService;
 import com.ticketapp.service.AuthenticationService;
 import com.ticketapp.service.AuthorizationService;
@@ -78,7 +78,7 @@ public class AccountController {
     }
 
     @GetMapping("/{accountId}/travels")
-    public ResponseEntity<ApiResponse<List<TravelHistory>>> getTravelHistory(
+    public ResponseEntity<ApiResponse<List<TravelHistoryResponse>>> getTravelHistory(
             @RequestHeader(name = "Authorization", required = false) String authorizationHeader,
             @PathVariable String accountId) {
         requireSelfOrAdmin(authorizationHeader, accountId);

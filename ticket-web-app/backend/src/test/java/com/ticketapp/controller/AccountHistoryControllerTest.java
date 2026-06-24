@@ -3,8 +3,8 @@ package com.ticketapp.controller;
 import com.ticketapp.dto.ApiResponse;
 import com.ticketapp.dto.card.PhysicalCardResponse;
 import com.ticketapp.dto.ticket.TicketResponse;
+import com.ticketapp.dto.travel.TravelHistoryResponse;
 import com.ticketapp.entity.Account;
-import com.ticketapp.entity.TravelHistory;
 import com.ticketapp.service.AccountService;
 import com.ticketapp.service.AuthenticationService;
 import com.ticketapp.service.AuthorizationService;
@@ -84,11 +84,12 @@ class AccountHistoryControllerTest {
     @Test
     void passengerCanRetrieveOwnTravelHistory() {
         authenticationService.account = Optional.of(account("user-1"));
-        TravelHistory journey = new TravelHistory();
-        journey.setExternalTripId("trip-1");
+        TravelHistoryResponse journey = TravelHistoryResponse.builder()
+                .externalTripId("trip-1")
+                .build();
         travelHistoryService.history = List.of(journey);
 
-        ResponseEntity<ApiResponse<List<TravelHistory>>> response =
+        ResponseEntity<ApiResponse<List<TravelHistoryResponse>>> response =
                 controller.getTravelHistory("Bearer token", "user-1");
 
         assertThat(response.getBody()).isNotNull();
@@ -164,7 +165,7 @@ class AccountHistoryControllerTest {
     }
 
     private static class FakeTravelHistoryService extends TravelHistoryService {
-        private List<TravelHistory> history = List.of();
+        private List<TravelHistoryResponse> history = List.of();
         private String requestedAccountId;
 
         private FakeTravelHistoryService() {
@@ -172,7 +173,7 @@ class AccountHistoryControllerTest {
         }
 
         @Override
-        public List<TravelHistory> getTravelHistoryForPassenger(String passengerAccountId) {
+        public List<TravelHistoryResponse> getTravelHistoryForPassenger(String passengerAccountId) {
             requestedAccountId = passengerAccountId;
             return history;
         }

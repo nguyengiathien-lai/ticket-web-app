@@ -1,4 +1,4 @@
-package com.ticketapp.dto.gate;
+package com.validationgate.dto;
 
 public enum GateEventType {
     CHECK_IN,

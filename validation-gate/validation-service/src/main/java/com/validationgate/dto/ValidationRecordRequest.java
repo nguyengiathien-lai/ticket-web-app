@@ -1,4 +1,4 @@
-package com.ticketapp.dto.gate;
+package com.validationgate.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;

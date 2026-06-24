@@ -7,12 +7,12 @@
 - ✅ `Role` - Predefined roles (PASSENGER, APP_ADMIN)
 - ✅ `Permission` - Permission definitions
 
-### **Transit & Ticket Entities** (5)
+### **Transit & Ticket Entities** (4 local, 1 external)
 - ✅ `Station` - Transit stations/stops
 - ✅ `TicketType` - Ticket/pass types (daily, weekly, monthly)
 - ✅ `Ticket` - Individual tickets issued to users
 - ✅ `PhysicalCard` - Physical NFC/RFID cards
-- ✅ `TravelHistory` - Journey records with check-in/check-out
+- `TravelHistoryResponse` - Journey records requested from Level 5, not stored locally
 
 ### **Order & Payment Entities** (3)
 - ✅ `Order` - Customer orders
@@ -38,7 +38,7 @@
 | TicketType | `ticket_types` | Transit | UUID |
 | Ticket | `tickets` | Transit | UUID |
 | PhysicalCard | `physical_cards` | Transit | UUID |
-| TravelHistory | `travel_history` | Transit | BIGINT (auto) |
+| TravelHistoryResponse | none, Level 5 API | Transit | externalTripId |
 | Order | `orders` | Commerce | BIGINT (auto) |
 | OrderItem | `order_items` | Commerce | BIGINT (auto) |
 | Payment | `payments` | Commerce | BIGINT (auto) |

@@ -1,8 +1,8 @@
-package com.ticketapp.controller;
+package com.validationgate.controller;
 
-import com.ticketapp.dto.gate.ValidationRecordRequest;
-import com.ticketapp.dto.gate.ValidationRecordResponse;
-import com.ticketapp.service.GateValidationService;
+import com.validationgate.dto.ValidationRecordRequest;
+import com.validationgate.dto.ValidationRecordResponse;
+import com.validationgate.service.GateValidationService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;

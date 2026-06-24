@@ -1,0 +1,36 @@
+spring:
+  application:
+    name: validation-service
+
+  config:
+    import: optional:file:.env[.properties],optional:file:../../.env[.properties]
+
+  datasource:
+    url: ${VALIDATION_DATASOURCE_URL:${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/ticket_app}}
+    username: ${VALIDATION_DATASOURCE_USERNAME:${SPRING_DATASOURCE_USERNAME:postgres}}
+    password: ${VALIDATION_DB_PASSWORD:${DB_PASSWORD:}}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+    show-sql: false
+
+server:
+  port: ${VALIDATION_SERVICE_PORT:8081}
+  servlet:
+    context-path: /api
+
+app:
+  cors:
+    allowed-origins: ${VALIDATION_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:4173}
+  level4:
+    base-url: ${LEVEL4_BASE_URL:}
+    scan-record-batch-path: ${LEVEL4_SCAN_RECORD_BATCH_PATH:${LEVEL4_SCAN_RECORD_PATH:/scan-record/batch}}
+    scan-record-batch-size: ${LEVEL4_SCAN_RECORD_BATCH_SIZE:100}
+    scan-record-flush-delay-ms: ${LEVEL4_SCAN_RECORD_FLUSH_DELAY_MS:30000}
+    mock-enabled: ${LEVEL4_MOCK_ENABLED:true}

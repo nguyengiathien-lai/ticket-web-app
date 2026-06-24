@@ -908,20 +908,20 @@
 **Main Flow:**
 1. User navigates to "Travel History" or "Journey Records"
 2. User optionally applies filters: date range, origin/destination stations
-3. System retrieves all completed travel records for user from database
-4. System retrieves associated check-in and check-out data for each trip
+3. System requests completed travel records for the user from Level 5
+4. System maps Level 5 check-in and check-out data for each trip
 5. System includes travel details: origin, destination, check-in time, check-out time, duration, fare
 6. System includes vehicle information: type (metro/bus), vehicle number, line/route number
 7. System includes trip status and any exceptions (if trip incomplete or unusual patterns)
 8. System applies filters if provided
 9. System sorts travels by check-in date (most recent first)
-10. System applies pagination (limit results to 10-50 per page)
-11. System calculates summary: total trips, total distance, total time spent traveling
-12. System returns paginated travel history list
+10. System returns the travel history list without saving it locally
+11. Frontend can calculate summary fields such as total trips, total distance, and total time
+12. System returns the travel history list
 13. Frontend displays travels in timeline or list format with route maps
 14. User can view trip details: full route, stops, transfer information if applicable
 
-**API Endpoint:** `GET /api/users/{userId}/travels`
+**API Endpoint:** `GET /api/accounts/{accountId}/travels`
 
 **Query Parameters:**
 - `startDate` - Start date (YYYY-MM-DD)
@@ -934,30 +934,26 @@
 {
   "travelHistory": [
     {
-      "travelId": "travel_123",
-      "ticketId": "ticket_xyz789",
-      "origin": "Central Station",
-      "destination": "Airport Terminal",
-      "checkInTime": "2026-06-07T14:28:00Z",
-      "checkOutTime": "2026-06-07T15:10:00Z",
-      "duration": 42,
-      "fare": 15000,
+      "externalTripId": "travel_123",
+      "ticketExternalId": "ticket_xyz789",
+      "checkinStationName": "Central Station",
+      "checkoutStationName": "Airport Terminal",
+      "checkinTime": "2026-06-07T14:28:00Z",
+      "checkoutTime": "2026-06-07T15:10:00Z",
       "transportType": "metro",
-      "vehicleNumber": "L1-001",
-      "status": "completed"
+      "transportId": "L1-001",
+      "routeCode": "L1"
     },
     {
-      "travelId": "travel_124",
-      "ticketId": "ticket_abc456",
-      "origin": "District 1 Station",
-      "destination": "District 3 Station",
-      "checkInTime": "2026-06-05T16:00:00Z",
-      "checkOutTime": "2026-06-05T16:20:00Z",
-      "duration": 20,
-      "fare": 7500,
+      "externalTripId": "travel_124",
+      "ticketExternalId": "ticket_abc456",
+      "checkinStationName": "District 1 Station",
+      "checkoutStationName": "District 3 Station",
+      "checkinTime": "2026-06-05T16:00:00Z",
+      "checkoutTime": "2026-06-05T16:20:00Z",
       "transportType": "bus",
-      "vehicleNumber": "BUS-102",
-      "status": "completed"
+      "transportId": "BUS-102",
+      "routeCode": "B102"
     }
   ],
   "total": 2,

@@ -16,7 +16,7 @@ ticket-web-app/
 validation-gate/
   scanner/      Vite/React QR scanner simulator
   validation-service/
-                Validation service ownership notes
+                Spring Boot validation API
 docs/           API contracts and reference notes
 ```
 
@@ -28,4 +28,4 @@ Copy `.env.example` to `.env`, fill the local secrets, then run:
 docker compose up --build
 ```
 
-The backend Docker build context points to `ticket-web-app/backend`.
+Docker starts the ticket backend from `ticket-web-app/backend` and the validation service from `validation-gate/validation-service`.

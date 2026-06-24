@@ -1,4 +1,4 @@
-package com.ticketapp.dto.external;
+package com.validationgate.dto;
 
 import lombok.Builder;
 import lombok.Getter;

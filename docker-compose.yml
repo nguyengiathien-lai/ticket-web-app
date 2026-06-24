@@ -50,6 +50,27 @@ services:
     ports:
       - "8080:8080"
 
+  validation-service:
+    build:
+      context: ./validation-gate/validation-service
+    container_name: validation-service
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      VALIDATION_DATASOURCE_URL: jdbc:postgresql://postgres:5432/ticket_app
+      VALIDATION_DATASOURCE_USERNAME: postgres
+      VALIDATION_DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+      LEVEL4_BASE_URL: ${LEVEL4_BASE_URL:-}
+      LEVEL4_SCAN_RECORD_BATCH_PATH: ${LEVEL4_SCAN_RECORD_BATCH_PATH:-/scan-record/batch}
+      LEVEL4_MOCK_ENABLED: ${LEVEL4_MOCK_ENABLED:-true}
+      VALIDATION_SERVICE_PORT: 8081
+      VALIDATION_ALLOWED_ORIGINS: ${VALIDATION_ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:4173}
+    ports:
+      - "8081:8081"
+
 volumes:
   postgres-data:
   redis-data:
