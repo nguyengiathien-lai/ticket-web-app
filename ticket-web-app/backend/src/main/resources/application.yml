@@ -68,6 +68,7 @@ app:
     card-purchase-path: ${LEVEL5_CARD_PURCHASE_PATH:/api/card/purchase}
     ticket-history-path: ${LEVEL5_TICKET_HISTORY_PATH:/api/{accountId}/tickets}
     card-history-path: ${LEVEL5_CARD_HISTORY_PATH:/api/{accountId}/cards}
+    travel-history-path: ${LEVEL5_TRAVEL_HISTORY_PATH:/api/{accountId}/travels}
     ticket-types-path: ${LEVEL5_TICKET_TYPES_PATH:/api/ticket-types}
     card-types-path: ${LEVEL5_CARD_TYPES_PATH:/api/card-types}
     mock-enabled: ${LEVEL5_MOCK_ENABLED:true}
@@ -76,5 +77,7 @@ app:
   level4:
     base-url: ${LEVEL4_BASE_URL:}
     qr-code-path: ${LEVEL4_QR_CODE_PATH:/qr-codes}
-    scan-record-path: ${LEVEL4_SCAN_RECORD_PATH:/scan-record}
+    scan-record-batch-path: ${LEVEL4_SCAN_RECORD_BATCH_PATH:/scan-record/batch}
+    scan-record-batch-size: ${LEVEL4_SCAN_RECORD_BATCH_SIZE:100}
+    scan-record-flush-delay-ms: ${LEVEL4_SCAN_RECORD_FLUSH_DELAY_MS:30000}
     mock-enabled: ${LEVEL4_MOCK_ENABLED:true}

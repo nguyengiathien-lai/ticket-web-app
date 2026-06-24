@@ -144,7 +144,7 @@ class AccountHistoryControllerTest {
         }
 
         @Override
-        public List<TicketResponse> getCachedTicketsForPassenger(String passengerAccountId) {
+        public List<TicketResponse> getTicketsForPassenger(String passengerAccountId) {
             requestedAccountId = passengerAccountId;
             return tickets;
         }
@@ -154,7 +154,7 @@ class AccountHistoryControllerTest {
         private List<PhysicalCardResponse> cards = List.of();
 
         private FakePhysicalCardService() {
-            super(null);
+            super(null, null, null);
         }
 
         @Override

@@ -1,10 +1,12 @@
 package com.ticketapp.controller;
 
 import com.ticketapp.dto.ApiResponse;
+import com.ticketapp.dto.auth.AccountResponse;
 import com.ticketapp.dto.auth.LoginRequest;
 import com.ticketapp.dto.auth.LoginResponse;
 import com.ticketapp.dto.auth.LogoutRequest;
 import com.ticketapp.dto.auth.TokenValidationRequest;
+import com.ticketapp.dto.auth.UpdatePasswordRequest;
 import com.ticketapp.dto.auth.ValidateTokenResponse;
 import com.ticketapp.entity.Account;
 import com.ticketapp.service.AccountService;
@@ -84,6 +86,39 @@ class AuthControllerTest {
         assertThat(authenticationService.loggedOutToken).isEqualTo("jwt-token");
     }
 
+    @Test
+    void updatePasswordUsesAuthenticatedAccountFromAuthorizationHeader() {
+        FakeAuthenticationService authenticationService = new FakeAuthenticationService();
+        FakeAccountService accountService = new FakeAccountService();
+        AuthController controller = new AuthController(authenticationService, accountService);
+        authenticationService.accountByToken = Optional.of(account());
+        UpdatePasswordRequest request = new UpdatePasswordRequest();
+        request.setOldPassword("old-secret");
+        request.setNewPassword("new-secret");
+
+        ResponseEntity<ApiResponse<AccountResponse>> response = controller.updatePassword("Bearer jwt-token", request);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(accountService.updatedAccountId).isEqualTo("user-1");
+        assertThat(accountService.oldPassword).isEqualTo("old-secret");
+        assertThat(accountService.newPassword).isEqualTo("new-secret");
+    }
+
+    @Test
+    void updatePasswordReturnsUnauthorizedWithoutValidAuthorizationHeader() {
+        FakeAuthenticationService authenticationService = new FakeAuthenticationService();
+        FakeAccountService accountService = new FakeAccountService();
+        AuthController controller = new AuthController(authenticationService, accountService);
+        UpdatePasswordRequest request = new UpdatePasswordRequest();
+        request.setOldPassword("old-secret");
+        request.setNewPassword("new-secret");
+
+        ResponseEntity<ApiResponse<AccountResponse>> response = controller.updatePassword(null, request);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(accountService.updatedAccountId).isNull();
+    }
+
     private Account account() {
         Account account = new Account();
         account.setId("user-1");
@@ -97,6 +132,7 @@ class AuthControllerTest {
 
     private static class FakeAuthenticationService extends AuthenticationService {
         private Optional<Account> authenticatedAccount = Optional.empty();
+        private Optional<Account> accountByToken = Optional.empty();
         private boolean tokenValid;
         private String loggedOutToken;
 
@@ -117,7 +153,7 @@ class AuthControllerTest {
 
         @Override
         public Optional<Account> getAuthenticatedAccountByToken(String token) {
-            return Optional.empty();
+            return accountByToken;
         }
 
         @Override
@@ -128,6 +164,31 @@ class AuthControllerTest {
         @Override
         public void logout(String token) {
             loggedOutToken = token;
+        }
+    }
+
+    private static class FakeAccountService extends AccountService {
+        private String updatedAccountId;
+        private String oldPassword;
+        private String newPassword;
+
+        @Override
+        public Account updatePassword(String accountId, String oldPassword, String newPassword) {
+            this.updatedAccountId = accountId;
+            this.oldPassword = oldPassword;
+            this.newPassword = newPassword;
+            return account();
+        }
+
+        private Account account() {
+            Account account = new Account();
+            account.setId("user-1");
+            account.setEmail("user@example.com");
+            account.setFullName("Test User");
+            account.setIsActive(true);
+            account.setIsEmailVerified(true);
+            account.setMustChangePassword(false);
+            return account;
         }
     }
 }
