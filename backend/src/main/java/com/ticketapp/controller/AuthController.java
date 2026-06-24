@@ -138,9 +138,19 @@ public class AuthController {
 
     @PutMapping("/password")
     public ResponseEntity<ApiResponse<AccountResponse>> updatePassword(
+            @RequestHeader(name = "Authorization", required = false) String authorizationHeader,
             @Valid @RequestBody UpdatePasswordRequest request) {
+        Optional<Account> authenticatedAccount = authenticationService
+                .getAuthenticatedAccountByToken(extractBearerToken(authorizationHeader));
+
+        if (authenticatedAccount.isEmpty()) {
+            return ResponseEntity
+                    .status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.error("Valid authentication token is required"));
+        }
+
         Account account = accountService.updatePassword(
-                request.getAccountId(),
+                authenticatedAccount.get().getId(),
                 request.getOldPassword(),
                 request.getNewPassword()
         );
