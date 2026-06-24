@@ -42,7 +42,7 @@ public class GateValidationService {
 
     @Transactional
     public ValidationRecordResponse recordValidation(ValidationRecordRequest request) {
-        GateEvent gateEvent = toPendingGateEvent(request);
+        GateEvent gateEvent = toQueuedGateEvent(request);
         gateEventRepository.save(gateEvent);
         return new ValidationRecordResponse(QUEUED_MESSAGE);
     }
@@ -50,24 +50,26 @@ public class GateValidationService {
     @Transactional
     @Scheduled(fixedDelayString = "${app.level4.scan-record-flush-delay-ms:30000}")
     public synchronized void flushValidationBatch() {
-        List<GateEvent> batch = gateEventRepository.findByDeliveryStatusInOrderByRecordedAtAsc(
-                RETRYABLE_STATUSES, PageRequest.of(0, batchSize));
+        List<GateEvent> batch = nextBatch();
         if (batch.isEmpty()) {
             return;
         }
 
-        ValidationRecordResponse response;
         try {
-            response = level4Client.sendBatch(toExternalBatchRequest(batch));
+            ValidationRecordResponse response = level4Client.sendBatch(toExternalBatchRequest(batch));
+            requireAcceptedBatchResponse(response);
+            markSent(batch);
         } catch (RuntimeException exception) {
             markFailed(batch, exception.getMessage());
-            return;
         }
-        if (response == null || response.getMessage() == null || response.getMessage().isBlank()) {
-            markFailed(batch, "Level 4 returned an incomplete scan batch response");
-            return;
-        }
+    }
 
+    private List<GateEvent> nextBatch() {
+        return gateEventRepository.findByDeliveryStatusInOrderByRecordedAtAsc(
+                RETRYABLE_STATUSES, PageRequest.of(0, batchSize));
+    }
+
+    private void markSent(List<GateEvent> batch) {
         LocalDateTime sentAt = LocalDateTime.now();
         batch.forEach(event -> {
             event.setDeliveryStatus(STATUS_SENT);
@@ -77,7 +79,13 @@ public class GateValidationService {
         gateEventRepository.saveAll(batch);
     }
 
-    private GateEvent toPendingGateEvent(ValidationRecordRequest request) {
+    private void requireAcceptedBatchResponse(ValidationRecordResponse response) {
+        if (response == null || response.getMessage() == null || response.getMessage().isBlank()) {
+            throw new IllegalStateException("Level 4 returned an incomplete scan batch response");
+        }
+    }
+
+    private GateEvent toQueuedGateEvent(ValidationRecordRequest request) {
         ValidationRecordRequest normalized = normalize(request);
 
         GateEvent gateEvent = new GateEvent();

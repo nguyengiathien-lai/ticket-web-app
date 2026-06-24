@@ -8,6 +8,7 @@ import com.ticketapp.dto.external.ExternalTicketRequest;
 import com.ticketapp.dto.external.ExternalTicketResponse;
 import com.ticketapp.dto.external.ExternalTicketHistoryResponse;
 import com.ticketapp.dto.external.ExternalTicketTypeResponse;
+import com.ticketapp.dto.external.ExternalTravelHistoryResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
@@ -36,6 +37,7 @@ public class ExternalLevel5Client implements Level5Client {
     private final String cardPurchasePath;
     private final String ticketHistoryPath;
     private final String cardHistoryPath;
+    private final String travelHistoryPath;
     private final String ticketTypesPath;
     private final String cardTypesPath;
     private final boolean mockEnabled;
@@ -47,6 +49,7 @@ public class ExternalLevel5Client implements Level5Client {
             @Value("${app.level5.card-purchase-path:/api/card/purchase}") String cardPurchasePath,
             @Value("${app.level5.ticket-history-path:/api/{accountId}/tickets}") String ticketHistoryPath,
             @Value("${app.level5.card-history-path:/api/{accountId}/cards}") String cardHistoryPath,
+            @Value("${app.level5.travel-history-path:/api/{accountId}/travels}") String travelHistoryPath,
             @Value("${app.level5.ticket-types-path:/api/ticket-types}") String ticketTypesPath,
             @Value("${app.level5.card-types-path:/api/card-types}") String cardTypesPath,
             @Value("${app.level5.mock-enabled:true}") boolean mockEnabled) {
@@ -55,6 +58,7 @@ public class ExternalLevel5Client implements Level5Client {
         this.cardPurchasePath = cardPurchasePath;
         this.ticketHistoryPath = ticketHistoryPath;
         this.cardHistoryPath = cardHistoryPath;
+        this.travelHistoryPath = travelHistoryPath;
         this.ticketTypesPath = ticketTypesPath;
         this.cardTypesPath = cardTypesPath;
         this.mockEnabled = mockEnabled;
@@ -100,6 +104,15 @@ public class ExternalLevel5Client implements Level5Client {
         }
         return Arrays.asList(get(
                 cardHistoryPath, accountId, ExternalCardHistoryResponse[].class, "card history"));
+    }
+
+    @Override
+    public List<ExternalTravelHistoryResponse> getTravelHistory(String accountId) {
+        if (mockEnabled) {
+            return List.of();
+        }
+        return Arrays.asList(get(
+                travelHistoryPath, accountId, ExternalTravelHistoryResponse[].class, "travel history"));
     }
 
     @Override
