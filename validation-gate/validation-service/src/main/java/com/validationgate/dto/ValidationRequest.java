@@ -5,11 +5,9 @@ import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.time.LocalDateTime;
-
 @Getter
 @Setter
-public class ValidationRecordRequest {
+public class ValidationRequest {
 
     @NotBlank
     private String ticketId;
@@ -22,7 +20,4 @@ public class ValidationRecordRequest {
 
     @NotNull
     private GateEventType eventType;
-
-    @NotNull
-    private LocalDateTime recordedTime;
 }

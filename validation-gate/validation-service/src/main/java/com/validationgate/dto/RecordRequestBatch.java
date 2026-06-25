@@ -8,7 +8,7 @@ import java.util.List;
 
 @Getter
 @Builder
-public class ExternalGateEventBatchRequest {
+public class RecordRequestBatch {
     private String batchId;
     private LocalDateTime generatedAt;
     private List<ExternalGateEventRequest> records;

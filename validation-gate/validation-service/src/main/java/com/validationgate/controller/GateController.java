@@ -1,6 +1,6 @@
 package com.validationgate.controller;
 
-import com.validationgate.dto.ValidationRecordRequest;
+import com.validationgate.dto.ValidationRequest;
 import com.validationgate.dto.ValidationRecordResponse;
 import com.validationgate.service.GateValidationService;
 import jakarta.validation.Valid;
@@ -24,7 +24,7 @@ public class GateController {
 
     @PostMapping("/validate-ticket")
     public ResponseEntity<ValidationRecordResponse> validateTicket(
-            @Valid @RequestBody ValidationRecordRequest request) {
+            @Valid @RequestBody ValidationRequest request) {
         return ResponseEntity.ok(gateValidationService.recordValidation(request));
     }
 

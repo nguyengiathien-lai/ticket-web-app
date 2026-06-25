@@ -10,8 +10,7 @@ export async function validateTicket({ ticketId, gateId, stationId, eventType })
       ticketId,
       gateId,
       stationId,
-      eventType,
-      recordedTime: new Date().toISOString()
+      eventType
     })
   });
 

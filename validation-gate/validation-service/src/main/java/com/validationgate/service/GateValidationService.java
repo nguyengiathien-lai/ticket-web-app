@@ -1,9 +1,9 @@
 package com.validationgate.service;
 
 import com.validationgate.client.Level4Client;
-import com.validationgate.dto.ExternalGateEventBatchRequest;
 import com.validationgate.dto.ExternalGateEventRequest;
-import com.validationgate.dto.ValidationRecordRequest;
+import com.validationgate.dto.RecordRequestBatch;
+import com.validationgate.dto.ValidationRequest;
 import com.validationgate.dto.ValidationRecordResponse;
 import com.validationgate.entity.GateEvent;
 import com.validationgate.repository.GateEventRepository;
@@ -13,6 +13,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -30,18 +31,21 @@ public class GateValidationService {
     private final Level4Client level4Client;
     private final GateEventRepository gateEventRepository;
     private final int batchSize;
+    private final Duration sentEventRetention;
 
     public GateValidationService(
             Level4Client level4Client,
             GateEventRepository gateEventRepository,
-            @Value("${app.level4.scan-record-batch-size:100}") int batchSize) {
+            @Value("${app.level4.scan-record-batch-size:100}") int batchSize,
+            @Value("${app.level4.sent-event-retention:2d}") Duration sentEventRetention) {
         this.level4Client = level4Client;
         this.gateEventRepository = gateEventRepository;
         this.batchSize = Math.max(1, batchSize);
+        this.sentEventRetention = sentEventRetention.isNegative() ? Duration.ZERO : sentEventRetention;
     }
 
     @Transactional
-    public ValidationRecordResponse recordValidation(ValidationRecordRequest request) {
+    public ValidationRecordResponse recordValidation(ValidationRequest request) {
         GateEvent gateEvent = toQueuedGateEvent(request);
         gateEventRepository.save(gateEvent);
         return new ValidationRecordResponse(QUEUED_MESSAGE);
@@ -56,12 +60,19 @@ public class GateValidationService {
         }
 
         try {
-            ValidationRecordResponse response = level4Client.sendBatch(toExternalBatchRequest(batch));
+            ValidationRecordResponse response = level4Client.sendBatch(toBatchRequest(batch));
             requireAcceptedBatchResponse(response);
             markSent(batch);
         } catch (RuntimeException exception) {
             markFailed(batch, exception.getMessage());
         }
+    }
+
+    @Transactional
+    @Scheduled(fixedDelayString = "${app.level4.sent-event-cleanup-delay-ms:3600000}")
+    public void deleteExpiredSentEvents() {
+        LocalDateTime expiresBefore = LocalDateTime.now().minus(sentEventRetention);
+        gateEventRepository.deleteByDeliveryStatusAndSentAtBefore(STATUS_SENT, expiresBefore);
     }
 
     private List<GateEvent> nextBatch() {
@@ -85,8 +96,8 @@ public class GateValidationService {
         }
     }
 
-    private GateEvent toQueuedGateEvent(ValidationRecordRequest request) {
-        ValidationRecordRequest normalized = normalize(request);
+    private GateEvent toQueuedGateEvent(ValidationRequest request) {
+        ValidationRequest normalized = normalize(request);
 
         GateEvent gateEvent = new GateEvent();
         gateEvent.setEventId(UUID.randomUUID().toString());
@@ -94,17 +105,17 @@ public class GateValidationService {
         gateEvent.setGateId(normalized.getGateId());
         gateEvent.setStationId(normalized.getStationId());
         gateEvent.setEventType(normalized.getEventType());
-        gateEvent.setRecordedAt(normalized.getRecordedTime());
+        gateEvent.setRecordedAt(LocalDateTime.now());
         gateEvent.setDeliveryStatus(STATUS_PENDING);
         return gateEvent;
     }
 
-    private ValidationRecordRequest normalize(ValidationRecordRequest request) {
+    private ValidationRequest normalize(ValidationRequest request) {
         if (request == null) {
             throw new IllegalArgumentException("Validation record is required");
         }
 
-        ValidationRecordRequest normalized = new ValidationRecordRequest();
+        ValidationRequest normalized = new ValidationRequest();
         normalized.setTicketId(requireText(request.getTicketId(), "Ticket ID"));
         normalized.setGateId(requireText(request.getGateId(), "Gate ID"));
         normalized.setStationId(requireText(request.getStationId(), "Station ID"));
@@ -112,11 +123,7 @@ public class GateValidationService {
         if (request.getEventType() == null) {
             throw new IllegalArgumentException("Event type is required");
         }
-        if (request.getRecordedTime() == null) {
-            throw new IllegalArgumentException("Recorded time is required");
-        }
         normalized.setEventType(request.getEventType());
-        normalized.setRecordedTime(request.getRecordedTime());
         return normalized;
     }
 
@@ -132,8 +139,8 @@ public class GateValidationService {
                 .build();
     }
 
-    private ExternalGateEventBatchRequest toExternalBatchRequest(List<GateEvent> events) {
-        return ExternalGateEventBatchRequest.builder()
+    private RecordRequestBatch toBatchRequest(List<GateEvent> events) {
+        return RecordRequestBatch.builder()
                 .batchId(UUID.randomUUID().toString())
                 .generatedAt(LocalDateTime.now())
                 .records(events.stream()

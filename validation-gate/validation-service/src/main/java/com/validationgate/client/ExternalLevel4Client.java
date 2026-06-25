@@ -1,6 +1,6 @@
 package com.validationgate.client;
 
-import com.validationgate.dto.ExternalGateEventBatchRequest;
+import com.validationgate.dto.RecordRequestBatch;
 import com.validationgate.dto.ValidationRecordResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
@@ -26,7 +26,7 @@ public class ExternalLevel4Client implements Level4Client {
     }
 
     @Override
-    public ValidationRecordResponse sendBatch(ExternalGateEventBatchRequest request) {
+    public ValidationRecordResponse sendBatch(RecordRequestBatch request) {
         if (mockEnabled) {
             return new ValidationRecordResponse("Batch scan records received successfully");
         }
