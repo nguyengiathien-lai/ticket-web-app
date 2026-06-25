@@ -7,6 +7,6 @@ import lombok.NoArgsConstructor;
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
-public class ValidationRecordResponse {
+public class SubmitBatchResponse {
     private String message;
 }

@@ -1,7 +1,7 @@
 package com.validationgate.controller;
 
 import com.validationgate.dto.ValidationRequest;
-import com.validationgate.dto.ValidationRecordResponse;
+import com.validationgate.dto.SubmitBatchResponse;
 import com.validationgate.service.GateValidationService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -22,16 +22,21 @@ public class GateController {
         this.gateValidationService = gateValidationService;
     }
 
+    // @PostMapping("/validate-ticket")
+    // public ResponseEntity<SubmitBatchResponse> validateTicket(
+    //         @Valid @RequestBody ValidationRequest request) {
+    //     return ResponseEntity.ok(gateValidationService.validateTicket(request));
+    // }
     @PostMapping("/validate-ticket")
-    public ResponseEntity<ValidationRecordResponse> validateTicket(
+    public ResponseEntity<Boolean> validateTicket(
             @Valid @RequestBody ValidationRequest request) {
-        return ResponseEntity.ok(gateValidationService.ticketValidation(request));
+        return ResponseEntity.ok(gateValidationService.validateTicket(request));
     }
 
     @ExceptionHandler(IllegalStateException.class)
-    public ResponseEntity<ValidationRecordResponse> handleDeliveryFailure(IllegalStateException exception) {
+    public ResponseEntity<SubmitBatchResponse> handleDeliveryFailure(IllegalStateException exception) {
         return ResponseEntity
                 .status(HttpStatus.BAD_GATEWAY)
-                .body(new ValidationRecordResponse("Scan record was not received by the higher system"));
+                .body(new SubmitBatchResponse("Scan record was not received by the higher system"));
     }
 }

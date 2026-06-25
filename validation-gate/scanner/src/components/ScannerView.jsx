@@ -34,7 +34,8 @@ export default function ScannerView({ disabled, onScan }) {
         code: normalizedCode,
         scannedAt: now
       };
-      onScan(normalizedCode);
+      // onScan(normalizedCode);
+      onScan(rawPayload);
     },
     [disabled, onScan]
   );

@@ -46,4 +46,25 @@ public class TapEvent extends BaseEntity {
 
     @Column(name = "delivery_error", length = 500)
     private String deliveryError;
+
+    public TapEvent(
+            String eventId,
+            String ticketId,
+            TapEventType eventType,
+            String gateId,
+            String stationId,
+            LocalDateTime recordedAt,
+            String deliveryStatus,
+            LocalDateTime sentAt,
+            String deliveryError) {
+        this.eventId = eventId;
+        this.ticketId = ticketId;
+        this.eventType = eventType;
+        this.gateId = gateId;
+        this.stationId = stationId;
+        this.recordedAt = recordedAt;
+        this.deliveryStatus = deliveryStatus;
+        this.sentAt = sentAt;
+        this.deliveryError = deliveryError;
+    }
 }

@@ -6,10 +6,12 @@ import lombok.Getter;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import com.validationgate.entity.TapEvent;
+
 @Getter
 @Builder
-public class RecordRequestBatch {
+public class SubmitBatchRequest {
     private String batchId;
     private LocalDateTime generatedAt;
-    private List<ExternalGateEventRequest> records;
+    private List<TapEvent> records;
 }

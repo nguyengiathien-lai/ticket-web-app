@@ -1,7 +1,7 @@
 package com.validationgate.client;
 
 import com.validationgate.dto.RecordRequestBatch;
-import com.validationgate.dto.ValidationRecordResponse;
+import com.validationgate.dto.SubmitBatchResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
@@ -26,11 +26,11 @@ public class ExternalLevel4Client implements Level4Client {
     }
 
     @Override
-    public ValidationRecordResponse sendBatch(RecordRequestBatch request) {
+    public SubmitBatchResponse sendBatch(RecordRequestBatch request) {
         if (mockEnabled) {
-            return new ValidationRecordResponse("Batch scan records received successfully");
+            return new SubmitBatchResponse("Batch scan records received successfully");
         }
-        return post(scanRecordBatchPath, request, ValidationRecordResponse.class, "scan record batch");
+        return post(scanRecordBatchPath, request, SubmitBatchResponse.class, "scan record batch");
     }
 
     private <T> T post(String path, Object body, Class<T> responseType, String operation) {

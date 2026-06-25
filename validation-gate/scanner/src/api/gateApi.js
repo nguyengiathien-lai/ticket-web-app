@@ -1,15 +1,13 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8081";
 
-export async function validateTicket({ ticketId, gateId, stationId, eventType }) {
+export async function validateTicket({ qrPayload, eventType }) {
   const response = await fetch(`${API_BASE_URL}/api/gate/validate-ticket`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
     },
     body: JSON.stringify({
-      ticketId,
-      gateId,
-      stationId,
+      qrPayload,
       eventType
     })
   });
@@ -22,10 +20,10 @@ export async function validateTicket({ ticketId, gateId, stationId, eventType })
 
   return {
     status: "SENT",
-    ticketId,
-    gateId,
-    stationId,
-    eventType,
+    ticketId: payload.ticketId,
+    gateId: payload.gateId,
+    stationId: payload.stationId,
+    eventType: payload.eventType,
     message: payload.message
   };
 }

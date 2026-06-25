@@ -15,14 +15,12 @@ export default function App() {
 
   const gateLabel = useMemo(() => `${STATION_ID} / ${GATE_ID}`, []);
 
-  const handleScan = useCallback(async ticketId => {
+  const handleScan = useCallback(async qrPayload => {
     setLoading(true);
 
     try {
       const validation = await validateTicket({
-        ticketId,
-        gateId: GATE_ID,
-        stationId: STATION_ID,
+        qrPayload,
         eventType: EVENT_TYPE
       });
 

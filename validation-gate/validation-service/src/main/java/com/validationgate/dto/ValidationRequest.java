@@ -10,13 +10,7 @@ import lombok.Setter;
 public class ValidationRequest {
 
     @NotBlank
-    private String ticketId;
-
-    @NotBlank
-    private String gateId;
-
-    @NotBlank
-    private String stationId;
+    private String qrPayload;
 
     @NotNull
     private TapEventType eventType;

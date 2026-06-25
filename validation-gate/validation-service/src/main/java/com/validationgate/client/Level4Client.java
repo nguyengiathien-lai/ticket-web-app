@@ -1,8 +1,8 @@
 package com.validationgate.client;
 
 import com.validationgate.dto.RecordRequestBatch;
-import com.validationgate.dto.ValidationRecordResponse;
+import com.validationgate.dto.SubmitBatchResponse;
 
 public interface Level4Client {
-    ValidationRecordResponse sendBatch(RecordRequestBatch request);
+    SubmitBatchResponse sendBatch(RecordRequestBatch request);
 }

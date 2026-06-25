@@ -2,9 +2,9 @@ package com.validationgate.service;
 
 import com.validationgate.client.Level4Client;
 import com.validationgate.dto.ExternalGateEventRequest;
-import com.validationgate.dto.RecordRequestBatch;
+import com.validationgate.dto.SubmitBatchRequest;
 import com.validationgate.dto.ValidationRequest;
-import com.validationgate.dto.ValidationRecordResponse;
+import com.validationgate.dto.SubmitBatchResponse;
 import com.validationgate.entity.TapEvent;
 import com.validationgate.repository.TapEventRepository;
 import org.springframework.beans.factory.annotation.Value;
@@ -45,15 +45,31 @@ public class GateValidationService {
     }
 
     @Transactional
-    public ValidationRecordResponse ticketValidation(ValidationRequest request) {
-        return submitTapEvent(request);
+    public Boolean validateTicket(ValidationRequest request) {
+        // String qrPayload = scanResult.getText(); // "AFCQR:v1:...:exp=...:hmac=..."
+        String qrPayload = request.getQrPayload();
+        if (!qrPayload.startsWith("AFCQR:v1:")) return false;
+        String[] parts = qrPayload.split(":");
+        String qrId = parts[2];
+        long exp = Long.parseLong(parts[3].replace("exp=", ""));
+        String receivedHmac = parts[4].replace("hmac=", "");
+
+       
+        if (System.currentTimeMillis() / 1000 > exp + maxClockDriftSeconds) return DENY;
+
+        String dataToSign = "AFCQR:v1:" + qrId + ":exp=" + exp;
+        String expectedHmac = hmacSha256Base64Url(qrVerificationKey, dataToSign);
+
+        
+        recordTapEvent(request); // Store the scan record for batch delivery
+        return (expectedHmac.equals(receivedHmac));
     }
 
     @Transactional
-    public ValidationRecordResponse submitTapEvent(ValidationRequest request) {
+    public SubmitBatchResponse recordTapEvent(ValidationRequest request) {
         TapEvent tapEvent = toQueuedTapEvent(request);
         tapEventRepository.save(tapEvent);
-        return new ValidationRecordResponse(QUEUED_MESSAGE);
+        return new SubmitBatchResponse(QUEUED_MESSAGE);
     }
 
     @Transactional
@@ -65,7 +81,7 @@ public class GateValidationService {
         }
 
         try {
-            ValidationRecordResponse response = level4Client.sendBatch(toBatchRequest(batch));
+            SubmitBatchResponse response = level4Client.sendBatch(toBatchRequest(batch));
             requireAcceptedBatchResponse(response);
             markSent(batch);
         } catch (RuntimeException exception) {
@@ -95,61 +111,61 @@ public class GateValidationService {
         tapEventRepository.saveAll(batch);
     }
 
-    private void requireAcceptedBatchResponse(ValidationRecordResponse response) {
+    private void requireAcceptedBatchResponse(SubmitBatchResponse response) {
         if (response == null || response.getMessage() == null || response.getMessage().isBlank()) {
             throw new IllegalStateException("Level 4 returned an incomplete scan batch response");
         }
     }
 
     private TapEvent toQueuedTapEvent(ValidationRequest request) {
-        ValidationRequest normalized = normalize(request);
+        // ValidationRequest normalized = normalize(request);
 
         TapEvent tapEvent = new TapEvent();
-        tapEvent.setEventId(UUID.randomUUID().toString());
-        tapEvent.setTicketId(normalized.getTicketId());
-        tapEvent.setGateId(normalized.getGateId());
-        tapEvent.setStationId(normalized.getStationId());
-        tapEvent.setEventType(normalized.getEventType());
+        // tapEvent.setEventId(UUID.randomUUID().toString());
+        // tapEvent.setTicketId(normalized.getTicketId());
+        // tapEvent.setGateId(normalized.getGateId());
+        // tapEvent.setStationId(normalized.getStationId());
+        tapEvent.setQrPayload(request.getQrPayload());
+        tapEvent.setEventType(request.getEventType());
         tapEvent.setRecordedAt(LocalDateTime.now());
         tapEvent.setDeliveryStatus(STATUS_PENDING);
         return tapEvent;
     }
 
-    private ValidationRequest normalize(ValidationRequest request) {
-        if (request == null) {
-            throw new IllegalArgumentException("Validation record is required");
-        }
+    // private ValidationRequest normalize(ValidationRequest request) {
+    //     if (request == null) {
+    //         throw new IllegalArgumentException("Validation record is required");
+    //     }
 
-        ValidationRequest normalized = new ValidationRequest();
-        normalized.setTicketId(requireText(request.getTicketId(), "Ticket ID"));
-        normalized.setGateId(requireText(request.getGateId(), "Gate ID"));
-        normalized.setStationId(requireText(request.getStationId(), "Station ID"));
+    //     ValidationRequest normalized = new ValidationRequest();
+    //     normalized.setTicketId(requireText(request.getTicketId(), "Ticket ID"));
+    //     normalized.setGateId(requireText(request.getGateId(), "Gate ID"));
+    //     normalized.setStationId(requireText(request.getStationId(), "Station ID"));
 
-        if (request.getEventType() == null) {
-            throw new IllegalArgumentException("Event type is required");
-        }
-        normalized.setEventType(request.getEventType());
-        return normalized;
-    }
+    //     if (request.getEventType() == null) {
+    //         throw new IllegalArgumentException("Event type is required");
+    //     }
+    //     normalized.setEventType(request.getEventType());
+    //     return normalized;
+    // }
 
-    private ExternalGateEventRequest toExternalRequest(TapEvent event) {
-        return ExternalGateEventRequest.builder()
-                .eventId(event.getEventId())
-                .ticketId(event.getTicketId())
-                .eventType(event.getEventType())
-                .gateId(event.getGateId())
-                .stationId(event.getStationId())
-                .recordedAt(event.getRecordedAt())
-                .source("GATE")
-                .build();
-    }
+    // private ExternalGateEventRequest toExternalRequest(TapEvent event) {
+    //     return ExternalGateEventRequest.builder()
+    //             .eventId(event.getEventId())
+    //             .ticketId(event.getTicketId())
+    //             .eventType(event.getEventType())
+    //             .gateId(event.getGateId())
+    //             .stationId(event.getStationId())
+    //             .recordedAt(event.getRecordedAt())
+    //             .source("GATE")
+    //             .build();
+    // }
 
-    private RecordRequestBatch toBatchRequest(List<TapEvent> events) {
-        return RecordRequestBatch.builder()
+    private SubmitBatchRequest toBatchRequest(List<TapEvent> events) {
+        return SubmitBatchRequest.builder()
                 .batchId(UUID.randomUUID().toString())
                 .generatedAt(LocalDateTime.now())
                 .records(events.stream()
-                        .map(this::toExternalRequest)
                         .toList())
                 .build();
     }
