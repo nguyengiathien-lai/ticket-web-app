@@ -12,8 +12,16 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [history, setHistory] = useState([]);
+  const [scannerContext, setScannerContext] = useState({
+    gateId: GATE_ID,
+    stationId: STATION_ID,
+    eventType: EVENT_TYPE
+  });
 
-  const gateLabel = useMemo(() => `${STATION_ID} / ${GATE_ID}`, []);
+  const gateLabel = useMemo(
+    () => `${scannerContext.stationId} / ${scannerContext.gateId}`,
+    [scannerContext.gateId, scannerContext.stationId]
+  );
 
   const handleScan = useCallback(async qrPayload => {
     setLoading(true);
@@ -21,7 +29,9 @@ export default function App() {
     try {
       const validation = await validateTicket({
         qrPayload,
-        eventType: EVENT_TYPE
+        gateId: scannerContext.gateId,
+        stationId: scannerContext.stationId,
+        eventType: scannerContext.eventType
       });
 
       setResult(validation);
@@ -29,9 +39,10 @@ export default function App() {
     } catch (error) {
       const failedResult = {
         status: "ERROR",
-        ticketId,
-        gateId: GATE_ID,
-        stationId: STATION_ID,
+        ticketId: qrPayload,
+        gateId: scannerContext.gateId,
+        stationId: scannerContext.stationId,
+        eventType: scannerContext.eventType,
         message: error.message
       };
 
@@ -40,16 +51,22 @@ export default function App() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [scannerContext.eventType, scannerContext.gateId, scannerContext.stationId]);
 
   return (
     <main className="app-shell">
-      <ScannerView disabled={loading} onScan={handleScan} />
+      <ScannerView
+        disabled={loading}
+        scannerContext={scannerContext}
+        onScannerContextChange={setScannerContext}
+        onScan={handleScan}
+      />
 
       <aside className="gate-panel">
         <div className="gate-status">
           <span>Active gate</span>
           <strong>{gateLabel}</strong>
+          <em>{scannerContext.eventType.replace("_", " ")}</em>
         </div>
 
         <ValidationResult loading={loading} result={result} />

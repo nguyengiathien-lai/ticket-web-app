@@ -1,9 +1,14 @@
 import { BrowserMultiFormatReader } from "@zxing/browser";
-import { Camera, Keyboard, Pause, Play } from "lucide-react";
+import { Camera, Keyboard, Pause, Play, TrainFront } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { extractTicketCode } from "../api/ticketPayload";
 
-export default function ScannerView({ disabled, onScan }) {
+export default function ScannerView({
+  disabled,
+  scannerContext,
+  onScannerContextChange,
+  onScan
+}) {
   const videoRef = useRef(null);
   const controlsRef = useRef(null);
   const lastScanRef = useRef({ code: "", scannedAt: 0 });
@@ -116,6 +121,13 @@ export default function ScannerView({ disabled, onScan }) {
     setManualCode("");
   }
 
+  function updateScannerContext(field, value) {
+    onScannerContextChange(current => ({
+      ...current,
+      [field]: value
+    }));
+  }
+
   return (
     <section className="scanner-shell">
       <header className="scanner-bar">
@@ -134,6 +146,44 @@ export default function ScannerView({ disabled, onScan }) {
           {running ? <Pause size={20} /> : <Play size={20} />}
         </button>
       </header>
+
+      <section className="scanner-context" aria-label="Scanner context">
+        <label>
+          <span>Station</span>
+          <input
+            value={scannerContext.stationId}
+            onChange={event => updateScannerContext("stationId", event.target.value)}
+            disabled={disabled}
+          />
+        </label>
+
+        <label>
+          <span>Gate</span>
+          <input
+            value={scannerContext.gateId}
+            onChange={event => updateScannerContext("gateId", event.target.value)}
+            disabled={disabled}
+          />
+        </label>
+
+        <label>
+          <span>Mode</span>
+          <select
+            value={scannerContext.eventType}
+            onChange={event => updateScannerContext("eventType", event.target.value)}
+            disabled={disabled}
+          >
+            <option value="CHECK_IN">Check in</option>
+            <option value="CHECK_OUT">Check out</option>
+          </select>
+        </label>
+
+        <div className="scanner-context-badge">
+          <TrainFront size={18} aria-hidden="true" />
+          <strong>{scannerContext.stationId}</strong>
+          <span>{scannerContext.gateId}</span>
+        </div>
+      </section>
 
       <div className="camera-frame">
         <video ref={videoRef} className="camera-feed" muted playsInline />

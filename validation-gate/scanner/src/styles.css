@@ -16,7 +16,8 @@ body {
 }
 
 button,
-input {
+input,
+select {
   font: inherit;
 }
 
@@ -41,7 +42,7 @@ input:disabled {
   min-width: 0;
   min-height: 100vh;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto auto minmax(0, 1fr) auto auto;
   background: #020617;
 }
 
@@ -71,6 +72,61 @@ input:disabled {
   border-radius: 8px;
   color: #f8fafc;
   background: #1f2937;
+}
+
+.scanner-context {
+  padding: 12px 18px;
+  display: grid;
+  grid-template-columns: minmax(140px, 1fr) minmax(120px, 0.8fr) minmax(120px, 0.8fr) auto;
+  gap: 10px;
+  align-items: end;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.24);
+  background: #0b1120;
+}
+
+.scanner-context label {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+}
+
+.scanner-context label span {
+  color: #cbd5e1;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.scanner-context input,
+.scanner-context select {
+  min-width: 0;
+  height: 40px;
+  border: 1px solid rgba(148, 163, 184, 0.34);
+  border-radius: 8px;
+  padding: 0 10px;
+  color: #f8fafc;
+  background: #111827;
+}
+
+.scanner-context-badge {
+  min-height: 40px;
+  padding: 8px 10px;
+  display: grid;
+  grid-template-columns: auto minmax(0, auto) minmax(0, auto);
+  gap: 8px;
+  align-items: center;
+  border-radius: 8px;
+  color: #dcfce7;
+  background: #14532d;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.scanner-context-badge strong,
+.scanner-context-badge span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .camera-frame {
@@ -221,6 +277,18 @@ input:disabled {
 
 .gate-status strong {
   font-size: 22px;
+}
+
+.gate-status em {
+  width: fit-content;
+  padding: 4px 8px;
+  border-radius: 8px;
+  color: #dcfce7;
+  background: #166534;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 900;
+  text-transform: uppercase;
 }
 
 .result-panel {
@@ -457,9 +525,22 @@ input:disabled {
   .scan-target {
     width: min(72vw, 310px);
   }
+
+  .scanner-context {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .scanner-context-badge {
+    grid-column: 1 / -1;
+    width: fit-content;
+  }
 }
 
 @media (max-width: 520px) {
+  .scanner-context {
+    grid-template-columns: 1fr;
+  }
+
   .manual-entry {
     grid-template-columns: auto minmax(0, 1fr);
   }

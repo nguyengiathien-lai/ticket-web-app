@@ -1,6 +1,6 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8081";
 
-export async function validateTicket({ qrPayload, eventType }) {
+export async function validateTicket({ qrPayload, gateId, stationId, eventType }) {
   const response = await fetch(`${API_BASE_URL}/api/gate/validate-ticket`, {
     method: "POST",
     headers: {
@@ -8,6 +8,8 @@ export async function validateTicket({ qrPayload, eventType }) {
     },
     body: JSON.stringify({
       qrPayload,
+      gateId,
+      stationId,
       eventType
     })
   });

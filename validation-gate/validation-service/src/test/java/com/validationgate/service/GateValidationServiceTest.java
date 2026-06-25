@@ -3,9 +3,9 @@ package com.validationgate.service;
 import com.validationgate.client.Level4Client;
 import com.validationgate.dto.ExternalGateEventRequest;
 import com.validationgate.dto.TapEventType;
-import com.validationgate.dto.RecordRequestBatch;
+import com.validationgate.dto.SubmitBatchRequest;
 import com.validationgate.dto.ValidationRequest;
-import com.validationgate.dto.ValidationRecordResponse;
+import com.validationgate.dto.SubmitBatchResponse;
 import com.validationgate.entity.TapEvent;
 import com.validationgate.repository.TapEventRepository;
 import org.junit.jupiter.api.Test;
@@ -56,7 +56,7 @@ class GateValidationServiceTest {
         assertThat(captor.getValue().getEventId()).isNotBlank();
         assertThat(response.getMessage()).isEqualTo("Scan record queued for batch delivery");
         assertThat(request.getTicketId()).isEqualTo(" ticket-42 ");
-        verify(client, never()).sendBatch(any(RecordRequestBatch.class));
+        verify(client, never()).sendBatch(any(SubmitBatchRequest.class));
     }
 
     @Test
@@ -86,7 +86,7 @@ class GateValidationServiceTest {
         verify(repository).save(captor.capture());
         assertThat(captor.getValue().getTicketId()).isEqualTo("VALID-42");
         assertThat(response.getMessage()).isEqualTo("Scan record queued for batch delivery");
-        verify(client, never()).sendBatch(any(RecordRequestBatch.class));
+        verify(client, never()).sendBatch(any(SubmitBatchRequest.class));
     }
 
     @Test
@@ -101,8 +101,8 @@ class GateValidationServiceTest {
 
         service.flushValidationBatch();
 
-        ArgumentCaptor<RecordRequestBatch> batchCaptor =
-                ArgumentCaptor.forClass(RecordRequestBatch.class);
+        ArgumentCaptor<SubmitBatchRequest> batchCaptor =
+                ArgumentCaptor.forClass(SubmitBatchRequest.class);
         ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
         verify(repository).findByDeliveryStatusInOrderByRecordedAtAsc(anyCollection(), pageableCaptor.capture());
         assertThat(pageableCaptor.getValue().getPageSize()).isEqualTo(50);
