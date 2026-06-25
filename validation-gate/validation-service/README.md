@@ -8,7 +8,7 @@ This service owns the gate-side validation endpoint and scan-record batching. It
 
 - `POST /api/gate/validate-ticket`
 
-The scanner posts ticket/card scan records here. The service stores records in `gate_event` for retryable batch delivery to Level 4.
+The scanner posts ticket/card scan records here. The service stores records in `tap_event` for retryable batch delivery to Level 4.
 
 ## Run
 

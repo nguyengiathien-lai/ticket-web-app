@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
 public class ExternalGateEventRequest {
     private String eventId;
     private String ticketId;
-    private GateEventType eventType;
+    private TapEventType eventType;
     private String gateId;
     private String stationId;
     private LocalDateTime recordedAt;

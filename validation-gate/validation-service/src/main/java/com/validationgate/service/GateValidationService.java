@@ -5,8 +5,8 @@ import com.validationgate.dto.ExternalGateEventRequest;
 import com.validationgate.dto.RecordRequestBatch;
 import com.validationgate.dto.ValidationRequest;
 import com.validationgate.dto.ValidationRecordResponse;
-import com.validationgate.entity.GateEvent;
-import com.validationgate.repository.GateEventRepository;
+import com.validationgate.entity.TapEvent;
+import com.validationgate.repository.TapEventRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -29,32 +29,37 @@ public class GateValidationService {
     private static final int MAX_ERROR_LENGTH = 500;
 
     private final Level4Client level4Client;
-    private final GateEventRepository gateEventRepository;
+    private final TapEventRepository tapEventRepository;
     private final int batchSize;
     private final Duration sentEventRetention;
 
     public GateValidationService(
             Level4Client level4Client,
-            GateEventRepository gateEventRepository,
+            TapEventRepository tapEventRepository,
             @Value("${app.level4.scan-record-batch-size:100}") int batchSize,
             @Value("${app.level4.sent-event-retention:2d}") Duration sentEventRetention) {
         this.level4Client = level4Client;
-        this.gateEventRepository = gateEventRepository;
+        this.tapEventRepository = tapEventRepository;
         this.batchSize = Math.max(1, batchSize);
         this.sentEventRetention = sentEventRetention.isNegative() ? Duration.ZERO : sentEventRetention;
     }
 
     @Transactional
-    public ValidationRecordResponse recordValidation(ValidationRequest request) {
-        GateEvent gateEvent = toQueuedGateEvent(request);
-        gateEventRepository.save(gateEvent);
+    public ValidationRecordResponse ticketValidation(ValidationRequest request) {
+        return submitTapEvent(request);
+    }
+
+    @Transactional
+    public ValidationRecordResponse submitTapEvent(ValidationRequest request) {
+        TapEvent tapEvent = toQueuedTapEvent(request);
+        tapEventRepository.save(tapEvent);
         return new ValidationRecordResponse(QUEUED_MESSAGE);
     }
 
     @Transactional
     @Scheduled(fixedDelayString = "${app.level4.scan-record-flush-delay-ms:30000}")
     public synchronized void flushValidationBatch() {
-        List<GateEvent> batch = nextBatch();
+        List<TapEvent> batch = nextBatch();
         if (batch.isEmpty()) {
             return;
         }
@@ -72,22 +77,22 @@ public class GateValidationService {
     @Scheduled(fixedDelayString = "${app.level4.sent-event-cleanup-delay-ms:3600000}")
     public void deleteExpiredSentEvents() {
         LocalDateTime expiresBefore = LocalDateTime.now().minus(sentEventRetention);
-        gateEventRepository.deleteByDeliveryStatusAndSentAtBefore(STATUS_SENT, expiresBefore);
+        tapEventRepository.deleteByDeliveryStatusAndSentAtBefore(STATUS_SENT, expiresBefore);
     }
 
-    private List<GateEvent> nextBatch() {
-        return gateEventRepository.findByDeliveryStatusInOrderByRecordedAtAsc(
+    private List<TapEvent> nextBatch() {
+        return tapEventRepository.findByDeliveryStatusInOrderByRecordedAtAsc(
                 RETRYABLE_STATUSES, PageRequest.of(0, batchSize));
     }
 
-    private void markSent(List<GateEvent> batch) {
+    private void markSent(List<TapEvent> batch) {
         LocalDateTime sentAt = LocalDateTime.now();
         batch.forEach(event -> {
             event.setDeliveryStatus(STATUS_SENT);
             event.setSentAt(sentAt);
             event.setDeliveryError(null);
         });
-        gateEventRepository.saveAll(batch);
+        tapEventRepository.saveAll(batch);
     }
 
     private void requireAcceptedBatchResponse(ValidationRecordResponse response) {
@@ -96,18 +101,18 @@ public class GateValidationService {
         }
     }
 
-    private GateEvent toQueuedGateEvent(ValidationRequest request) {
+    private TapEvent toQueuedTapEvent(ValidationRequest request) {
         ValidationRequest normalized = normalize(request);
 
-        GateEvent gateEvent = new GateEvent();
-        gateEvent.setEventId(UUID.randomUUID().toString());
-        gateEvent.setTicketId(normalized.getTicketId());
-        gateEvent.setGateId(normalized.getGateId());
-        gateEvent.setStationId(normalized.getStationId());
-        gateEvent.setEventType(normalized.getEventType());
-        gateEvent.setRecordedAt(LocalDateTime.now());
-        gateEvent.setDeliveryStatus(STATUS_PENDING);
-        return gateEvent;
+        TapEvent tapEvent = new TapEvent();
+        tapEvent.setEventId(UUID.randomUUID().toString());
+        tapEvent.setTicketId(normalized.getTicketId());
+        tapEvent.setGateId(normalized.getGateId());
+        tapEvent.setStationId(normalized.getStationId());
+        tapEvent.setEventType(normalized.getEventType());
+        tapEvent.setRecordedAt(LocalDateTime.now());
+        tapEvent.setDeliveryStatus(STATUS_PENDING);
+        return tapEvent;
     }
 
     private ValidationRequest normalize(ValidationRequest request) {
@@ -127,7 +132,7 @@ public class GateValidationService {
         return normalized;
     }
 
-    private ExternalGateEventRequest toExternalRequest(GateEvent event) {
+    private ExternalGateEventRequest toExternalRequest(TapEvent event) {
         return ExternalGateEventRequest.builder()
                 .eventId(event.getEventId())
                 .ticketId(event.getTicketId())
@@ -139,7 +144,7 @@ public class GateValidationService {
                 .build();
     }
 
-    private RecordRequestBatch toBatchRequest(List<GateEvent> events) {
+    private RecordRequestBatch toBatchRequest(List<TapEvent> events) {
         return RecordRequestBatch.builder()
                 .batchId(UUID.randomUUID().toString())
                 .generatedAt(LocalDateTime.now())
@@ -149,14 +154,14 @@ public class GateValidationService {
                 .build();
     }
 
-    private void markFailed(List<GateEvent> batch, String error) {
+    private void markFailed(List<TapEvent> batch, String error) {
         String trimmedError = trimError(error);
         batch.forEach(event -> {
             event.setDeliveryStatus(STATUS_FAILED);
             event.setSentAt(null);
             event.setDeliveryError(trimmedError);
         });
-        gateEventRepository.saveAll(batch);
+        tapEventRepository.saveAll(batch);
     }
 
     private String trimError(String error) {

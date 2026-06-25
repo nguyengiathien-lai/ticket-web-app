@@ -2,12 +2,12 @@ package com.validationgate.service;
 
 import com.validationgate.client.Level4Client;
 import com.validationgate.dto.ExternalGateEventRequest;
-import com.validationgate.dto.GateEventType;
+import com.validationgate.dto.TapEventType;
 import com.validationgate.dto.RecordRequestBatch;
 import com.validationgate.dto.ValidationRequest;
 import com.validationgate.dto.ValidationRecordResponse;
-import com.validationgate.entity.GateEvent;
-import com.validationgate.repository.GateEventRepository;
+import com.validationgate.entity.TapEvent;
+import com.validationgate.repository.TapEventRepository;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.data.domain.Pageable;
@@ -32,24 +32,24 @@ class GateValidationServiceTest {
     @Test
     void storesTheScanRecordForBatchDelivery() {
         Level4Client client = mock(Level4Client.class);
-        GateEventRepository repository = mock(GateEventRepository.class);
+        TapEventRepository repository = mock(TapEventRepository.class);
         GateValidationService service = new GateValidationService(client, repository, 100, SENT_EVENT_RETENTION);
         ValidationRequest request = new ValidationRequest();
         request.setTicketId(" ticket-42 ");
         request.setGateId(" gate-1 ");
         request.setStationId(" station-1 ");
-        request.setEventType(GateEventType.CHECK_IN);
+        request.setEventType(TapEventType.CHECK_IN);
         LocalDateTime beforeRecord = LocalDateTime.now();
 
-        ValidationRecordResponse response = service.recordValidation(request);
+        ValidationRecordResponse response = service.submitTapEvent(request);
         LocalDateTime afterRecord = LocalDateTime.now();
 
-        ArgumentCaptor<GateEvent> captor = ArgumentCaptor.forClass(GateEvent.class);
+        ArgumentCaptor<TapEvent> captor = ArgumentCaptor.forClass(TapEvent.class);
         verify(repository).save(captor.capture());
         assertThat(captor.getValue().getTicketId()).isEqualTo("ticket-42");
         assertThat(captor.getValue().getGateId()).isEqualTo("gate-1");
         assertThat(captor.getValue().getStationId()).isEqualTo("station-1");
-        assertThat(captor.getValue().getEventType()).isEqualTo(GateEventType.CHECK_IN);
+        assertThat(captor.getValue().getEventType()).isEqualTo(TapEventType.CHECK_IN);
         assertThat(captor.getValue().getRecordedAt())
                 .isBetween(beforeRecord, afterRecord);
         assertThat(captor.getValue().getDeliveryStatus()).isEqualTo("PENDING");
@@ -62,18 +62,38 @@ class GateValidationServiceTest {
     @Test
     void rejectsMissingRequiredDataWhenCalledOutsideTheController() {
         GateValidationService service = new GateValidationService(
-                mock(Level4Client.class), mock(GateEventRepository.class), 100, SENT_EVENT_RETENTION);
+                mock(Level4Client.class), mock(TapEventRepository.class), 100, SENT_EVENT_RETENTION);
 
-        assertThatThrownBy(() -> service.recordValidation(new ValidationRequest()))
+        assertThatThrownBy(() -> service.submitTapEvent(new ValidationRequest()))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Ticket ID is required");
     }
 
     @Test
+    void ticketValidationSubmitsTheTapEvent() {
+        Level4Client client = mock(Level4Client.class);
+        TapEventRepository repository = mock(TapEventRepository.class);
+        GateValidationService service = new GateValidationService(client, repository, 100, SENT_EVENT_RETENTION);
+        ValidationRequest request = new ValidationRequest();
+        request.setTicketId("VALID-42");
+        request.setGateId("gate-1");
+        request.setStationId("station-1");
+        request.setEventType(TapEventType.CHECK_IN);
+
+        ValidationRecordResponse response = service.ticketValidation(request);
+
+        ArgumentCaptor<TapEvent> captor = ArgumentCaptor.forClass(TapEvent.class);
+        verify(repository).save(captor.capture());
+        assertThat(captor.getValue().getTicketId()).isEqualTo("VALID-42");
+        assertThat(response.getMessage()).isEqualTo("Scan record queued for batch delivery");
+        verify(client, never()).sendBatch(any(RecordRequestBatch.class));
+    }
+
+    @Test
     void sendsPendingRecordsAsABatchAndMarksThemSent() {
         Level4Client client = mock(Level4Client.class);
-        GateEventRepository repository = mock(GateEventRepository.class);
-        GateEvent event = event("event-1");
+        TapEventRepository repository = mock(TapEventRepository.class);
+        TapEvent event = event("event-1");
         when(repository.findByDeliveryStatusInOrderByRecordedAtAsc(
                 anyCollection(), any(Pageable.class))).thenReturn(List.of(event));
         when(client.sendBatch(any())).thenReturn(new ValidationRecordResponse("Batch received"));
@@ -103,8 +123,8 @@ class GateValidationServiceTest {
     @Test
     void marksTheBatchFailedWhenLevel4RejectsIt() {
         Level4Client client = mock(Level4Client.class);
-        GateEventRepository repository = mock(GateEventRepository.class);
-        GateEvent event = event("event-1");
+        TapEventRepository repository = mock(TapEventRepository.class);
+        TapEvent event = event("event-1");
         when(repository.findByDeliveryStatusInOrderByRecordedAtAsc(
                 anyCollection(), any(Pageable.class))).thenReturn(List.of(event));
         when(client.sendBatch(any())).thenThrow(new IllegalStateException("Level 4 unavailable"));
@@ -120,7 +140,7 @@ class GateValidationServiceTest {
 
     @Test
     void deletesSentRecordsAfterTheRetentionWindow() {
-        GateEventRepository repository = mock(GateEventRepository.class);
+        TapEventRepository repository = mock(TapEventRepository.class);
         GateValidationService service = new GateValidationService(
                 mock(Level4Client.class), repository, 100, Duration.ofHours(2));
         LocalDateTime beforeCleanup = LocalDateTime.now().minusHours(2);
@@ -134,13 +154,13 @@ class GateValidationServiceTest {
         assertThat(thresholdCaptor.getValue()).isBeforeOrEqualTo(LocalDateTime.now().minusHours(2));
     }
 
-    private GateEvent event(String eventId) {
-        GateEvent event = new GateEvent();
+    private TapEvent event(String eventId) {
+        TapEvent event = new TapEvent();
         event.setEventId(eventId);
         event.setTicketId("ticket-42");
         event.setGateId("gate-1");
         event.setStationId("station-1");
-        event.setEventType(GateEventType.CHECK_OUT);
+        event.setEventType(TapEventType.CHECK_OUT);
         event.setRecordedAt(LocalDateTime.of(2026, 6, 21, 15, 30));
         event.setDeliveryStatus("PENDING");
         return event;

@@ -25,7 +25,7 @@ public class GateController {
     @PostMapping("/validate-ticket")
     public ResponseEntity<ValidationRecordResponse> validateTicket(
             @Valid @RequestBody ValidationRequest request) {
-        return ResponseEntity.ok(gateValidationService.recordValidation(request));
+        return ResponseEntity.ok(gateValidationService.ticketValidation(request));
     }
 
     @ExceptionHandler(IllegalStateException.class)

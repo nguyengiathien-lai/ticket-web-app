@@ -19,5 +19,5 @@ public class ValidationRequest {
     private String stationId;
 
     @NotNull
-    private GateEventType eventType;
+    private TapEventType eventType;
 }

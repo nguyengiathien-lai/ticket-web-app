@@ -1,6 +1,6 @@
 package com.validationgate.entity;
 
-import com.validationgate.dto.GateEventType;
+import com.validationgate.dto.TapEventType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -16,8 +16,8 @@ import java.time.LocalDateTime;
 @Setter
 @NoArgsConstructor
 @Entity
-@Table(name = "gate_event")
-public class GateEvent extends BaseEntity {
+@Table(name = "tap_event")
+public class TapEvent extends BaseEntity {
 
     @Column(name = "event_id", nullable = false, unique = true, length = 36)
     private String eventId;
@@ -27,7 +27,7 @@ public class GateEvent extends BaseEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "event_type", nullable = false, length = 20)
-    private GateEventType eventType;
+    private TapEventType eventType;
 
     @Column(name = "gate_id", nullable = false, length = 100)
     private String gateId;
