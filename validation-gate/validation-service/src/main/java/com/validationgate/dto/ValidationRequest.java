@@ -12,6 +12,12 @@ public class ValidationRequest {
     @NotBlank
     private String qrPayload;
 
+    @NotBlank
+    private String deviceCode;
+
+    @NotBlank
+    private String stationCode;
+
     @NotNull
     private TapEventType eventType;
 }

@@ -1,10 +1,17 @@
 package com.validationgate.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.validationgate.client.Level4Client;
 import com.validationgate.dto.SubmitBatchRequest;
 import com.validationgate.dto.ValidationRequest;
 import com.validationgate.dto.SubmitBatchResponse;
+import com.validationgate.entity.DeviceConfigPackage;
+import com.validationgate.entity.MediaAccessRulesPackage;
 import com.validationgate.entity.TapEvent;
+import com.validationgate.repository.DeviceConfigPackageRepository;
+import com.validationgate.repository.MediaAccessRulesPackageRepository;
 import com.validationgate.repository.TapEventRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
@@ -32,57 +39,52 @@ public class GateValidationService {
     private static final List<String> RETRYABLE_STATUSES = List.of(STATUS_PENDING, STATUS_FAILED);
     private static final String QUEUED_MESSAGE = "Scan record queued for batch delivery";
     private static final int MAX_ERROR_LENGTH = 500;
+    private static final String QR_ALGORITHM_HMAC_SHA256 = "HMAC_SHA256";
+    private static final String MEDIA_STATUS_BLACKLISTED = "BLACKLISTED";
 
     private final Level4Client level4Client;
     private final TapEventRepository tapEventRepository;
+    private final DeviceConfigPackageRepository deviceConfigRepository;
+    private final MediaAccessRulesPackageRepository mediaAccessRulesRepository;
+    private final ObjectMapper objectMapper;
     private final int batchSize;
     private final Duration sentEventRetention;
-    private final String deviceCode;
-    private final String stationCode;
-    private final String qrVerificationKey;
-    private final long maxClockDriftSeconds;
 
     public GateValidationService(
             Level4Client level4Client,
             TapEventRepository tapEventRepository,
+            DeviceConfigPackageRepository deviceConfigRepository,
+            MediaAccessRulesPackageRepository mediaAccessRulesRepository,
+            ObjectMapper objectMapper,
             @Value("${app.level4.scan-record-batch-size:100}") int batchSize,
-            @Value("${app.level4.sent-event-retention:2d}") Duration sentEventRetention,
-            @Value("${app.device.code:gate-device-1}") String deviceCode,
-            @Value("${app.device.station-code:station-1}") String stationCode,
-            @Value("${app.level4.qr-verification-key:}") String qrVerificationKey,
-            @Value("${app.level4.max-clock-drift-seconds:60}") long maxClockDriftSeconds) {
+            @Value("${app.level4.sent-event-retention:2d}") Duration sentEventRetention) {
         this.level4Client = level4Client;
         this.tapEventRepository = tapEventRepository;
+        this.deviceConfigRepository = deviceConfigRepository;
+        this.mediaAccessRulesRepository = mediaAccessRulesRepository;
+        this.objectMapper = objectMapper;
         this.batchSize = Math.max(1, batchSize);
         this.sentEventRetention = sentEventRetention.isNegative() ? Duration.ZERO : sentEventRetention;
-        this.deviceCode = requireDefaultText(deviceCode, "gate-device-1");
-        this.stationCode = requireDefaultText(stationCode, "station-1");
-        this.qrVerificationKey = qrVerificationKey == null ? "" : qrVerificationKey.trim();
-        this.maxClockDriftSeconds = Math.max(0, maxClockDriftSeconds);
-    }
-
-    public GateValidationService(
-            Level4Client level4Client,
-            TapEventRepository tapEventRepository,
-            int batchSize,
-            Duration sentEventRetention) {
-        this(level4Client, tapEventRepository, batchSize, sentEventRetention,
-                "gate-device-1", "station-1", "", 60);
     }
 
     @Transactional
     public Boolean validateTicket(ValidationRequest request) {
+        ScanContext scanContext = scanContext(request);
         QrPayload qrPayload = parseQrPayload(request);
-        if (qrPayload == null || isExpired(qrPayload.expiresAtEpochSeconds())) {
+        if (qrPayload == null) {
             return false;
         }
 
-        boolean validSignature = qrVerificationKey.isBlank()
-                || hmacSha256Base64Url(qrVerificationKey, qrPayload.dataToSign()).equals(qrPayload.hmac());
-        if (validSignature) {
-            recordTapEvent(request);
+        DeviceConfig deviceConfig = loadDeviceConfig(scanContext);
+        if (deviceConfig == null || !deviceConfig.allowsQrValidation()
+                || isExpired(qrPayload.expiresAtEpochSeconds(), deviceConfig.maxClockDriftSeconds())
+                || isBlacklisted(scanContext, qrPayload.cardId())
+                || !isValidSignature(deviceConfig, qrPayload)) {
+            return false;
         }
-        return validSignature;
+
+        recordTapEvent(request);
+        return true;
     }
 
     @Transactional
@@ -144,11 +146,10 @@ public class GateValidationService {
         }
 
         TapEvent tapEvent = new TapEvent();
-        // tapEvent.setEventId(UUID.randomUUID().toString());
-        // tapEvent.setTicketId(qrPayload.qrId());
-        // tapEvent.setGateId(deviceCode);
-        // tapEvent.setStationId(stationCode);
-        tapEvent.setQrPayload(request.getQrPayload());
+        tapEvent.setEventId(UUID.randomUUID().toString());
+        tapEvent.setTicketId(qrPayload.ticketId());
+        tapEvent.setGateId(scanContext(request).deviceCode());
+        tapEvent.setStationId(scanContext(request).stationCode());
         tapEvent.setEventType(request.getEventType());
         tapEvent.setRecordedAt(LocalDateTime.now());
         tapEvent.setDeliveryStatus(STATUS_PENDING);
@@ -217,37 +218,87 @@ public class GateValidationService {
         return value.trim();
     }
 
-    private String requireDefaultText(String value, String fallback) {
-        return value == null || value.isBlank() ? fallback : value.trim();
-    }
-
     private QrPayload parseQrPayload(ValidationRequest request) {
         if (request == null || request.getQrPayload() == null || request.getQrPayload().isBlank()) {
             return null;
         }
         String[] parts = request.getQrPayload().trim().split(":");
-        if (parts.length != 5 || !"AFCQR".equals(parts[0]) || !"v1".equals(parts[1])
-                || !parts[3].startsWith("exp=") || !parts[4].startsWith("hmac=")) {
+        if (parts.length != 6 || !"AFCQR".equals(parts[0]) || !"v1".equals(parts[1])
+                || !parts[4].startsWith("exp=") || !parts[5].startsWith("hmac=")) {
             return null;
         }
         try {
-            String qrId = requireText(parts[2], "QR ID");
-            long expiresAt = Long.parseLong(parts[3].substring("exp=".length()));
-            String hmac = requireText(parts[4].substring("hmac=".length()), "QR HMAC");
-            return new QrPayload(qrId, expiresAt, hmac);
+            String cardId = requireText(parts[2], "Card ID");
+            String ticketId = requireText(parts[3], "Ticket ID");
+            long expiresAt = Long.parseLong(parts[4].substring("exp=".length()));
+            String hmac = requireText(parts[5].substring("hmac=".length()), "QR HMAC");
+            return new QrPayload(cardId, ticketId, expiresAt, hmac);
         } catch (IllegalArgumentException exception) {
             return null;
         }
     }
 
-    private boolean isExpired(long expiresAtEpochSeconds) {
+    private ScanContext scanContext(ValidationRequest request) {
+        if (request == null) {
+            throw new IllegalArgumentException("Validation request is required");
+        }
+        return new ScanContext(
+                requireText(request.getDeviceCode(), "Device code"),
+                requireText(request.getStationCode(), "Station code"));
+    }
+
+    private DeviceConfig loadDeviceConfig(ScanContext scanContext) {
+        return deviceConfigRepository.findByStationCode(scanContext.stationCode())
+                .filter(packageEntity -> scanContext.deviceCode().equals(packageEntity.getDeviceCode()))
+                .map(DeviceConfigPackage::getPayloadJson)
+                .map(this::readJson)
+                .map(DeviceConfig::fromJson)
+                .orElse(null);
+    }
+
+    private boolean isValidSignature(DeviceConfig deviceConfig, QrPayload qrPayload) {
+        return hmacSha256Base64Url(deviceConfig.qrVerificationKey(), qrPayload.dataToSign()).equals(qrPayload.hmac());
+    }
+
+    private boolean isBlacklisted(ScanContext scanContext, String cardId) {
+        return mediaAccessRulesRepository.findByStationCode(scanContext.stationCode())
+                .filter(packageEntity -> scanContext.deviceCode().equals(packageEntity.getDeviceCode()))
+                .map(MediaAccessRulesPackage::getPayloadJson)
+                .map(this::readJson)
+                .map(payload -> containsBlacklistedCard(payload, cardId))
+                .orElse(false);
+    }
+
+    private boolean containsBlacklistedCard(JsonNode mediaAccessRules, String cardId) {
+        JsonNode cardStatusRules = mediaAccessRules.get("cardStatusRules");
+        if (cardStatusRules == null || !cardStatusRules.isArray()) {
+            return false;
+        }
+        for (JsonNode rule : cardStatusRules) {
+            if (cardId.equals(rule.path("cardId").asText())
+                    && MEDIA_STATUS_BLACKLISTED.equals(rule.path("status").asText())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private JsonNode readJson(String payloadJson) {
+        try {
+            return objectMapper.readTree(payloadJson);
+        } catch (JsonProcessingException exception) {
+            throw new IllegalStateException("Stored device package JSON is invalid", exception);
+        }
+    }
+
+    private boolean isExpired(long expiresAtEpochSeconds, long maxClockDriftSeconds) {
         return System.currentTimeMillis() / 1000 > expiresAtEpochSeconds + maxClockDriftSeconds;
     }
 
     private String hmacSha256Base64Url(String secret, String data) {
         try {
             Mac mac = Mac.getInstance("HmacSHA256");
-            mac.init(new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+            mac.init(new SecretKeySpec(secretBytes(secret), "HmacSHA256"));
             return Base64.getUrlEncoder().withoutPadding()
                     .encodeToString(mac.doFinal(data.getBytes(StandardCharsets.UTF_8)));
         } catch (NoSuchAlgorithmException | InvalidKeyException exception) {
@@ -255,9 +306,42 @@ public class GateValidationService {
         }
     }
 
-    private record QrPayload(String qrId, long expiresAtEpochSeconds, String hmac) {
+    private byte[] secretBytes(String secret) {
+        try {
+            return Base64.getUrlDecoder().decode(secret);
+        } catch (IllegalArgumentException exception) {
+            return secret.getBytes(StandardCharsets.UTF_8);
+        }
+    }
+
+    private record ScanContext(String deviceCode, String stationCode) {
+    }
+
+    private record QrPayload(String cardId, String ticketId, long expiresAtEpochSeconds, String hmac) {
         private String dataToSign() {
-            return "AFCQR:v1:" + qrId + ":exp=" + expiresAtEpochSeconds;
+            return "AFCQR:v1:" + cardId + ":" + ticketId + ":exp=" + expiresAtEpochSeconds;
+        }
+    }
+
+    private record DeviceConfig(
+            String qrVerificationAlgorithm,
+            String qrVerificationKey,
+            long maxClockDriftSeconds,
+            boolean allowOfflineValidation) {
+
+        private static DeviceConfig fromJson(JsonNode payload) {
+            return new DeviceConfig(
+                    payload.path("qrVerificationAlgorithm").asText(),
+                    payload.path("qrVerificationKey").asText(),
+                    Math.max(0, payload.path("maxClockDriftSeconds").asLong(0)),
+                    payload.path("allowOfflineValidation").asBoolean(true));
+        }
+
+        private boolean allowsQrValidation() {
+            return allowOfflineValidation
+                    && QR_ALGORITHM_HMAC_SHA256.equals(qrVerificationAlgorithm)
+                    && qrVerificationKey != null
+                    && !qrVerificationKey.isBlank();
         }
     }
 }

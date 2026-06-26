@@ -9,7 +9,16 @@ It also listens for the Level 4 midnight device information package over RabbitM
 
 - `POST /api/gate/validate-ticket`
 
-The scanner posts ticket/card scan records here. The service stores records in `tap_event` for retryable batch delivery to Level 4.
+The scanner posts ticket/card scan records here. The service validates the QR with the latest local device package, checks local media access rules, and stores accepted records in `tap_event` for retryable batch delivery to Level 4.
+
+```json
+{
+  "qrPayload": "AFCQR:v1:CARD-000001:TICKET-000001:exp=1765432100:hmac=...",
+  "deviceCode": "gate-device-1",
+  "stationCode": "METRO-001-ST-001",
+  "eventType": "CHECK_IN"
+}
+```
 
 ## Run
 
