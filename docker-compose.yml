@@ -29,6 +29,20 @@ services:
       timeout: 5s
       retries: 5
 
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: ticket-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   backend:
     build:
       context: ./ticket-web-app/backend
@@ -59,10 +73,17 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     environment:
       VALIDATION_DATASOURCE_URL: jdbc:postgresql://postgres:5432/ticket_app
       VALIDATION_DATASOURCE_USERNAME: postgres
       VALIDATION_DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      DEVICE_CODE: ${DEVICE_CODE:-gate-device-1}
+      DEVICE_STATION_CODE: ${DEVICE_STATION_CODE:-station-1}
+      DEVICE_PACKAGE_EXCHANGE: ${DEVICE_PACKAGE_EXCHANGE:-level4.device.packages}
       LEVEL4_BASE_URL: ${LEVEL4_BASE_URL:-}
       LEVEL4_SCAN_RECORD_BATCH_PATH: ${LEVEL4_SCAN_RECORD_BATCH_PATH:-/scan-record/batch}
       LEVEL4_MOCK_ENABLED: ${LEVEL4_MOCK_ENABLED:-true}
@@ -74,3 +95,4 @@ services:
 volumes:
   postgres-data:
   redis-data:
+  rabbitmq-data:

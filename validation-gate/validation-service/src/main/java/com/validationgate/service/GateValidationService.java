@@ -1,7 +1,6 @@
 package com.validationgate.service;
 
 import com.validationgate.client.Level4Client;
-import com.validationgate.dto.ExternalGateEventRequest;
 import com.validationgate.dto.SubmitBatchRequest;
 import com.validationgate.dto.ValidationRequest;
 import com.validationgate.dto.SubmitBatchResponse;
@@ -15,8 +14,14 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.nio.charset.StandardCharsets;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.util.Base64;
 import java.util.List;
 import java.util.UUID;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 
 @Service
 public class GateValidationService {
@@ -32,37 +37,52 @@ public class GateValidationService {
     private final TapEventRepository tapEventRepository;
     private final int batchSize;
     private final Duration sentEventRetention;
+    private final String deviceCode;
+    private final String stationCode;
+    private final String qrVerificationKey;
+    private final long maxClockDriftSeconds;
 
     public GateValidationService(
             Level4Client level4Client,
             TapEventRepository tapEventRepository,
             @Value("${app.level4.scan-record-batch-size:100}") int batchSize,
-            @Value("${app.level4.sent-event-retention:2d}") Duration sentEventRetention) {
+            @Value("${app.level4.sent-event-retention:2d}") Duration sentEventRetention,
+            @Value("${app.device.code:gate-device-1}") String deviceCode,
+            @Value("${app.device.station-code:station-1}") String stationCode,
+            @Value("${app.level4.qr-verification-key:}") String qrVerificationKey,
+            @Value("${app.level4.max-clock-drift-seconds:60}") long maxClockDriftSeconds) {
         this.level4Client = level4Client;
         this.tapEventRepository = tapEventRepository;
         this.batchSize = Math.max(1, batchSize);
         this.sentEventRetention = sentEventRetention.isNegative() ? Duration.ZERO : sentEventRetention;
+        this.deviceCode = requireDefaultText(deviceCode, "gate-device-1");
+        this.stationCode = requireDefaultText(stationCode, "station-1");
+        this.qrVerificationKey = qrVerificationKey == null ? "" : qrVerificationKey.trim();
+        this.maxClockDriftSeconds = Math.max(0, maxClockDriftSeconds);
+    }
+
+    public GateValidationService(
+            Level4Client level4Client,
+            TapEventRepository tapEventRepository,
+            int batchSize,
+            Duration sentEventRetention) {
+        this(level4Client, tapEventRepository, batchSize, sentEventRetention,
+                "gate-device-1", "station-1", "", 60);
     }
 
     @Transactional
     public Boolean validateTicket(ValidationRequest request) {
-        // String qrPayload = scanResult.getText(); // "AFCQR:v1:...:exp=...:hmac=..."
-        String qrPayload = request.getQrPayload();
-        if (!qrPayload.startsWith("AFCQR:v1:")) return false;
-        String[] parts = qrPayload.split(":");
-        String qrId = parts[2];
-        long exp = Long.parseLong(parts[3].replace("exp=", ""));
-        String receivedHmac = parts[4].replace("hmac=", "");
+        QrPayload qrPayload = parseQrPayload(request);
+        if (qrPayload == null || isExpired(qrPayload.expiresAtEpochSeconds())) {
+            return false;
+        }
 
-       
-        if (System.currentTimeMillis() / 1000 > exp + maxClockDriftSeconds) return DENY;
-
-        String dataToSign = "AFCQR:v1:" + qrId + ":exp=" + exp;
-        String expectedHmac = hmacSha256Base64Url(qrVerificationKey, dataToSign);
-
-        
-        recordTapEvent(request); // Store the scan record for batch delivery
-        return (expectedHmac.equals(receivedHmac));
+        boolean validSignature = qrVerificationKey.isBlank()
+                || hmacSha256Base64Url(qrVerificationKey, qrPayload.dataToSign()).equals(qrPayload.hmac());
+        if (validSignature) {
+            recordTapEvent(request);
+        }
+        return validSignature;
     }
 
     @Transactional
@@ -118,13 +138,16 @@ public class GateValidationService {
     }
 
     private TapEvent toQueuedTapEvent(ValidationRequest request) {
-        // ValidationRequest normalized = normalize(request);
+        QrPayload qrPayload = parseQrPayload(request);
+        if (qrPayload == null) {
+            throw new IllegalArgumentException("QR payload is invalid");
+        }
 
         TapEvent tapEvent = new TapEvent();
         // tapEvent.setEventId(UUID.randomUUID().toString());
-        // tapEvent.setTicketId(normalized.getTicketId());
-        // tapEvent.setGateId(normalized.getGateId());
-        // tapEvent.setStationId(normalized.getStationId());
+        // tapEvent.setTicketId(qrPayload.qrId());
+        // tapEvent.setGateId(deviceCode);
+        // tapEvent.setStationId(stationCode);
         tapEvent.setQrPayload(request.getQrPayload());
         tapEvent.setEventType(request.getEventType());
         tapEvent.setRecordedAt(LocalDateTime.now());
@@ -192,5 +215,49 @@ public class GateValidationService {
             throw new IllegalArgumentException(fieldName + " is required");
         }
         return value.trim();
+    }
+
+    private String requireDefaultText(String value, String fallback) {
+        return value == null || value.isBlank() ? fallback : value.trim();
+    }
+
+    private QrPayload parseQrPayload(ValidationRequest request) {
+        if (request == null || request.getQrPayload() == null || request.getQrPayload().isBlank()) {
+            return null;
+        }
+        String[] parts = request.getQrPayload().trim().split(":");
+        if (parts.length != 5 || !"AFCQR".equals(parts[0]) || !"v1".equals(parts[1])
+                || !parts[3].startsWith("exp=") || !parts[4].startsWith("hmac=")) {
+            return null;
+        }
+        try {
+            String qrId = requireText(parts[2], "QR ID");
+            long expiresAt = Long.parseLong(parts[3].substring("exp=".length()));
+            String hmac = requireText(parts[4].substring("hmac=".length()), "QR HMAC");
+            return new QrPayload(qrId, expiresAt, hmac);
+        } catch (IllegalArgumentException exception) {
+            return null;
+        }
+    }
+
+    private boolean isExpired(long expiresAtEpochSeconds) {
+        return System.currentTimeMillis() / 1000 > expiresAtEpochSeconds + maxClockDriftSeconds;
+    }
+
+    private String hmacSha256Base64Url(String secret, String data) {
+        try {
+            Mac mac = Mac.getInstance("HmacSHA256");
+            mac.init(new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+            return Base64.getUrlEncoder().withoutPadding()
+                    .encodeToString(mac.doFinal(data.getBytes(StandardCharsets.UTF_8)));
+        } catch (NoSuchAlgorithmException | InvalidKeyException exception) {
+            throw new IllegalStateException("Could not verify QR signature", exception);
+        }
+    }
+
+    private record QrPayload(String qrId, long expiresAtEpochSeconds, String hmac) {
+        private String dataToSign() {
+            return "AFCQR:v1:" + qrId + ":exp=" + expiresAtEpochSeconds;
+        }
     }
 }
