@@ -47,7 +47,7 @@ public class TapEvent extends BaseEntity {
     // @Column(name = "delivery_error", length = 500)
     // private String deliveryError;
 
-    @Column(name = "qr_payload", nullable = false, unique = true, length = 36)
+    @Column(name = "qr_payload", nullable = false, unique = true, length = 512)
     private String qrPayload;
 
     // @Column(name = "ticket_external_id", nullable = false, length = 100)

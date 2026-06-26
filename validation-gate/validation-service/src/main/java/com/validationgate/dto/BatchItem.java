@@ -2,17 +2,16 @@ package com.validationgate.dto;
 
 import lombok.Builder;
 import lombok.Getter;
+import lombok.Setter;
 
 import java.time.LocalDateTime;
 
+
 @Getter
+@Setter
 @Builder
-public class ExternalGateEventRequest {
-    private String eventId;
-    private String ticketId;
+public class BatchItem {
+    private String qrPayload;
     private TapEventType eventType;
-    private String gateId;
-    private String stationId;
     private LocalDateTime recordedAt;
-    private String source;
 }

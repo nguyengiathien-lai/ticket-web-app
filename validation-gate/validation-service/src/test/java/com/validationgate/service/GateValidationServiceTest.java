@@ -49,7 +49,6 @@ class GateValidationServiceTest {
         DeviceConfigPackageRepository deviceConfigRepository = mock(DeviceConfigPackageRepository.class);
         MediaAccessRulesPackageRepository mediaAccessRulesRepository = mock(MediaAccessRulesPackageRepository.class);
         when(deviceConfigRepository.findByStationCode("station-1")).thenReturn(Optional.of(deviceConfig()));
-        when(mediaAccessRulesRepository.findByStationCode("station-1")).thenReturn(Optional.of(mediaRules("other-card")));
         GateValidationService service = service(client, repository, deviceConfigRepository, mediaAccessRulesRepository);
         ValidationRequest request = request("ticket-42");
         LocalDateTime beforeRecord = LocalDateTime.now();
@@ -60,13 +59,10 @@ class GateValidationServiceTest {
         ArgumentCaptor<TapEvent> captor = ArgumentCaptor.forClass(TapEvent.class);
         verify(repository).save(captor.capture());
         assertThat(valid).isTrue();
-        assertThat(captor.getValue().getTicketId()).isEqualTo("ticket-42");
-        assertThat(captor.getValue().getGateId()).isEqualTo("device-1");
-        assertThat(captor.getValue().getStationId()).isEqualTo("station-1");
+        assertThat(captor.getValue().getQrPayload()).isEqualTo(request.getQrPayload());
         assertThat(captor.getValue().getEventType()).isEqualTo(TapEventType.CHECK_IN);
         assertThat(captor.getValue().getRecordedAt()).isBetween(beforeRecord, afterRecord);
         assertThat(captor.getValue().getDeliveryStatus()).isEqualTo("PENDING");
-        assertThat(captor.getValue().getEventId()).isNotBlank();
         verify(client, never()).sendBatch(any(SubmitBatchRequest.class));
     }
 
@@ -94,7 +90,7 @@ class GateValidationServiceTest {
         GateValidationService service = service(mock(Level4Client.class), repository,
                 deviceConfigRepository, mediaAccessRulesRepository);
         ValidationRequest request = new ValidationRequest();
-        request.setQrPayload(signedPayload("card-42", "ticket-42", 1));
+        request.setQrPayload(signedPayload("ticket-42", 1));
         request.setDeviceCode("device-1");
         request.setStationCode("station-1");
         request.setEventType(TapEventType.CHECK_IN);
@@ -123,7 +119,7 @@ class GateValidationServiceTest {
     }
 
     @Test
-    void deniesQrPayloadWhenCardIsBlacklistedInMediaAccessRules() {
+    void validatesQrPayloadWithoutCheckingCardBlacklistRules() {
         TapEventRepository repository = mock(TapEventRepository.class);
         DeviceConfigPackageRepository deviceConfigRepository = mock(DeviceConfigPackageRepository.class);
         MediaAccessRulesPackageRepository mediaAccessRulesRepository = mock(MediaAccessRulesPackageRepository.class);
@@ -135,15 +131,15 @@ class GateValidationServiceTest {
 
         Boolean valid = service.validateTicket(request);
 
-        assertThat(valid).isFalse();
-        verify(repository, never()).save(any(TapEvent.class));
+        assertThat(valid).isTrue();
+        verify(repository).save(any(TapEvent.class));
     }
 
     @Test
     void sendsPendingRecordsAsABatchAndMarksThemSent() {
         Level4Client client = mock(Level4Client.class);
         TapEventRepository repository = mock(TapEventRepository.class);
-        TapEvent event = event("event-1");
+        TapEvent event = event();
         when(repository.findByDeliveryStatusInOrderByRecordedAtAsc(
                 anyCollection(), any(Pageable.class))).thenReturn(List.of(event));
         when(client.sendBatch(any())).thenReturn(new SubmitBatchResponse("Batch received"));
@@ -171,7 +167,7 @@ class GateValidationServiceTest {
     void marksTheBatchFailedWhenLevel4RejectsIt() {
         Level4Client client = mock(Level4Client.class);
         TapEventRepository repository = mock(TapEventRepository.class);
-        TapEvent event = event("event-1");
+        TapEvent event = event();
         when(repository.findByDeliveryStatusInOrderByRecordedAtAsc(
                 anyCollection(), any(Pageable.class))).thenReturn(List.of(event));
         when(client.sendBatch(any())).thenThrow(new IllegalStateException("Level 4 unavailable"));
@@ -193,7 +189,6 @@ class GateValidationServiceTest {
                 mock(Level4Client.class),
                 repository,
                 mock(DeviceConfigPackageRepository.class),
-                mock(MediaAccessRulesPackageRepository.class),
                 objectMapper,
                 100,
                 Duration.ofHours(2));
@@ -211,7 +206,7 @@ class GateValidationServiceTest {
     private ValidationRequest request(String ticketId) {
         ValidationRequest request = new ValidationRequest();
         long expiresAt = System.currentTimeMillis() / 1000 + 3600;
-        request.setQrPayload(signedPayload("card-42", ticketId, expiresAt));
+        request.setQrPayload(signedPayload(ticketId, expiresAt));
         request.setDeviceCode("device-1");
         request.setStationCode("station-1");
         request.setEventType(TapEventType.CHECK_IN);
@@ -236,7 +231,6 @@ class GateValidationServiceTest {
                 client,
                 tapEventRepository,
                 deviceConfigRepository,
-                mediaAccessRulesRepository,
                 objectMapper,
                 batchSize,
                 SENT_EVENT_RETENTION);
@@ -262,8 +256,8 @@ class GateValidationServiceTest {
         return entity;
     }
 
-    private String signedPayload(String cardId, String ticketId, long expiresAt) {
-        String dataToSign = "AFCQR:v1:" + cardId + ":" + ticketId + ":exp=" + expiresAt;
+    private String signedPayload(String ticketId, long expiresAt) {
+        String dataToSign = "AFCQR:v1:" + ticketId + ":exp=" + expiresAt;
         return dataToSign + ":hmac=" + hmacSha256Base64Url(SECRET, dataToSign);
     }
 
@@ -278,12 +272,9 @@ class GateValidationServiceTest {
         }
     }
 
-    private TapEvent event(String eventId) {
+    private TapEvent event() {
         TapEvent event = new TapEvent();
-        event.setEventId(eventId);
-        event.setTicketId("ticket-42");
-        event.setGateId("gate-1");
-        event.setStationId("station-1");
+        event.setQrPayload("AFCQR:v1:ticket-42:exp=9999999999:hmac=test");
         event.setEventType(TapEventType.CHECK_OUT);
         event.setRecordedAt(LocalDateTime.of(2026, 6, 21, 15, 30));
         event.setDeliveryStatus("PENDING");

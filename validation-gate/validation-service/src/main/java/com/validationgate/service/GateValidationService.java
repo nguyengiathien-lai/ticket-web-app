@@ -8,10 +8,8 @@ import com.validationgate.dto.SubmitBatchRequest;
 import com.validationgate.dto.ValidationRequest;
 import com.validationgate.dto.SubmitBatchResponse;
 import com.validationgate.entity.DeviceConfigPackage;
-import com.validationgate.entity.MediaAccessRulesPackage;
 import com.validationgate.entity.TapEvent;
 import com.validationgate.repository.DeviceConfigPackageRepository;
-import com.validationgate.repository.MediaAccessRulesPackageRepository;
 import com.validationgate.repository.TapEventRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
@@ -40,12 +38,10 @@ public class GateValidationService {
     private static final String QUEUED_MESSAGE = "Scan record queued for batch delivery";
     private static final int MAX_ERROR_LENGTH = 500;
     private static final String QR_ALGORITHM_HMAC_SHA256 = "HMAC_SHA256";
-    private static final String MEDIA_STATUS_BLACKLISTED = "BLACKLISTED";
 
     private final Level4Client level4Client;
     private final TapEventRepository tapEventRepository;
     private final DeviceConfigPackageRepository deviceConfigRepository;
-    private final MediaAccessRulesPackageRepository mediaAccessRulesRepository;
     private final ObjectMapper objectMapper;
     private final int batchSize;
     private final Duration sentEventRetention;
@@ -54,14 +50,12 @@ public class GateValidationService {
             Level4Client level4Client,
             TapEventRepository tapEventRepository,
             DeviceConfigPackageRepository deviceConfigRepository,
-            MediaAccessRulesPackageRepository mediaAccessRulesRepository,
             ObjectMapper objectMapper,
             @Value("${app.level4.scan-record-batch-size:100}") int batchSize,
             @Value("${app.level4.sent-event-retention:2d}") Duration sentEventRetention) {
         this.level4Client = level4Client;
         this.tapEventRepository = tapEventRepository;
         this.deviceConfigRepository = deviceConfigRepository;
-        this.mediaAccessRulesRepository = mediaAccessRulesRepository;
         this.objectMapper = objectMapper;
         this.batchSize = Math.max(1, batchSize);
         this.sentEventRetention = sentEventRetention.isNegative() ? Duration.ZERO : sentEventRetention;
@@ -78,7 +72,6 @@ public class GateValidationService {
         DeviceConfig deviceConfig = loadDeviceConfig(scanContext);
         if (deviceConfig == null || !deviceConfig.allowsQrValidation()
                 || isExpired(qrPayload.expiresAtEpochSeconds(), deviceConfig.maxClockDriftSeconds())
-                || isBlacklisted(scanContext, qrPayload.cardId())
                 || !isValidSignature(deviceConfig, qrPayload)) {
             return false;
         }
@@ -224,16 +217,15 @@ public class GateValidationService {
             return null;
         }
         String[] parts = request.getQrPayload().trim().split(":");
-        if (parts.length != 6 || !"AFCQR".equals(parts[0]) || !"v1".equals(parts[1])
-                || !parts[4].startsWith("exp=") || !parts[5].startsWith("hmac=")) {
+        if (parts.length != 5 || !"AFCQR".equals(parts[0]) || !"v1".equals(parts[1])
+                || !parts[3].startsWith("exp=") || !parts[4].startsWith("hmac=")) {
             return null;
         }
         try {
-            String cardId = requireText(parts[2], "Card ID");
-            String ticketId = requireText(parts[3], "Ticket ID");
-            long expiresAt = Long.parseLong(parts[4].substring("exp=".length()));
-            String hmac = requireText(parts[5].substring("hmac=".length()), "QR HMAC");
-            return new QrPayload(cardId, ticketId, expiresAt, hmac);
+            String ticketId = requireText(parts[2], "Ticket ID");
+            long expiresAt = Long.parseLong(parts[3].substring("exp=".length()));
+            String hmac = requireText(parts[4].substring("hmac=".length()), "QR HMAC");
+            return new QrPayload(ticketId, expiresAt, hmac);
         } catch (IllegalArgumentException exception) {
             return null;
         }
@@ -259,29 +251,6 @@ public class GateValidationService {
 
     private boolean isValidSignature(DeviceConfig deviceConfig, QrPayload qrPayload) {
         return hmacSha256Base64Url(deviceConfig.qrVerificationKey(), qrPayload.dataToSign()).equals(qrPayload.hmac());
-    }
-
-    private boolean isBlacklisted(ScanContext scanContext, String cardId) {
-        return mediaAccessRulesRepository.findByStationCode(scanContext.stationCode())
-                .filter(packageEntity -> scanContext.deviceCode().equals(packageEntity.getDeviceCode()))
-                .map(MediaAccessRulesPackage::getPayloadJson)
-                .map(this::readJson)
-                .map(payload -> containsBlacklistedCard(payload, cardId))
-                .orElse(false);
-    }
-
-    private boolean containsBlacklistedCard(JsonNode mediaAccessRules, String cardId) {
-        JsonNode cardStatusRules = mediaAccessRules.get("cardStatusRules");
-        if (cardStatusRules == null || !cardStatusRules.isArray()) {
-            return false;
-        }
-        for (JsonNode rule : cardStatusRules) {
-            if (cardId.equals(rule.path("cardId").asText())
-                    && MEDIA_STATUS_BLACKLISTED.equals(rule.path("status").asText())) {
-                return true;
-            }
-        }
-        return false;
     }
 
     private JsonNode readJson(String payloadJson) {
@@ -318,9 +287,9 @@ public class GateValidationService {
     private record ScanContext(String deviceCode, String stationCode) {
     }
 
-    private record QrPayload(String cardId, String ticketId, long expiresAtEpochSeconds, String hmac) {
+    private record QrPayload(String ticketId, long expiresAtEpochSeconds, String hmac) {
         private String dataToSign() {
-            return "AFCQR:v1:" + cardId + ":" + ticketId + ":exp=" + expiresAtEpochSeconds;
+            return "AFCQR:v1:" + ticketId + ":exp=" + expiresAtEpochSeconds;
         }
     }
 
