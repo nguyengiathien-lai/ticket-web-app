@@ -146,10 +146,11 @@ public class GateValidationService {
         }
 
         TapEvent tapEvent = new TapEvent();
-        tapEvent.setEventId(UUID.randomUUID().toString());
-        tapEvent.setTicketId(qrPayload.ticketId());
-        tapEvent.setGateId(scanContext(request).deviceCode());
-        tapEvent.setStationId(scanContext(request).stationCode());
+        // tapEvent.setEventId(UUID.randomUUID().toString());
+        // tapEvent.setTicketId(qrPayload.ticketId());
+        // tapEvent.setGateId(scanContext(request).deviceCode());
+        // tapEvent.setStationId(scanContext(request).stationCode());
+        tapEvent.setQrPayload(request.getQrPayload());
         tapEvent.setEventType(request.getEventType());
         tapEvent.setRecordedAt(LocalDateTime.now());
         tapEvent.setDeliveryStatus(STATUS_PENDING);

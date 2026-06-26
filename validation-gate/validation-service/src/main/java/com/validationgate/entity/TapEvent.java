@@ -19,21 +19,49 @@ import java.time.LocalDateTime;
 @Table(name = "tap_event")
 public class TapEvent extends BaseEntity {
 
-    @Column(name = "event_id", nullable = false, unique = true, length = 36)
-    private String eventId;
+    // @Column(name = "event_id", nullable = false, unique = true, length = 36)
+    // private String eventId;
 
-    @Column(name = "ticket_external_id", nullable = false, length = 100)
-    private String ticketId;
+    // @Column(name = "ticket_external_id", nullable = false, length = 100)
+    // private String ticketId;
+
+    // @Enumerated(EnumType.STRING)
+    // @Column(name = "event_type", nullable = false, length = 20)
+    // private TapEventType eventType;
+
+    // @Column(name = "gate_id", nullable = false, length = 100)
+    // private String gateId;
+
+    // @Column(name = "station_id", nullable = false, length = 100)
+    // private String stationId;
+
+    // @Column(name = "recorded_at", nullable = false)
+    // private LocalDateTime recordedAt;
+
+    // @Column(name = "delivery_status", nullable = false, length = 20)
+    // private String deliveryStatus;
+
+    // @Column(name = "sent_at")
+    // private LocalDateTime sentAt;
+
+    // @Column(name = "delivery_error", length = 500)
+    // private String deliveryError;
+
+    @Column(name = "qr_payload", nullable = false, unique = true, length = 36)
+    private String qrPayload;
+
+    // @Column(name = "ticket_external_id", nullable = false, length = 100)
+    // private String ticketId;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "event_type", nullable = false, length = 20)
     private TapEventType eventType;
 
-    @Column(name = "gate_id", nullable = false, length = 100)
-    private String gateId;
+    // @Column(name = "gate_id", nullable = false, length = 100)
+    // private String gateId;
 
-    @Column(name = "station_id", nullable = false, length = 100)
-    private String stationId;
+    // @Column(name = "station_id", nullable = false, length = 100)
+    // private String stationId;
 
     @Column(name = "recorded_at", nullable = false)
     private LocalDateTime recordedAt;
@@ -46,25 +74,5 @@ public class TapEvent extends BaseEntity {
 
     @Column(name = "delivery_error", length = 500)
     private String deliveryError;
-
-    public TapEvent(
-            String eventId,
-            String ticketId,
-            TapEventType eventType,
-            String gateId,
-            String stationId,
-            LocalDateTime recordedAt,
-            String deliveryStatus,
-            LocalDateTime sentAt,
-            String deliveryError) {
-        this.eventId = eventId;
-        this.ticketId = ticketId;
-        this.eventType = eventType;
-        this.gateId = gateId;
-        this.stationId = stationId;
-        this.recordedAt = recordedAt;
-        this.deliveryStatus = deliveryStatus;
-        this.sentAt = sentAt;
-        this.deliveryError = deliveryError;
-    }
+    
 }
