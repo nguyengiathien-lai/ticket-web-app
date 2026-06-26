@@ -4,17 +4,13 @@ import com.ticketapp.dto.ApiResponse;
 import com.ticketapp.dto.catalog.TicketTypeSyncRequest;
 import com.ticketapp.dto.purchase.TicketPurchaseRequest;
 import com.ticketapp.dto.purchase.TicketPurchaseResponse;
-import com.ticketapp.dto.ticket.TicketQrResponse;
-import com.ticketapp.dto.ticket.TicketResponse;
 import com.ticketapp.dto.ticket.TicketTypeResponse;
-import com.ticketapp.service.CatalogService;
 import com.ticketapp.service.PurchaseService;
-import com.ticketapp.service.TicketRequestService;
+import com.ticketapp.service.TicketService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -26,23 +22,20 @@ import java.util.List;
 @RequestMapping("/tickets")
 public class TicketController {
 
-    private final TicketRequestService ticketRequestService;
     private final PurchaseService purchaseService;
-    private final CatalogService catalogService;
+    private final TicketService ticketService;
 
     public TicketController(
-            TicketRequestService ticketRequestService,
             PurchaseService purchaseService,
-            CatalogService catalogService) {
-        this.ticketRequestService = ticketRequestService;
+            TicketService ticketService) {
         this.purchaseService = purchaseService;
-        this.catalogService = catalogService;
+        this.ticketService = ticketService;
     }
 
     @GetMapping("/types")
     public ResponseEntity<ApiResponse<List<TicketTypeResponse>>> getTicketTypes() {
         return ResponseEntity.ok(ApiResponse.success(
-                catalogService.getActiveTicketTypes(),
+                ticketService.getActiveTicketTypes(),
                 "Cached ticket types retrieved successfully"));
     }
 
@@ -50,7 +43,7 @@ public class TicketController {
     public ResponseEntity<ApiResponse<List<TicketTypeResponse>>> cacheTicketTypes(
             @Valid @RequestBody List<@Valid TicketTypeSyncRequest> request) {
         return ResponseEntity.ok(ApiResponse.success(
-                catalogService.cacheTicketTypes(request),
+                ticketService.cacheTicketTypes(request),
                 "Ticket types cached successfully"));
     }
 
@@ -64,24 +57,11 @@ public class TicketController {
                 .body(ApiResponse.success(purchase, "Ticket purchased successfully"));
     }
 
-    @GetMapping("/{ticketId}/qr")
-    public ResponseEntity<ApiResponse<TicketQrResponse>> getTicketQrCode(
-            @RequestHeader(name = "Authorization", required = false) String authorizationHeader,
-            @PathVariable String accountId,
-            @PathVariable String ticketId) {
-        requireSelfOrAdmin(authorizationHeader, accountId);
-
-        return ResponseEntity.ok(ApiResponse.success(
-                ticketRequestService.getTicketQrCode(accountId, ticketId),
-                "Ticket QR retrieved successfully"));
-    }
-
-
 //     @GetMapping("/{ticketCode}")
 //     public ResponseEntity<ApiResponse<TicketResponse>> getCachedTicketByCode(
 //             @PathVariable String ticketCode) {
 //         return ResponseEntity.ok(ApiResponse.success(
-//                 ticketRequestService.getCachedTicketByCode(ticketCode),
+//                 ticketService.getCachedTicketByCode(ticketCode),
 //                 "Cached ticket retrieved"));
 //     }
 
@@ -89,7 +69,7 @@ public class TicketController {
 //     public ResponseEntity<ApiResponse<List<TicketResponse>>> getCachedTicketsForPassenger(
 //             @PathVariable String passengerAccountId) {
 //         return ResponseEntity.ok(ApiResponse.success(
-//                 ticketRequestService.getTicketsForPassenger(passengerAccountId),
+//                 ticketService.getTicketsForPassenger(passengerAccountId),
 //                 "Cached tickets retrieved"));
 //     }
 }

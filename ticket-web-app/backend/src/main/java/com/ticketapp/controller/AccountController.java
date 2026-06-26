@@ -5,7 +5,7 @@ import com.ticketapp.dto.account.AccountEmailVerificationRequest;
 import com.ticketapp.dto.account.AccountRoleRequest;
 import com.ticketapp.dto.account.AdminResetPasswordRequest;
 import com.ticketapp.dto.auth.AccountResponse;
-import com.ticketapp.dto.card.PhysicalCardResponse;
+import com.ticketapp.dto.card.CardResponse;
 import com.ticketapp.dto.ticket.TicketQrResponse;
 import com.ticketapp.dto.ticket.TicketResponse;
 import com.ticketapp.dto.travel.TravelHistoryResponse;
@@ -13,8 +13,8 @@ import com.ticketapp.entity.Account;
 import com.ticketapp.service.AccountService;
 import com.ticketapp.service.AuthenticationService;
 import com.ticketapp.service.AuthorizationService;
-import com.ticketapp.service.PhysicalCardService;
-import com.ticketapp.service.TicketRequestService;
+import com.ticketapp.service.CardService;
+import com.ticketapp.service.TicketService;
 import com.ticketapp.service.TravelHistoryService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -37,22 +37,22 @@ public class AccountController {
     private final AccountService accountService;
     private final AuthenticationService authenticationService;
     private final AuthorizationService authorizationService;
-    private final TicketRequestService ticketRequestService;
-    private final PhysicalCardService physicalCardService;
+    private final TicketService ticketService;
+    private final CardService cardService;
     private final TravelHistoryService travelHistoryService;
 
     public AccountController(
             AccountService accountService,
             AuthenticationService authenticationService,
             AuthorizationService authorizationService,
-            TicketRequestService ticketRequestService,
-            PhysicalCardService physicalCardService,
+            TicketService ticketService,
+            CardService cardService,
             TravelHistoryService travelHistoryService) {
         this.accountService = accountService;
         this.authenticationService = authenticationService;
         this.authorizationService = authorizationService;
-        this.ticketRequestService = ticketRequestService;
-        this.physicalCardService = physicalCardService;
+        this.ticketService = ticketService;
+        this.cardService = cardService;
         this.travelHistoryService = travelHistoryService;
     }
 
@@ -63,7 +63,7 @@ public class AccountController {
         requireSelfOrAdmin(authorizationHeader, accountId);
 
         return ResponseEntity.ok(ApiResponse.success(
-                ticketRequestService.getTicketsForPassenger(accountId),
+                ticketService.getTicketsForPassenger(accountId),
                 "Past tickets retrieved successfully"));
     }
 
@@ -75,18 +75,18 @@ public class AccountController {
         requireSelfOrAdmin(authorizationHeader, accountId);
 
         return ResponseEntity.ok(ApiResponse.success(
-                ticketRequestService.getTicketQrCode(accountId, ticketId),
+                ticketService.getTicketQrCode(accountId, ticketId),
                 "Ticket QR retrieved successfully"));
     }
 
     @GetMapping("/{accountId}/cards")
-    public ResponseEntity<ApiResponse<List<PhysicalCardResponse>>> getPastCards(
+    public ResponseEntity<ApiResponse<List<CardResponse>>> getPastCards(
             @RequestHeader(name = "Authorization", required = false) String authorizationHeader,
             @PathVariable String accountId) {
         requireSelfOrAdmin(authorizationHeader, accountId);
 
         return ResponseEntity.ok(ApiResponse.success(
-                physicalCardService.getCardsForPassenger(accountId),
+                cardService.getCardsForPassenger(accountId),
                 "Past cards retrieved successfully"));
     }
 
@@ -147,19 +147,6 @@ public class AccountController {
         return ResponseEntity.ok(ApiResponse.success(AccountResponse.from(account), "Account inactivated successfully"));
     }
 
-    // @PutMapping("/{accountId}/status")
-    // public ResponseEntity<ApiResponse<AccountResponse>> updateAccountStatus(
-    //         @RequestHeader(name = "Authorization", required = false) String authorizationHeader,
-    //         @PathVariable String accountId,
-    //         @Valid @RequestBody AccountStatusRequest request) {
-    //     Account admin = requireAdmin(authorizationHeader);
-    //     if (!request.getActive()) {
-    //         preventSelfManagement(admin, accountId, "inactivate your own admin account");
-    //     }
-
-    //     Account account = accountService.updateStatus(accountId, request.getActive());
-    //     return ResponseEntity.ok(ApiResponse.success(AccountResponse.from(account), "Account status updated successfully"));
-    // }
 
     @PutMapping("/{accountId}/email-verification")
     public ResponseEntity<ApiResponse<AccountResponse>> updateEmailVerificationStatus(

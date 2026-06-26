@@ -1,0 +1,2 @@
+import { Card } from '../../components/Card';
+export function NotificationsPage() { return <Card title="Thông báo"><div className="notice-list"><div><b>Giao dịch thành công</b><p>Bạn đã nạp 300.000đ vào thẻ 1234****3456.</p></div><div><b>Khuyến mãi</b><p>Giảm 20% khi mua gói tháng trong tháng 6.</p></div><div><b>Cập nhật hệ thống</b><p>Bảo trì hệ thống vào 00:00 - 02:00 ngày 25/06.</p></div></div></Card>; }

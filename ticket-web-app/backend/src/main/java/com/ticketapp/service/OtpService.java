@@ -40,9 +40,9 @@ public class OtpService {
         otpCode.setCode(code);
         otpCode.setType(EMAIL_VERIFICATION);
         otpCode.setAttemptCount(0);
-        otpCode.setMaxAttempts(5);
+        otpCode.setMaxAttempts(3);
         otpCode.setIsUsed(false);
-        otpCode.setExpiresAt(LocalDateTime.now().plusMinutes(15));
+        otpCode.setExpiresAt(LocalDateTime.now().plusMinutes(2));
 
         otpCodeRepository.save(otpCode);
         emailService.sendEmailVerificationOtp(account.getEmail(), account.getFullName(), code);

@@ -35,29 +35,26 @@ import java.util.UUID;
 public class PurchaseService {
 
     private final AccountService accountService;
-    private final CatalogService catalogService;
-    private final TicketRequestService ticketRequestService;
+    private final TicketService ticketService;
     private final OrderRepository orderRepository;
     private final PaymentRepository paymentRepository;
-    private final PhysicalCardService physicalCardService;
+    private final CardService cardService;
     private final Level4Client level4Client;
     private final Level5Client level5Client;
 
     public PurchaseService(
             AccountService accountService,
-            CatalogService catalogService,
-            TicketRequestService ticketRequestService,
+            TicketService ticketService,
             OrderRepository orderRepository,
             PaymentRepository paymentRepository,
-            PhysicalCardService physicalCardService,
+            CardService cardService,
             Level4Client level4Client,
             Level5Client level5Client) {
         this.accountService = accountService;
-        this.catalogService = catalogService;
-        this.ticketRequestService = ticketRequestService;
+        this.ticketService = ticketService;
         this.orderRepository = orderRepository;
         this.paymentRepository = paymentRepository;
-        this.physicalCardService = physicalCardService;
+        this.cardService = cardService;
         this.level4Client = level4Client;
         this.level5Client = level5Client;
     }
@@ -65,7 +62,7 @@ public class PurchaseService {
     @Transactional
     public TicketPurchaseResponse purchaseTicket(TicketPurchaseRequest request) {
         requirePurchasableAccount(request.getUserId());
-        TicketType ticketType = catalogService.requireActiveTicketType(request.getTicketType());
+        TicketType ticketType = ticketService.requireActiveTicketType(request.getTicketType());
         LocalDateTime now = LocalDateTime.now();
 
         Order order = createOrder(
@@ -97,7 +94,7 @@ public class PurchaseService {
                 .amount(order.getTotalAmount())
                 .currency(order.getCurrency())
                 .build());
-        TicketResponse ticket = ticketRequestService.cacheExternalTicket(ticketRequest, externalTicket);
+        TicketResponse ticket = ticketService.cacheExternalTicket(ticketRequest, externalTicket);
         QrCodeResponse qrCode = level4Client.generateQrCode(new QrCodeRequest(ticket.getExternalTicketId()));
 
         return TicketPurchaseResponse.builder()
@@ -121,7 +118,7 @@ public class PurchaseService {
     @Transactional
     public CardPurchaseResponse purchaseCard(CardPurchaseRequest request) {
         requirePurchasableAccount(request.getUserId());
-        CardType cardType = catalogService.requireActiveCardType(request.getPackageId());
+        CardType cardType = cardService.requireActiveCardType(request.getPackageId());
         LocalDateTime now = LocalDateTime.now();
 
         Order order = createOrder(
@@ -161,7 +158,7 @@ public class PurchaseService {
         card.setExpiredAt(externalCard.getExpiresAt());
         card.setCachedAt(now);
         card.setExpiresAt(externalCard.getExpiresAt());
-        PhysicalCard savedCard = physicalCardService.cacheCard(card);
+        PhysicalCard savedCard = cardService.cacheCard(card);
 
         return CardPurchaseResponse.builder()
                 .orderId(order.getExternalOrderId())
