@@ -2,6 +2,7 @@ package com.ticketapp.controller;
 
 import com.ticketapp.dto.ApiResponse;
 import com.ticketapp.dto.card.PhysicalCardResponse;
+import com.ticketapp.dto.ticket.TicketQrResponse;
 import com.ticketapp.dto.ticket.TicketResponse;
 import com.ticketapp.dto.travel.TravelHistoryResponse;
 import com.ticketapp.entity.Account;
@@ -55,6 +56,20 @@ class AccountHistoryControllerTest {
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().getData()).containsExactly(ticket);
         assertThat(authorizationService.adminCheckCalled).isFalse();
+    }
+
+    @Test
+    void passengerCanRetrieveOwnTicketQrCode() {
+        authenticationService.account = Optional.of(account("user-1"));
+        ticketRequestService.qrCode = new TicketQrResponse("ticket-1", "qr-payload");
+
+        ResponseEntity<ApiResponse<TicketQrResponse>> response =
+                controller.getTicketQrCode("Bearer token", "user-1", "ticket-1");
+
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().getData().getQrCode()).isEqualTo("qr-payload");
+        assertThat(ticketRequestService.requestedAccountId).isEqualTo("user-1");
+        assertThat(ticketRequestService.requestedTicketId).isEqualTo("ticket-1");
     }
 
     @Test
@@ -138,16 +153,25 @@ class AccountHistoryControllerTest {
 
     private static class FakeTicketRequestService extends TicketRequestService {
         private List<TicketResponse> tickets = List.of();
+        private TicketQrResponse qrCode;
         private String requestedAccountId;
+        private String requestedTicketId;
 
         private FakeTicketRequestService() {
-            super(null, null, null);
+            super(null, null, null, null);
         }
 
         @Override
         public List<TicketResponse> getTicketsForPassenger(String passengerAccountId) {
             requestedAccountId = passengerAccountId;
             return tickets;
+        }
+
+        @Override
+        public TicketQrResponse getTicketQrCode(String passengerAccountId, String ticketId) {
+            requestedAccountId = passengerAccountId;
+            requestedTicketId = ticketId;
+            return qrCode;
         }
     }
 

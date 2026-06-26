@@ -4,6 +4,7 @@ import com.ticketapp.dto.ApiResponse;
 import com.ticketapp.dto.catalog.TicketTypeSyncRequest;
 import com.ticketapp.dto.purchase.TicketPurchaseRequest;
 import com.ticketapp.dto.purchase.TicketPurchaseResponse;
+import com.ticketapp.dto.ticket.TicketQrResponse;
 import com.ticketapp.dto.ticket.TicketResponse;
 import com.ticketapp.dto.ticket.TicketTypeResponse;
 import com.ticketapp.service.CatalogService;
@@ -62,6 +63,19 @@ public class TicketController {
                 .status(HttpStatus.CREATED)
                 .body(ApiResponse.success(purchase, "Ticket purchased successfully"));
     }
+
+    @GetMapping("/{ticketId}/qr")
+    public ResponseEntity<ApiResponse<TicketQrResponse>> getTicketQrCode(
+            @RequestHeader(name = "Authorization", required = false) String authorizationHeader,
+            @PathVariable String accountId,
+            @PathVariable String ticketId) {
+        requireSelfOrAdmin(authorizationHeader, accountId);
+
+        return ResponseEntity.ok(ApiResponse.success(
+                ticketRequestService.getTicketQrCode(accountId, ticketId),
+                "Ticket QR retrieved successfully"));
+    }
+
 
 //     @GetMapping("/{ticketCode}")
 //     public ResponseEntity<ApiResponse<TicketResponse>> getCachedTicketByCode(

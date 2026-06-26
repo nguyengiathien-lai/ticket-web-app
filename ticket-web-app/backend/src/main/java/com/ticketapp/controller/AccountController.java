@@ -6,6 +6,7 @@ import com.ticketapp.dto.account.AccountRoleRequest;
 import com.ticketapp.dto.account.AdminResetPasswordRequest;
 import com.ticketapp.dto.auth.AccountResponse;
 import com.ticketapp.dto.card.PhysicalCardResponse;
+import com.ticketapp.dto.ticket.TicketQrResponse;
 import com.ticketapp.dto.ticket.TicketResponse;
 import com.ticketapp.dto.travel.TravelHistoryResponse;
 import com.ticketapp.entity.Account;
@@ -64,6 +65,18 @@ public class AccountController {
         return ResponseEntity.ok(ApiResponse.success(
                 ticketRequestService.getTicketsForPassenger(accountId),
                 "Past tickets retrieved successfully"));
+    }
+
+    @GetMapping("/{accountId}/tickets/{ticketId}/qr")
+    public ResponseEntity<ApiResponse<TicketQrResponse>> getTicketQrCode(
+            @RequestHeader(name = "Authorization", required = false) String authorizationHeader,
+            @PathVariable String accountId,
+            @PathVariable String ticketId) {
+        requireSelfOrAdmin(authorizationHeader, accountId);
+
+        return ResponseEntity.ok(ApiResponse.success(
+                ticketRequestService.getTicketQrCode(accountId, ticketId),
+                "Ticket QR retrieved successfully"));
     }
 
     @GetMapping("/{accountId}/cards")

@@ -2,9 +2,13 @@ package com.ticketapp.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ticketapp.client.level4.Level4Client;
 import com.ticketapp.client.level5.Level5Client;
 import com.ticketapp.dto.external.ExternalTicketResponse;
 import com.ticketapp.dto.external.ExternalTicketHistoryResponse;
+import com.ticketapp.dto.external.QrCodeRequest;
+import com.ticketapp.dto.external.QrCodeResponse;
+import com.ticketapp.dto.ticket.TicketQrResponse;
 import com.ticketapp.dto.ticket.TicketRequest;
 import com.ticketapp.dto.ticket.TicketResponse;
 import com.ticketapp.entity.Ticket;
@@ -32,14 +36,17 @@ public class TicketRequestService {
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
     private final Level5Client level5Client;
+    private final Level4Client level4Client;
 
     public TicketRequestService(
             StringRedisTemplate redisTemplate,
             ObjectMapper objectMapper,
-            Level5Client level5Client) {
+            Level5Client level5Client,
+            Level4Client level4Client) {
         this.redisTemplate = redisTemplate;
         this.objectMapper = objectMapper;
         this.level5Client = level5Client;
+        this.level4Client = level4Client;
     }
 
     public TicketResponse cacheExternalTicket(TicketRequest request, ExternalTicketResponse externalTicket) {
@@ -73,6 +80,23 @@ public class TicketRequestService {
             markHistoryLoaded(passengerTicketsLoadedKey(normalizedAccountId));
         }
         return readPassengerTickets(normalizedAccountId);
+    }
+
+    public TicketQrResponse getTicketQrCode(String passengerAccountId, String ticketId) {
+        String normalizedAccountId = requireText(passengerAccountId, "passenger account ID");
+        String normalizedTicketId = requireText(ticketId, "ticket ID");
+        Ticket ticket = readTicket(ticketKey(normalizedTicketId))
+                .orElseThrow(() -> new IllegalArgumentException("Ticket not found"));
+
+        if (!normalizedAccountId.equals(ticket.getPassengerAccountId())) {
+            throw new SecurityException("Ticket does not belong to this account");
+        }
+
+        QrCodeResponse qrCode = level4Client.generateQrCode(new QrCodeRequest(ticket.getExternalTicketId()));
+        if (qrCode == null || qrCode.getQrCode() == null || qrCode.getQrCode().isBlank()) {
+            throw new IllegalStateException("Level 4 returned an incomplete QR code");
+        }
+        return new TicketQrResponse(ticket.getExternalTicketId(), qrCode.getQrCode());
     }
 
     private List<TicketResponse> readPassengerTickets(String passengerAccountId) {
