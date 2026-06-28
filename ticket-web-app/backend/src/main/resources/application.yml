@@ -64,15 +64,15 @@ app:
     secret: ${JWT_SECRET:change-this-local-dev-secret-that-is-at-least-32-bytes}
     expiration-seconds: ${JWT_EXPIRATION_SECONDS:86400}
   level5:
-    base-url: ${LEVEL5_BASE_URL:}
-    ticket-purchase-path: ${LEVEL5_TICKET_PURCHASE_PATH:/api/ticket/purchase}
-    card-purchase-path: ${LEVEL5_CARD_PURCHASE_PATH:/api/card/purchase}
-    ticket-history-path: ${LEVEL5_TICKET_HISTORY_PATH:/api/{accountId}/tickets}
-    card-history-path: ${LEVEL5_CARD_HISTORY_PATH:/api/{accountId}/cards}
-    travel-history-path: ${LEVEL5_TRAVEL_HISTORY_PATH:/api/{accountId}/travels}
-    ticket-types-path: ${LEVEL5_TICKET_TYPES_PATH:/api/ticket-types}
-    card-types-path: ${LEVEL5_CARD_TYPES_PATH:/api/card-types}
-    mock-enabled: ${LEVEL5_MOCK_ENABLED:true}
+    base-url: ${LEVEL5_BASE_URL:http://localhost:8082}
+    ticket-purchase-path: ${LEVEL5_TICKET_PURCHASE_PATH:/api/tickets/purchase}
+    card-purchase-path: ${LEVEL5_CARD_PURCHASE_PATH:/api/cards/purchase}
+    ticket-history-path: ${LEVEL5_TICKET_HISTORY_PATH:/api/users/{accountId}/tickets/history}
+    card-history-path: ${LEVEL5_CARD_HISTORY_PATH:/api/users/{accountId}/cards}
+    travel-history-path: ${LEVEL5_TRAVEL_HISTORY_PATH:/api/accounts/{accountId}/travels}
+    ticket-types-path: ${LEVEL5_TICKET_TYPES_PATH:/api/tickets/types}
+    card-types-path: ${LEVEL5_CARD_TYPES_PATH:/api/cards/packages}
+    mock-enabled: ${LEVEL5_MOCK_ENABLED:false}
   cache:
     catalog-refresh-ttl-seconds: ${CATALOG_REFRESH_TTL_SECONDS:600}
   level4:

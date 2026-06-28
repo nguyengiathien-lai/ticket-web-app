@@ -65,6 +65,7 @@ public class CardService {
         if (codes == null || codes.isEmpty()) {
             return List.of();
         }
+    
         return codes.stream()
                 .map(code -> readCardType(cardTypeKey(code)))
                 .flatMap(Optional::stream)

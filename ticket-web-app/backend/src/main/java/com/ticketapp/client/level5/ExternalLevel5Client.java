@@ -44,15 +44,15 @@ public class ExternalLevel5Client implements Level5Client {
 
     public ExternalLevel5Client(
             RestClient.Builder builder,
-            @Value("${app.level5.base-url:}") String baseUrl,
-            @Value("${app.level5.ticket-purchase-path:/api/ticket/purchase}") String ticketPurchasePath,
-            @Value("${app.level5.card-purchase-path:/api/card/purchase}") String cardPurchasePath,
-            @Value("${app.level5.ticket-history-path:/api/{accountId}/tickets}") String ticketHistoryPath,
-            @Value("${app.level5.card-history-path:/api/{accountId}/cards}") String cardHistoryPath,
-            @Value("${app.level5.travel-history-path:/api/{accountId}/travels}") String travelHistoryPath,
-            @Value("${app.level5.ticket-types-path:/api/ticket-types}") String ticketTypesPath,
-            @Value("${app.level5.card-types-path:/api/card-types}") String cardTypesPath,
-            @Value("${app.level5.mock-enabled:true}") boolean mockEnabled) {
+            @Value("${app.level5.base-url:http://localhost:8082}") String baseUrl,
+            @Value("${app.level5.ticket-purchase-path:/api/tickets/purchase}") String ticketPurchasePath,
+            @Value("${app.level5.card-purchase-path:/api/cards/purchase}") String cardPurchasePath,
+            @Value("${app.level5.ticket-history-path:/api/users/{accountId}/tickets/history}") String ticketHistoryPath,
+            @Value("${app.level5.card-history-path:/api/users/{accountId}/cards}") String cardHistoryPath,
+            @Value("${app.level5.travel-history-path:/api/accounts/{accountId}/travels}") String travelHistoryPath,
+            @Value("${app.level5.ticket-types-path:/api/tickets/types}") String ticketTypesPath,
+            @Value("${app.level5.card-types-path:/api/cards/packages}") String cardTypesPath,
+            @Value("${app.level5.mock-enabled:false}") boolean mockEnabled) {
         this.restClient = baseUrl.isBlank() ? builder.build() : builder.baseUrl(baseUrl).build();
         this.ticketPurchasePath = ticketPurchasePath;
         this.cardPurchasePath = cardPurchasePath;

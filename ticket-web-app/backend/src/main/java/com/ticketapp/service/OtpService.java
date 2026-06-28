@@ -90,6 +90,5 @@ public class OtpService {
                     otpCode.setUsedAt(now);
                     otpCodeRepository.save(otpCode);
                 });
-        log.info("hello");
     }
 }
