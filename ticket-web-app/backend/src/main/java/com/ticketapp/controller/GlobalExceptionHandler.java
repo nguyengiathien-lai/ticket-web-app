@@ -1,6 +1,7 @@
 package com.ticketapp.controller;
 
 import com.ticketapp.dto.ApiResponse;
+import com.ticketapp.exception.EmailDeliveryException;
 import org.springframework.data.redis.RedisConnectionFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -50,5 +51,12 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.SERVICE_UNAVAILABLE)
                 .body(ApiResponse.error("Redis cache is unavailable"));
+    }
+
+    @ExceptionHandler(EmailDeliveryException.class)
+    public ResponseEntity<ApiResponse<Void>> handleEmailDeliveryException(EmailDeliveryException exception) {
+        return ResponseEntity
+                .status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(ApiResponse.error(exception.getMessage()));
     }
 }

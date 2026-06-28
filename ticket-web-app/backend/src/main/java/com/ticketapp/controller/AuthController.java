@@ -126,15 +126,15 @@ public class AuthController {
                         .body(ApiResponse.error("Account is not authenticated or is inactive")));
     }
 
-    @GetMapping("/me/{token}")
-    public ResponseEntity<ApiResponse<AccountResponse>> getAuthenticatedAccountByTokenPath(@PathVariable String token) {
-        return authenticationService.getAuthenticatedAccountByToken(token)
-                .map(account -> ResponseEntity.ok(
-                        ApiResponse.success(AccountResponse.from(account), "Account retrieved successfully")))
-                .orElseGet(() -> ResponseEntity
-                        .status(HttpStatus.UNAUTHORIZED)
-                        .body(ApiResponse.error("Account is not authenticated or is inactive")));
-    }
+//     @GetMapping("/me/{token}")
+//     public ResponseEntity<ApiResponse<AccountResponse>> getAuthenticatedAccountByTokenPath(@PathVariable String token) {
+//         return authenticationService.getAuthenticatedAccountByToken(token)
+//                 .map(account -> ResponseEntity.ok(
+//                         ApiResponse.success(AccountResponse.from(account), "Account retrieved successfully")))
+//                 .orElseGet(() -> ResponseEntity
+//                         .status(HttpStatus.UNAUTHORIZED)
+//                         .body(ApiResponse.error("Account is not authenticated or is inactive")));
+//     }
 
     @PutMapping("/password")
     public ResponseEntity<ApiResponse<AccountResponse>> updatePassword(

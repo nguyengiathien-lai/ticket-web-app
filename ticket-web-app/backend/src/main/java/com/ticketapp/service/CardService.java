@@ -3,13 +3,14 @@ package com.ticketapp.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ticketapp.client.level5.Level5Client;
-import com.ticketapp.dto.card.CardResponse;
 import com.ticketapp.dto.catalog.CardTypeSyncRequest;
+import com.ticketapp.dto.card.CardResponse;
 import com.ticketapp.dto.external.ExternalCardHistoryResponse;
 import com.ticketapp.dto.external.ExternalCardTypeResponse;
 import com.ticketapp.dto.purchase.CardTypeResponse;
 import com.ticketapp.entity.CardType;
 import com.ticketapp.entity.PhysicalCard;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
@@ -19,7 +20,6 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
@@ -30,59 +30,68 @@ public class CardService {
     private static final String CARD_UID_KEY_PREFIX = "cache:cards:uid:";
     private static final String PASSENGER_CARDS_KEY_PREFIX = "cache:cards:passenger:";
     private static final String PASSENGER_CARDS_LOADED_KEY_PREFIX = "cache:cards:loaded:";
-    private static final Duration HISTORY_LOADED_TTL = Duration.ofMinutes(10);
-    private static final String CARD_TYPE_CODES_KEY = "catalog:card-types:codes";
     private static final String CARD_TYPE_KEY_PREFIX = "catalog:card-types:";
+    private static final String CARD_TYPES_KEY = "catalog:card-types:codes";
     private static final String CARD_TYPES_LOADED_KEY = "catalog:card-types:loaded";
+    private static final Duration HISTORY_LOADED_TTL = Duration.ofDays(3);
 
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
     private final Level5Client level5Client;
     private final Duration catalogRefreshTtl;
 
+    @Autowired
     public CardService(
             StringRedisTemplate redisTemplate,
             ObjectMapper objectMapper,
             Level5Client level5Client,
-            @Value("${app.cache.catalog-refresh-ttl-seconds:600}") long catalogRefreshTtlSeconds) {
+            @Value("${app.cache.catalog-refresh-ttl-seconds:600}") int catalogRefreshTtlSeconds) {
         this.redisTemplate = redisTemplate;
         this.objectMapper = objectMapper;
         this.level5Client = level5Client;
-        this.catalogRefreshTtl = Duration.ofSeconds(Math.max(catalogRefreshTtlSeconds, 1));
+        this.catalogRefreshTtl = Duration.ofSeconds(catalogRefreshTtlSeconds);
+    }
+
+    public CardService(
+            StringRedisTemplate redisTemplate,
+            ObjectMapper objectMapper,
+            Level5Client level5Client) {
+        this(redisTemplate, objectMapper, level5Client, 600);
     }
 
     public List<CardTypeResponse> getActiveCardTypes() {
-        ensureCardTypesLoaded();
-        return getCardTypesFromRedis()
-                .stream()
+        refreshCardTypesIfEmpty();
+        Set<String> codes = redisTemplate.opsForSet().members(CARD_TYPES_KEY);
+        if (codes == null || codes.isEmpty()) {
+            return List.of();
+        }
+        return codes.stream()
+                .map(code -> readCardType(cardTypeKey(code)))
+                .flatMap(Optional::stream)
                 .filter(cardType -> Boolean.TRUE.equals(cardType.getActive()))
-                .sorted(Comparator.comparing(CardType::getCode))
+                .sorted(Comparator.comparing(
+                        CardType::getCode,
+                        Comparator.nullsLast(String::compareToIgnoreCase)))
                 .map(CardTypeResponse::from)
                 .toList();
+    }
+
+    public List<CardTypeResponse> cacheCardTypes(List<CardTypeSyncRequest> request) {
+        if (request == null) {
+            return List.of();
+        }
+        request.stream()
+                .map(this::toCardType)
+                .forEach(this::cacheCardType);
+        return getActiveCardTypes();
     }
 
     public CardType requireActiveCardType(String code) {
-        ensureCardTypesLoaded();
-        CardType cardType = getCardTypeFromRedis(code)
-                .orElseThrow(() -> new IllegalArgumentException("Card type not found in Redis cache: " + code));
-
-        if (!Boolean.TRUE.equals(cardType.getActive())) {
-            throw new IllegalArgumentException("Card type is inactive: " + code);
-        }
-
-        return cardType;
-    }
-
-    public List<CardTypeResponse> cacheCardTypes(List<CardTypeSyncRequest> requests) {
-        List<CardType> cached = requests.stream()
-                .map(this::cacheCardType)
-                .toList();
-        markCatalogLoaded(requests.stream()
-                .map(CardTypeSyncRequest::getExpiresAt)
-                .toList());
-        return cached.stream()
-                .map(CardTypeResponse::from)
-                .toList();
+        String normalizedCode = requireText(code, "card type code");
+        refreshCardTypesIfEmpty();
+        return readCardType(cardTypeKey(normalizedCode))
+                .filter(cardType -> Boolean.TRUE.equals(cardType.getActive()))
+                .orElseThrow(() -> new IllegalArgumentException("Card type not found or inactive"));
     }
 
     public PhysicalCard cacheCard(PhysicalCard card) {
@@ -114,60 +123,69 @@ public class CardService {
         return readPassengerCards(normalizedAccountId);
     }
 
-    private void ensureCardTypesLoaded() {
-        if (catalogLoaded()) {
+    private void refreshCardTypesIfEmpty() {
+        if ("true".equals(redisTemplate.opsForValue().get(CARD_TYPES_LOADED_KEY))) {
             return;
         }
-        redisTemplate.delete(CARD_TYPE_CODES_KEY);
-        cacheCardTypes(level5Client.getCardTypes().stream().map(this::toSyncRequest).toList());
+        level5Client.getCardTypes().stream()
+                .map(this::toCardType)
+                .forEach(this::cacheCardType);
+        redisTemplate.opsForValue().set(CARD_TYPES_LOADED_KEY, "true", catalogRefreshTtl);
     }
 
-    private CardTypeSyncRequest toSyncRequest(ExternalCardTypeResponse external) {
-        CardTypeSyncRequest request = new CardTypeSyncRequest();
-        request.setExternalCardTypeId(external.getExternalCardTypeId());
-        request.setCode(external.getCode());
-        request.setName(external.getName());
-        request.setDurationDays(external.getDurationDays());
-        request.setPrice(external.getPrice());
-        request.setCurrency(external.getCurrency());
-        request.setDescription(external.getDescription());
-        request.setActive(external.getActive());
-        request.setExpiresAt(external.getExpiresAt());
-        return request;
-    }
-
-    private CardType cacheCardType(CardTypeSyncRequest request) {
+    private CardType toCardType(CardTypeSyncRequest request) {
         CardType cardType = new CardType();
-        cardType.setExternalCardTypeId(request.getExternalCardTypeId());
-        cardType.setCode(request.getCode());
-        cardType.setName(request.getName());
+        cardType.setExternalCardTypeId(requireText(request.getExternalCardTypeId(), "card type ID"));
+        cardType.setCode(requireText(request.getCode(), "card type code"));
+        cardType.setName(requireText(request.getName(), "card type name"));
         cardType.setDurationDays(request.getDurationDays());
         cardType.setPrice(request.getPrice());
-        cardType.setCurrency(request.getCurrency());
+        cardType.setCurrency(requireText(request.getCurrency(), "card type currency"));
         cardType.setDescription(request.getDescription());
-        cardType.setActive(request.getActive() == null || request.getActive());
+        cardType.setActive(request.getActive() == null ? Boolean.TRUE : request.getActive());
         cardType.setCachedAt(LocalDateTime.now());
         cardType.setExpiresAt(request.getExpiresAt());
-
-        writeJson(cardTypeKey(cardType.getCode()), cardType, cardType.getExpiresAt());
-        redisTemplate.opsForSet().add(CARD_TYPE_CODES_KEY, cardType.getCode());
         return cardType;
     }
 
-    private List<CardType> getCardTypesFromRedis() {
-        Set<String> codes = redisTemplate.opsForSet().members(CARD_TYPE_CODES_KEY);
-        if (codes == null || codes.isEmpty()) {
-            return List.of();
-        }
-
-        return codes.stream()
-                .map(this::getCardTypeFromRedis)
-                .flatMap(Optional::stream)
-                .toList();
+    private CardType toCardType(ExternalCardTypeResponse response) {
+        CardType cardType = new CardType();
+        cardType.setExternalCardTypeId(requireText(response.getExternalCardTypeId(), "card type ID"));
+        cardType.setCode(requireText(response.getCode(), "card type code"));
+        cardType.setName(requireText(response.getName(), "card type name"));
+        cardType.setDurationDays(response.getDurationDays());
+        cardType.setPrice(response.getPrice());
+        cardType.setCurrency(requireText(response.getCurrency(), "card type currency"));
+        cardType.setDescription(response.getDescription());
+        cardType.setActive(response.getActive() == null ? Boolean.TRUE : response.getActive());
+        cardType.setCachedAt(LocalDateTime.now());
+        cardType.setExpiresAt(response.getExpiresAt());
+        return cardType;
     }
 
-    private Optional<CardType> getCardTypeFromRedis(String code) {
-        return readJson(cardTypeKey(code), CardType.class);
+    private void cacheCardType(CardType cardType) {
+        String key = cardTypeKey(cardType.getCode());
+        String json = writeJson(cardType, key);
+        Duration ttl = ttlUntil(cardType.getExpiresAt());
+
+        if (ttl == null) {
+            redisTemplate.opsForValue().set(key, json);
+        } else {
+            redisTemplate.opsForValue().set(key, json, ttl);
+        }
+        redisTemplate.opsForSet().add(CARD_TYPES_KEY, cardType.getCode());
+    }
+
+    private Optional<CardType> readCardType(String key) {
+        String json = redisTemplate.opsForValue().get(key);
+        if (json == null || json.isBlank()) {
+            return Optional.empty();
+        }
+        try {
+            return Optional.of(objectMapper.readValue(json, CardType.class));
+        } catch (JsonProcessingException exception) {
+            throw new IllegalStateException("Unable to read Redis card type cache entry: " + key, exception);
+        }
     }
 
     private List<CardResponse> readPassengerCards(String passengerAccountId) {
@@ -198,38 +216,28 @@ public class CardService {
     }
 
     private Optional<PhysicalCard> readCard(String key) {
-        return readJson(key, PhysicalCard.class);
-    }
-
-    private <T> Optional<T> readJson(String key, Class<T> valueType) {
         String json = redisTemplate.opsForValue().get(key);
         if (json == null || json.isBlank()) {
             return Optional.empty();
         }
         try {
-            return Optional.of(objectMapper.readValue(json, valueType));
+            return Optional.of(objectMapper.readValue(json, PhysicalCard.class));
         } catch (JsonProcessingException exception) {
             throw new IllegalStateException("Unable to read Redis card cache entry: " + key, exception);
+        }
+    }
+
+    private String writeJson(CardType cardType, String key) {
+        try {
+            return objectMapper.writeValueAsString(cardType);
+        } catch (JsonProcessingException exception) {
+            throw new IllegalStateException("Unable to write Redis card type cache entry: " + key, exception);
         }
     }
 
     private String writeJson(PhysicalCard card, String key) {
         try {
             return objectMapper.writeValueAsString(card);
-        } catch (JsonProcessingException exception) {
-            throw new IllegalStateException("Unable to write Redis card cache entry: " + key, exception);
-        }
-    }
-
-    private void writeJson(String key, Object value, LocalDateTime expiresAt) {
-        try {
-            String json = objectMapper.writeValueAsString(value);
-            Duration ttl = ttlUntil(expiresAt);
-            if (ttl == null) {
-                redisTemplate.opsForValue().set(key, json);
-            } else {
-                redisTemplate.opsForValue().set(key, json, ttl);
-            }
         } catch (JsonProcessingException exception) {
             throw new IllegalStateException("Unable to write Redis card cache entry: " + key, exception);
         }
@@ -270,6 +278,10 @@ public class CardService {
         return PASSENGER_CARDS_LOADED_KEY_PREFIX + passengerAccountId;
     }
 
+    private String cardTypeKey(String code) {
+        return CARD_TYPE_KEY_PREFIX + code;
+    }
+
     private boolean historyLoaded(String key) {
         return "true".equals(redisTemplate.opsForValue().get(key));
     }
@@ -278,29 +290,10 @@ public class CardService {
         redisTemplate.opsForValue().set(key, "true", HISTORY_LOADED_TTL);
     }
 
-    private boolean catalogLoaded() {
-        return "true".equals(redisTemplate.opsForValue().get(CARD_TYPES_LOADED_KEY));
-    }
-
-    private void markCatalogLoaded(List<LocalDateTime> expirations) {
-        Duration markerTtl = expirations.stream()
-                .filter(Objects::nonNull)
-                .map(this::ttlUntil)
-                .filter(ttl -> !ttl.isNegative() && !ttl.isZero())
-                .min(Duration::compareTo)
-                .map(ttl -> ttl.compareTo(catalogRefreshTtl) < 0 ? ttl : catalogRefreshTtl)
-                .orElse(catalogRefreshTtl);
-        redisTemplate.opsForValue().set(CARD_TYPES_LOADED_KEY, "true", markerTtl);
-    }
-
     private String requireText(String value, String fieldName) {
         if (value == null || value.isBlank()) {
             throw new IllegalArgumentException("Missing " + fieldName + " in card data");
         }
         return value.trim();
-    }
-
-    private String cardTypeKey(String code) {
-        return CARD_TYPE_KEY_PREFIX + Objects.requireNonNull(code);
     }
 }

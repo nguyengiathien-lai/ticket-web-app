@@ -111,7 +111,7 @@ public class AccountService {
         if (account.getIsEmailVerified()) {
             throw new IllegalArgumentException("Email is already verified");
         }
-
+      
         otpService.sendEmailVerificationOtp(account);
         log.info("Email verification OTP resent for account: {}", account.getId());
     }

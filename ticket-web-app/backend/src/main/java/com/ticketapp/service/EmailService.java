@@ -1,5 +1,8 @@
 package com.ticketapp.service;
 
+import com.ticketapp.exception.EmailDeliveryException;
+import jakarta.mail.internet.AddressException;
+import jakarta.mail.internet.InternetAddress;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
@@ -26,27 +29,47 @@ public class EmailService {
         JavaMailSender mailSender = mailSenderProvider.getIfAvailable();
 
         if (mailSender == null) {
-            log.warn("Email sender is not configured. Verification OTP for {} is {}", to, code);
-            return;
+            throw new EmailDeliveryException("Email sender is not configured");
         }
 
-        SimpleMailMessage message = new SimpleMailMessage();
-        message.setFrom(fromAddress);
-        message.setTo(to);
-        message.setSubject("Verify your Ticket App account");
-        message.setText("""
-                Hi %s,
+        String validFromAddress = validateEmailAddress(fromAddress, "Sender email address");
+        String validToAddress = validateEmailAddress(to, "Recipient email address");
 
-                Your Ticket App verification code is: %s
-
-                This code expires in 15 minutes. If you did not create this account, ignore this email.
-                """.formatted(fullName, code));
+        log.info("Sending email verification OTP to {}: {}", to, code);
 
         try {
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setFrom(validFromAddress);
+            message.setTo(validToAddress);
+            message.setSubject("Verify your Ticket App account");
+            message.setText("""
+                    Hi %s,
+
+                    Your Ticket App verification code is: %s
+
+                    This code expires in 15 minutes. If you did not create this account, ignore this email.
+                    """.formatted(fullName, code));
+
             mailSender.send(message);
-            log.info("Email verification OTP sent to {}", to);
+            log.info("Email verification OTP sent to {}", validToAddress);
         } catch (MailException exception) {
-            log.warn("Email delivery failed for {}. Verification OTP is {}", to, code, exception);
+            log.warn("Email delivery failed for {}", validToAddress, exception);
+            throw new EmailDeliveryException("Email delivery failed. Check mail configuration and try again", exception);
+        }
+    }
+
+    private String validateEmailAddress(String value, String label) {
+        if (value == null || value.isBlank()) {
+            throw new EmailDeliveryException(label + " is not configured");
+        }
+
+        String trimmedValue = value.trim();
+        try {
+            InternetAddress internetAddress = new InternetAddress(trimmedValue);
+            internetAddress.validate();
+            return trimmedValue;
+        } catch (AddressException exception) {
+            throw new EmailDeliveryException(label + " is invalid: " + trimmedValue, exception);
         }
     }
 }

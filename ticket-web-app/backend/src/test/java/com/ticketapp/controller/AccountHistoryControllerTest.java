@@ -27,8 +27,8 @@ class AccountHistoryControllerTest {
     private final FakeAccountService accountService = new FakeAccountService();
     private final FakeAuthenticationService authenticationService = new FakeAuthenticationService();
     private final FakeAuthorizationService authorizationService = new FakeAuthorizationService();
-    private final FakeTicketService ticketService = new FakeTicketService();
-    private final FakeCardService cardService = new FakeCardService();
+    private final FakeTicketRequestService ticketRequestService = new FakeTicketRequestService();
+    private final FakePhysicalCardService physicalCardService = new FakePhysicalCardService();
     private final FakeTravelHistoryService travelHistoryService = new FakeTravelHistoryService();
     private AccountController controller;
 
@@ -38,8 +38,8 @@ class AccountHistoryControllerTest {
                 accountService,
                 authenticationService,
                 authorizationService,
-                ticketService,
-                cardService,
+                ticketRequestService,
+                physicalCardService,
                 travelHistoryService);
     }
 
@@ -47,7 +47,7 @@ class AccountHistoryControllerTest {
     void passengerCanRetrieveOwnPastTickets() {
         authenticationService.account = Optional.of(account("user-1"));
         TicketResponse ticket = TicketResponse.builder().externalTicketId("ticket-1").build();
-        ticketService.tickets = List.of(ticket);
+        ticketRequestService.tickets = List.of(ticket);
 
         ResponseEntity<ApiResponse<List<TicketResponse>>> response =
                 controller.getPastTickets("Bearer token", "user-1");
@@ -61,22 +61,22 @@ class AccountHistoryControllerTest {
     @Test
     void passengerCanRetrieveOwnTicketQrCode() {
         authenticationService.account = Optional.of(account("user-1"));
-        ticketService.qrCode = new TicketQrResponse("ticket-1", "qr-payload");
+        ticketRequestService.qrCode = new TicketQrResponse("ticket-1", "qr-payload");
 
         ResponseEntity<ApiResponse<TicketQrResponse>> response =
                 controller.getTicketQrCode("Bearer token", "user-1", "ticket-1");
 
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().getData().getQrCode()).isEqualTo("qr-payload");
-        assertThat(ticketService.requestedAccountId).isEqualTo("user-1");
-        assertThat(ticketService.requestedTicketId).isEqualTo("ticket-1");
+        assertThat(ticketRequestService.requestedAccountId).isEqualTo("user-1");
+        assertThat(ticketRequestService.requestedTicketId).isEqualTo("ticket-1");
     }
 
     @Test
     void passengerCanRetrieveOwnPastCards() {
         authenticationService.account = Optional.of(account("user-1"));
         CardResponse card = CardResponse.builder().externalCardId("card-1").build();
-        cardService.cards = List.of(card);
+        physicalCardService.cards = List.of(card);
 
         ResponseEntity<ApiResponse<List<CardResponse>>> response =
                 controller.getPastCards("token", "user-1");
@@ -93,7 +93,7 @@ class AccountHistoryControllerTest {
         assertThatThrownBy(() -> controller.getPastTickets("Bearer token", "user-2"))
                 .isInstanceOf(SecurityException.class);
 
-        assertThat(ticketService.requestedAccountId).isNull();
+        assertThat(ticketRequestService.requestedAccountId).isNull();
     }
 
     @Test
@@ -151,14 +151,14 @@ class AccountHistoryControllerTest {
         }
     }
 
-    private static class FakeTicketService extends TicketService {
+    private static class FakeTicketRequestService extends TicketService {
         private List<TicketResponse> tickets = List.of();
         private TicketQrResponse qrCode;
         private String requestedAccountId;
         private String requestedTicketId;
 
-        private FakeTicketService() {
-            super(null, null, null, null, 600);
+        private FakeTicketRequestService() {
+            super(null, null, null, null);
         }
 
         @Override
@@ -175,11 +175,11 @@ class AccountHistoryControllerTest {
         }
     }
 
-    private static class FakeCardService extends CardService {
+    private static class FakePhysicalCardService extends CardService {
         private List<CardResponse> cards = List.of();
 
-        private FakeCardService() {
-            super(null, null, null, 600);
+        private FakePhysicalCardService() {
+            super(null, null, null);
         }
 
         @Override

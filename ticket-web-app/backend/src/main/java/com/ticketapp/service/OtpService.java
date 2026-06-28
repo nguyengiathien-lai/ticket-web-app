@@ -43,8 +43,10 @@ public class OtpService {
         otpCode.setMaxAttempts(3);
         otpCode.setIsUsed(false);
         otpCode.setExpiresAt(LocalDateTime.now().plusMinutes(2));
-
+        log.info("Save OTP to {}: {}", account.getEmail(), code);
         otpCodeRepository.save(otpCode);
+
+        log.info("Sending email verification OTP to {}: {}", account.getEmail(), code);
         emailService.sendEmailVerificationOtp(account.getEmail(), account.getFullName(), code);
     }
 
@@ -88,5 +90,6 @@ public class OtpService {
                     otpCode.setUsedAt(now);
                     otpCodeRepository.save(otpCode);
                 });
+        log.info("hello");
     }
 }
