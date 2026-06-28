@@ -5,6 +5,7 @@ import com.ticketapp.entity.Role;
 import lombok.Builder;
 import lombok.Data;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -15,6 +16,9 @@ public class AccountResponse {
     private String id;
     private String email;
     private String fullName;
+    private String passengerCode;
+    private LocalDate dateOfBirth;
+    private String gender;
     private String phoneNumber;
     private String personalId;
     private String address;
@@ -30,6 +34,9 @@ public class AccountResponse {
                 .id(account.getId())
                 .email(account.getEmail())
                 .fullName(account.getFullName())
+                .passengerCode(account.getPassengerCode())
+                .dateOfBirth(account.getDateOfBirth())
+                .gender(account.getGender())
                 .phoneNumber(account.getPhoneNumber())
                 .personalId(account.getPersonalId())
                 .address(account.getAddress())

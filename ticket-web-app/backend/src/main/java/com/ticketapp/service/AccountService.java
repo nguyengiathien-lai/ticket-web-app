@@ -1,5 +1,6 @@
 package com.ticketapp.service;
 
+import com.ticketapp.dto.account.ProfileUpdateRequest;
 import com.ticketapp.entity.Account;
 import com.ticketapp.entity.Role;
 import com.ticketapp.repository.AccountRepository;
@@ -62,7 +63,7 @@ public class AccountService {
                 .orElseThrow(() -> new RuntimeException("PASSENGER role not found"));
         account.getRoles().add(passengerRole);
 
-        Account savedAccount = accountRepository.save(account);
+        Account savedAccount = accountRepository.saveAndFlush(account);
         otpService.sendEmailVerificationOtp(savedAccount);
         log.info("Account registered: {} ({})", savedAccount.getId(), savedAccount.getEmail());
 
@@ -71,6 +72,14 @@ public class AccountService {
 
     private String buildFullName(String firstName, String lastName) {
         return (firstName.trim() + " " + lastName.trim()).trim();
+    }
+
+    private String blankToNull(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+
+        return value.trim();
     }
 
     /**
@@ -136,6 +145,49 @@ public class AccountService {
 
         Account updated = accountRepository.save(account);
         log.info("Password updated for account: {}", accountId);
+
+        return updated;
+    }
+
+    /**
+     * Update optional passenger profile fields.
+     */
+    @Transactional
+    public Account updateProfile(String accountId, ProfileUpdateRequest request) {
+        Account account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new IllegalArgumentException("Account not found"));
+
+        String phoneNumber = blankToNull(request.getPhoneNumber());
+        if (phoneNumber != null) {
+            accountRepository.findByPhoneNumber(phoneNumber)
+                    .filter(existing -> !existing.getId().equals(accountId))
+                    .ifPresent(existing -> {
+                        throw new IllegalArgumentException("Phone number already registered");
+                    });
+        }
+
+        String personalId = blankToNull(request.getPersonalId());
+        if (personalId != null) {
+            accountRepository.findByPersonalId(personalId)
+                    .filter(existing -> !existing.getId().equals(accountId))
+                    .ifPresent(existing -> {
+                        throw new IllegalArgumentException("Personal ID already registered");
+                    });
+        }
+
+        String fullName = blankToNull(request.getFullName());
+        if (fullName != null) {
+            account.setFullName(fullName);
+        }
+        account.setPhoneNumber(phoneNumber);
+        account.setPersonalId(personalId);
+        account.setAddress(blankToNull(request.getAddress()));
+        account.setDateOfBirth(request.getDateOfBirth());
+        account.setGender(blankToNull(request.getGender()));
+        account.setUpdatedAt(LocalDateTime.now());
+
+        Account updated = accountRepository.save(account);
+        log.info("Profile updated for account: {}", accountId);
 
         return updated;
     }

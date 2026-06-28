@@ -4,6 +4,7 @@ import com.ticketapp.dto.ApiResponse;
 import com.ticketapp.dto.account.AccountEmailVerificationRequest;
 import com.ticketapp.dto.account.AccountRoleRequest;
 import com.ticketapp.dto.account.AdminResetPasswordRequest;
+import com.ticketapp.dto.account.ProfileUpdateRequest;
 import com.ticketapp.dto.auth.AccountResponse;
 import com.ticketapp.dto.card.CardResponse;
 import com.ticketapp.dto.ticket.TicketQrResponse;
@@ -124,6 +125,17 @@ public class AccountController {
                 .orElseThrow(() -> new IllegalArgumentException("Account not found"));
 
         return ResponseEntity.ok(ApiResponse.success(AccountResponse.from(account), "Account retrieved successfully"));
+    }
+
+    @PutMapping("/{accountId}/profile")
+    public ResponseEntity<ApiResponse<AccountResponse>> updateProfile(
+            @RequestHeader(name = "Authorization", required = false) String authorizationHeader,
+            @PathVariable String accountId,
+            @RequestBody ProfileUpdateRequest request) {
+        requireSelfOrAdmin(authorizationHeader, accountId);
+
+        Account account = accountService.updateProfile(accountId, request);
+        return ResponseEntity.ok(ApiResponse.success(AccountResponse.from(account), "Profile updated successfully"));
     }
 
     @PutMapping("/{accountId}/activate")
