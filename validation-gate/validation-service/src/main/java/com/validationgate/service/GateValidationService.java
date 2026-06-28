@@ -7,6 +7,7 @@ import com.validationgate.client.Level4Client;
 import com.validationgate.dto.SubmitBatchRequest;
 import com.validationgate.dto.ValidationRequest;
 import com.validationgate.dto.SubmitBatchResponse;
+import com.validationgate.dto.BatchItem;
 import com.validationgate.entity.DeviceConfigPackage;
 import com.validationgate.entity.TapEvent;
 import com.validationgate.repository.DeviceConfigPackageRepository;
@@ -81,10 +82,10 @@ public class GateValidationService {
     }
 
     @Transactional
-    public SubmitBatchResponse recordTapEvent(ValidationRequest request) {
+    public void recordTapEvent(ValidationRequest request) {
         TapEvent tapEvent = toQueuedTapEvent(request);
         tapEventRepository.save(tapEvent);
-        return new SubmitBatchResponse(QUEUED_MESSAGE);
+        // return new SubmitBatchResponse(QUEUED_MESSAGE);
     }
 
     @Transactional
@@ -167,23 +168,20 @@ public class GateValidationService {
     //     return normalized;
     // }
 
-    // private ExternalGateEventRequest toExternalRequest(TapEvent event) {
-    //     return ExternalGateEventRequest.builder()
-    //             .eventId(event.getEventId())
-    //             .ticketId(event.getTicketId())
-    //             .eventType(event.getEventType())
-    //             .gateId(event.getGateId())
-    //             .stationId(event.getStationId())
-    //             .recordedAt(event.getRecordedAt())
-    //             .source("GATE")
-    //             .build();
-    // }
+    private BatchItem toBatchItem(TapEvent event) {
+        return BatchItem.builder()
+                .qrPayload(event.getQrPayload())
+                .eventType(event.getEventType())
+                .recordedAt(event.getRecordedAt())
+                .build();
+    }
 
     private SubmitBatchRequest toBatchRequest(List<TapEvent> events) {
         return SubmitBatchRequest.builder()
                 .batchId(UUID.randomUUID().toString())
                 .generatedAt(LocalDateTime.now())
                 .records(events.stream()
+                        .map(this::toBatchItem) 
                         .toList())
                 .build();
     }
