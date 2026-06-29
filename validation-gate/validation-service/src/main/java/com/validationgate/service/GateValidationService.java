@@ -37,6 +37,9 @@ public class GateValidationService {
     private static final String STATUS_FAILED = "FAILED";
     private static final List<String> RETRYABLE_STATUSES = List.of(STATUS_PENDING, STATUS_FAILED);
     private static final String QUEUED_MESSAGE = "Scan record queued for batch delivery";
+    private static final String EMPTY_BATCH_MESSAGE = "No scan records pending for batch delivery";
+    private static final String SENT_BATCH_MESSAGE = "Scan record batch delivered successfully";
+    private static final String FAILED_BATCH_MESSAGE = "Scan record batch delivery failed and records were marked for retry";
     private static final int MAX_ERROR_LENGTH = 500;
     private static final String QR_ALGORITHM_HMAC_SHA256 = "HMAC_SHA256";
 
@@ -52,7 +55,7 @@ public class GateValidationService {
             TapEventRepository tapEventRepository,
             DeviceConfigPackageRepository deviceConfigRepository,
             ObjectMapper objectMapper,
-            @Value("${app.level4.scan-record-batch-size:100}") int batchSize,
+            @Value("${app.level4.scan-record-batch-size:2}") int batchSize,
             @Value("${app.level4.sent-event-retention:2d}") Duration sentEventRetention) {
         this.level4Client = level4Client;
         this.tapEventRepository = tapEventRepository;
@@ -89,19 +92,22 @@ public class GateValidationService {
     }
 
     @Transactional
-    @Scheduled(fixedDelayString = "${app.level4.scan-record-flush-delay-ms:30000}")
-    public synchronized void flushValidationBatch() {
+    // @Scheduled(fixedDelayString = "${app.level4.scan-record-flush-delay-ms:30000}")
+    // public synchronized void flushValidationBatch() {
+    public SubmitBatchResponse flushValidationBatch() {
         List<TapEvent> batch = nextBatch();
         if (batch.isEmpty()) {
-            return;
+            return new SubmitBatchResponse(EMPTY_BATCH_MESSAGE);
         }
 
         try {
             SubmitBatchResponse response = level4Client.sendBatch(toBatchRequest(batch));
             requireAcceptedBatchResponse(response);
             markSent(batch);
+            return new SubmitBatchResponse(SENT_BATCH_MESSAGE);
         } catch (RuntimeException exception) {
             markFailed(batch, exception.getMessage());
+            return new SubmitBatchResponse(FAILED_BATCH_MESSAGE);
         }
     }
 

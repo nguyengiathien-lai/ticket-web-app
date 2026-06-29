@@ -60,7 +60,7 @@ class GateValidationServiceTest {
         verify(repository).save(captor.capture());
         assertThat(valid).isTrue();
         assertThat(captor.getValue().getQrPayload()).isEqualTo(request.getQrPayload());
-        assertThat(captor.getValue().getEventType()).isEqualTo(TapEventType.CHECK_IN);
+        assertThat(captor.getValue().getEventType()).isEqualTo(TapEventType.TAP_IN);
         assertThat(captor.getValue().getRecordedAt()).isBetween(beforeRecord, afterRecord);
         assertThat(captor.getValue().getDeliveryStatus()).isEqualTo("PENDING");
         verify(client, never()).sendBatch(any(SubmitBatchRequest.class));
@@ -74,7 +74,7 @@ class GateValidationServiceTest {
         request.setQrPayload("invalid");
         request.setDeviceCode("device-1");
         request.setStationCode("station-1");
-        request.setEventType(TapEventType.CHECK_IN);
+        request.setEventType(TapEventType.TAP_IN);
 
         assertThatThrownBy(() -> service.recordTapEvent(request))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -93,7 +93,7 @@ class GateValidationServiceTest {
         request.setQrPayload(signedPayload("ticket-42", 1));
         request.setDeviceCode("device-1");
         request.setStationCode("station-1");
-        request.setEventType(TapEventType.CHECK_IN);
+        request.setEventType(TapEventType.TAP_IN);
 
         Boolean valid = service.validateTicket(request);
 
@@ -156,7 +156,10 @@ class GateValidationServiceTest {
         verify(client).sendBatch(batchCaptor.capture());
         assertThat(batchCaptor.getValue().getBatchId()).isNotBlank();
         assertThat(batchCaptor.getValue().getGeneratedAt()).isNotNull();
-        assertThat(batchCaptor.getValue().getRecords()).containsExactly(event);
+        assertThat(batchCaptor.getValue().getRecords()).hasSize(1);
+        assertThat(batchCaptor.getValue().getRecords().get(0).getQrPayload()).isEqualTo(event.getQrPayload());
+        assertThat(batchCaptor.getValue().getRecords().get(0).getEventType()).isEqualTo(event.getEventType());
+        assertThat(batchCaptor.getValue().getRecords().get(0).getRecordedAt()).isEqualTo(event.getRecordedAt());
         assertThat(event.getDeliveryStatus()).isEqualTo("SENT");
         assertThat(event.getSentAt()).isNotNull();
         assertThat(event.getDeliveryError()).isNull();
@@ -209,7 +212,7 @@ class GateValidationServiceTest {
         request.setQrPayload(signedPayload(ticketId, expiresAt));
         request.setDeviceCode("device-1");
         request.setStationCode("station-1");
-        request.setEventType(TapEventType.CHECK_IN);
+        request.setEventType(TapEventType.TAP_IN);
         return request;
     }
 
@@ -275,7 +278,7 @@ class GateValidationServiceTest {
     private TapEvent event() {
         TapEvent event = new TapEvent();
         event.setQrPayload("AFCQR:v1:ticket-42:exp=9999999999:hmac=test");
-        event.setEventType(TapEventType.CHECK_OUT);
+        event.setEventType(TapEventType.TAP_OUT);
         event.setRecordedAt(LocalDateTime.of(2026, 6, 21, 15, 30));
         event.setDeliveryStatus("PENDING");
         return event;

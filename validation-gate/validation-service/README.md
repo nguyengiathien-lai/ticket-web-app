@@ -16,7 +16,7 @@ The scanner posts ticket/card scan records here. The service validates the QR wi
   "qrPayload": "AFCQR:v1:CARD-000001:TICKET-000001:exp=1765432100:hmac=...",
   "deviceCode": "gate-device-1",
   "stationCode": "METRO-001-ST-001",
-  "eventType": "CHECK_IN"
+  "eventType": "TAP_IN"
 }
 ```
 

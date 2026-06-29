@@ -18,7 +18,7 @@ public class ExternalLevel4Client implements Level4Client {
     public ExternalLevel4Client(
             RestClient.Builder builder,
             @Value("${app.level4.base-url:}") String baseUrl,
-            @Value("${app.level4.scan-record-batch-path:/scan-record/batch}") String scanRecordBatchPath,
+            @Value("${app.level4.scan-record-batch-path:/transactions/submit-batch-event}") String scanRecordBatchPath,
             @Value("${app.level4.mock-enabled:true}") boolean mockEnabled) {
         this.restClient = baseUrl.isBlank() ? builder.build() : builder.baseUrl(baseUrl).build();
         this.scanRecordBatchPath = scanRecordBatchPath;

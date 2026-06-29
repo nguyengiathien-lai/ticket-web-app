@@ -33,8 +33,8 @@ services:
     image: rabbitmq:3-management-alpine
     container_name: ticket-rabbitmq
     ports:
-      - "5672:5672"
-      - "15672:15672"
+      - "5673:5672"
+      - "15673:15672"
     volumes:
       - rabbitmq-data:/var/lib/rabbitmq
     healthcheck:
@@ -71,14 +71,15 @@ services:
     env_file:
       - .env
     depends_on:
-      postgres:
-        condition: service_healthy
       rabbitmq:
         condition: service_healthy
     environment:
-      VALIDATION_DATASOURCE_URL: jdbc:postgresql://postgres:5432/ticket_app
-      VALIDATION_DATASOURCE_USERNAME: postgres
-      VALIDATION_DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+      VALIDATION_DATASOURCE_URL: jdbc:h2:file:/app/data/validation-gate;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE
+      VALIDATION_DATASOURCE_USERNAME: sa
+      VALIDATION_DB_PASSWORD: ""
+      SPRING_DATASOURCE_URL: jdbc:h2:file:/app/data/validation-gate;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE
+      SPRING_DATASOURCE_USERNAME: sa
+      SPRING_DATASOURCE_PASSWORD: ""
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_PORT: 5672
       DEVICE_CODE: ${DEVICE_CODE:-gate-device-1}
@@ -91,8 +92,11 @@ services:
       VALIDATION_ALLOWED_ORIGINS: ${VALIDATION_ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:4173}
     ports:
       - "8081:8081"
+    volumes:
+      - validation-data:/app/data
 
 volumes:
   postgres-data:
   redis-data:
   rabbitmq-data:
+  validation-data:

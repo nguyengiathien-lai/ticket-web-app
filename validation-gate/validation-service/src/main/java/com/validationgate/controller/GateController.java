@@ -33,6 +33,11 @@ public class GateController {
         return ResponseEntity.ok(gateValidationService.validateTicket(request));
     }
 
+    @PostMapping("/submit-batch")
+    public ResponseEntity<SubmitBatchResponse> flushValidationBatch() {
+        return ResponseEntity.ok(gateValidationService.flushValidationBatch());
+    }
+
     @ExceptionHandler(IllegalStateException.class)
     public ResponseEntity<SubmitBatchResponse> handleDeliveryFailure(IllegalStateException exception) {
         return ResponseEntity
