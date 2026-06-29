@@ -204,20 +204,12 @@ public class TicketService {
     }
 
     public TicketQrResponse getTicketQrCode(String passengerAccountId, String ticketId) {
-        String normalizedAccountId = requireText(passengerAccountId, "passenger account ID");
         String normalizedTicketId = requireText(ticketId, "ticket ID");
-        Ticket ticket = readTicket(ticketKey(normalizedTicketId))
-                .orElseThrow(() -> new IllegalArgumentException("Ticket not found"));
-
-        if (!normalizedAccountId.equals(ticket.getPassengerAccountId())) {
-            throw new SecurityException("Ticket does not belong to this account");
-        }
-
-        QrCodeResponse qrCode = level4Client.generateQrCode(new QrCodeRequest(ticket.getExternalTicketId()));
+        QrCodeResponse qrCode = level4Client.generateQrCode(new QrCodeRequest(normalizedTicketId));
         if (qrCode == null || qrCode.getQrCode() == null || qrCode.getQrCode().isBlank()) {
             throw new IllegalStateException("Level 4 returned an incomplete QR code");
         }
-        return new TicketQrResponse(ticket.getExternalTicketId(), qrCode.getQrCode());
+        return new TicketQrResponse(normalizedTicketId, qrCode.getQrCode());
     }
 
     private List<TicketResponse> readPassengerTickets(String passengerAccountId) {

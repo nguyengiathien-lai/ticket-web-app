@@ -13,6 +13,7 @@ import com.ticketapp.dto.ticket.TicketResponse;
 import com.ticketapp.entity.Ticket;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.data.redis.core.SetOperations;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
@@ -142,11 +143,23 @@ class TicketServiceTest {
     }
 
     @Test
-    void returnsQrCodeForTicketOwnedByPassenger() throws Exception {
-        Ticket cached = new Ticket();
-        cached.setExternalTicketId("ticket-1");
-        cached.setPassengerAccountId("account-1");
-        when(values.get("cache:tickets:id:ticket-1")).thenReturn(mapper.writeValueAsString(cached));
+    void sendsTicketIdToLevel4WhenGeneratingQrCode() {
+        QrCodeResponse qrCode = new QrCodeResponse();
+        qrCode.setQrCode("AFCQR:v1:ticket-1:exp=9999999999:hmac=test");
+        when(level4Client.generateQrCode(org.mockito.ArgumentMatchers.any(QrCodeRequest.class))).thenReturn(qrCode);
+
+        TicketQrResponse result = service.getTicketQrCode("account-1", " ticket-1 ");
+
+        assertThat(result.getTicketId()).isEqualTo("ticket-1");
+        assertThat(result.getQrCode()).isEqualTo(qrCode.getQrCode());
+        ArgumentCaptor<QrCodeRequest> requestCaptor = ArgumentCaptor.forClass(QrCodeRequest.class);
+        verify(level4Client).generateQrCode(requestCaptor.capture());
+        assertThat(requestCaptor.getValue().getTicketId()).isEqualTo("ticket-1");
+        verify(values, never()).get("cache:tickets:id:ticket-1");
+    }
+
+    @Test
+    void doesNotCheckCachedTicketOwnershipWhenGeneratingQrCode() throws Exception {
         QrCodeResponse qrCode = new QrCodeResponse();
         qrCode.setQrCode("AFCQR:v1:ticket-1:exp=9999999999:hmac=test");
         when(level4Client.generateQrCode(org.mockito.ArgumentMatchers.any(QrCodeRequest.class))).thenReturn(qrCode);
@@ -154,20 +167,7 @@ class TicketServiceTest {
         TicketQrResponse result = service.getTicketQrCode("account-1", "ticket-1");
 
         assertThat(result.getTicketId()).isEqualTo("ticket-1");
-        assertThat(result.getQrCode()).isEqualTo(qrCode.getQrCode());
-    }
-
-    @Test
-    void rejectsQrCodeRequestForTicketOwnedByAnotherPassenger() throws Exception {
-        Ticket cached = new Ticket();
-        cached.setExternalTicketId("ticket-1");
-        cached.setPassengerAccountId("account-2");
-        when(values.get("cache:tickets:id:ticket-1")).thenReturn(mapper.writeValueAsString(cached));
-
-        assertThatThrownBy(() -> service.getTicketQrCode("account-1", "ticket-1"))
-                .isInstanceOf(SecurityException.class)
-                .hasMessage("Ticket does not belong to this account");
-        verify(level4Client, never()).generateQrCode(org.mockito.ArgumentMatchers.any(QrCodeRequest.class));
+        verify(values, never()).get("cache:tickets:id:ticket-1");
     }
 
     private TicketRequest request(String passengerAccountId, String ticketTypeCode) {

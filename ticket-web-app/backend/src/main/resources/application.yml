@@ -77,5 +77,5 @@ app:
     catalog-refresh-ttl-seconds: ${CATALOG_REFRESH_TTL_SECONDS:600}
   level4:
     base-url: ${LEVEL4_BASE_URL:}
-    qr-code-path: ${LEVEL4_QR_CODE_PATH:/qr-codes}
+    qr-code-path: ${LEVEL4_QR_CODE_PATH:/vdt/generate-dynamic-qr}
     mock-enabled: ${LEVEL4_MOCK_ENABLED:true}
