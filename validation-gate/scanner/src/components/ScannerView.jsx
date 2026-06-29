@@ -173,8 +173,8 @@ export default function ScannerView({
             onChange={event => updateScannerContext("eventType", event.target.value)}
             disabled={disabled}
           >
-            <option value="CHECK_IN">Check in</option>
-            <option value="CHECK_OUT">Check out</option>
+            <option value="TAP_IN">Tap in</option>
+            <option value="TAP_OUT">Tap out</option>
           </select>
         </label>
 

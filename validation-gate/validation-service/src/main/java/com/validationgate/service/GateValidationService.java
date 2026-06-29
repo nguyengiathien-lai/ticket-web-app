@@ -7,7 +7,6 @@ import com.validationgate.client.Level4Client;
 import com.validationgate.dto.SubmitBatchRequest;
 import com.validationgate.dto.ValidationRequest;
 import com.validationgate.dto.SubmitBatchResponse;
-import com.validationgate.dto.BatchItem;
 import com.validationgate.entity.DeviceConfigPackage;
 import com.validationgate.entity.TapEvent;
 import com.validationgate.repository.DeviceConfigPackageRepository;
@@ -23,9 +22,9 @@ import java.time.LocalDateTime;
 import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
-import java.util.UUID;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
@@ -97,17 +96,17 @@ public class GateValidationService {
     public SubmitBatchResponse flushValidationBatch() {
         List<TapEvent> batch = nextBatch();
         if (batch.isEmpty()) {
-            return new SubmitBatchResponse(EMPTY_BATCH_MESSAGE);
+            return response(0, 0, 0, EMPTY_BATCH_MESSAGE);
         }
 
         try {
             SubmitBatchResponse response = level4Client.sendBatch(toBatchRequest(batch));
             requireAcceptedBatchResponse(response);
             markSent(batch);
-            return new SubmitBatchResponse(SENT_BATCH_MESSAGE);
+            return response;
         } catch (RuntimeException exception) {
             markFailed(batch, exception.getMessage());
-            return new SubmitBatchResponse(FAILED_BATCH_MESSAGE);
+            return response(batch.size(), 0, batch.size(), FAILED_BATCH_MESSAGE);
         }
     }
 
@@ -134,8 +133,11 @@ public class GateValidationService {
     }
 
     private void requireAcceptedBatchResponse(SubmitBatchResponse response) {
-        if (response == null || response.getMessage() == null || response.getMessage().isBlank()) {
+        if (response == null) {
             throw new IllegalStateException("Level 4 returned an incomplete scan batch response");
+        }
+        if (response.getFailed() > 0 || response.getErrors() != null && !response.getErrors().isEmpty()) {
+            throw new IllegalStateException("Level 4 rejected one or more scan records");
         }
     }
 
@@ -174,21 +176,32 @@ public class GateValidationService {
     //     return normalized;
     // }
 
-    private BatchItem toBatchItem(TapEvent event) {
-        return BatchItem.builder()
+    private SubmitBatchRequest.BatchTransactionItem toBatchItem(TapEvent event) {
+        return SubmitBatchRequest.BatchTransactionItem.builder()
                 .qrPayload(event.getQrPayload())
-                .eventType(event.getEventType())
-                .recordedAt(event.getRecordedAt())
+                .tapType(event.getEventType() == null ? null : event.getEventType().name())
+                .occurredAt(event.getRecordedAt())
                 .build();
     }
 
     private SubmitBatchRequest toBatchRequest(List<TapEvent> events) {
         return SubmitBatchRequest.builder()
-                .batchId(UUID.randomUUID().toString())
-                .generatedAt(LocalDateTime.now())
-                .records(events.stream()
+                .transactions(events.stream()
                         .map(this::toBatchItem) 
                         .toList())
+                .build();
+    }
+
+    private SubmitBatchResponse response(int total, int success, int failed, String error) {
+        List<String> errors = new ArrayList<>();
+        if (error != null && !error.isBlank()) {
+            errors.add(error);
+        }
+        return SubmitBatchResponse.builder()
+                .total(total)
+                .success(success)
+                .failed(failed)
+                .errors(errors)
                 .build();
     }
 

@@ -6,7 +6,7 @@ import ValidationResult from "./components/ValidationResult";
 
 const GATE_ID = import.meta.env.VITE_GATE_ID ?? "GATE-01";
 const STATION_ID = import.meta.env.VITE_STATION_ID ?? "STATION-01";
-const EVENT_TYPE = import.meta.env.VITE_GATE_EVENT_TYPE ?? "CHECK_IN";
+const EVENT_TYPE = import.meta.env.VITE_GATE_EVENT_TYPE ?? "TAP_IN";
 
 export default function App() {
   const [loading, setLoading] = useState(false);

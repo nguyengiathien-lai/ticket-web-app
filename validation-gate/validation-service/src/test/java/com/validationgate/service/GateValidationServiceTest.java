@@ -142,7 +142,11 @@ class GateValidationServiceTest {
         TapEvent event = event();
         when(repository.findByDeliveryStatusInOrderByRecordedAtAsc(
                 anyCollection(), any(Pageable.class))).thenReturn(List.of(event));
-        when(client.sendBatch(any())).thenReturn(new SubmitBatchResponse("Batch received"));
+        when(client.sendBatch(any())).thenReturn(SubmitBatchResponse.builder()
+                .total(1)
+                .success(1)
+                .failed(0)
+                .build());
         GateValidationService service = service(client, repository,
                 mock(DeviceConfigPackageRepository.class), mock(MediaAccessRulesPackageRepository.class), 50);
 
@@ -154,12 +158,10 @@ class GateValidationServiceTest {
         assertThat(pageableCaptor.getValue().getPageSize()).isEqualTo(50);
 
         verify(client).sendBatch(batchCaptor.capture());
-        assertThat(batchCaptor.getValue().getBatchId()).isNotBlank();
-        assertThat(batchCaptor.getValue().getGeneratedAt()).isNotNull();
-        assertThat(batchCaptor.getValue().getRecords()).hasSize(1);
-        assertThat(batchCaptor.getValue().getRecords().get(0).getQrPayload()).isEqualTo(event.getQrPayload());
-        assertThat(batchCaptor.getValue().getRecords().get(0).getEventType()).isEqualTo(event.getEventType());
-        assertThat(batchCaptor.getValue().getRecords().get(0).getRecordedAt()).isEqualTo(event.getRecordedAt());
+        assertThat(batchCaptor.getValue().getTransactions()).hasSize(1);
+        assertThat(batchCaptor.getValue().getTransactions().get(0).getQrPayload()).isEqualTo(event.getQrPayload());
+        assertThat(batchCaptor.getValue().getTransactions().get(0).getTapType()).isEqualTo(event.getEventType().name());
+        assertThat(batchCaptor.getValue().getTransactions().get(0).getOccurredAt()).isEqualTo(event.getRecordedAt());
         assertThat(event.getDeliveryStatus()).isEqualTo("SENT");
         assertThat(event.getSentAt()).isNotNull();
         assertThat(event.getDeliveryError()).isNull();

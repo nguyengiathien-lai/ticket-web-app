@@ -12,6 +12,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/gate")
 public class GateController {
@@ -42,6 +44,9 @@ public class GateController {
     public ResponseEntity<SubmitBatchResponse> handleDeliveryFailure(IllegalStateException exception) {
         return ResponseEntity
                 .status(HttpStatus.BAD_GATEWAY)
-                .body(new SubmitBatchResponse("Scan record was not received by the higher system"));
+                .body(SubmitBatchResponse.builder()
+                        .failed(1)
+                        .errors(List.of("Scan record was not received by the higher system"))
+                        .build());
     }
 }
