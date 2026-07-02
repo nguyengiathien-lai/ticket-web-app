@@ -1,6 +1,7 @@
 package com.ticketapp.dto.external;
 
 import com.fasterxml.jackson.annotation.JsonAlias;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -18,27 +19,29 @@ public class ExternalTicketHistoryResponse {
     @JsonAlias("ticketType")
     private String type;
 
-    String mode;
+    private String mode;
         
-    String scope;
+    private String scope;
 
     private String status;
 
     @JsonAlias("fare")
     private BigDecimal price;
 
-    String fromStationCode;
+    private String fromStationCode;
 
-    String toStationCode;
+    private String toStationCode;
 
     private LocalDate validFrom;
 
     @JsonAlias({"validUntil", "expiresAt"})
     private LocalDate validTo;
 
-    String qrToken;
+    private String qrToken;
 
-    @JsonAlias("isExpired") @JsonProperty("isExpired") boolean expired;
+    @JsonAlias("isExpired")
+    @JsonProperty("isExpired")
+    private boolean expired;
 
     @JsonAlias({"issuedAt", "createdAt"})
     private LocalDateTime purchasedAt;

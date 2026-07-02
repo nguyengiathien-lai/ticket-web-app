@@ -36,18 +36,12 @@ public class TravelHistoryService {
         return TravelHistoryResponse.builder()
                 .externalTripId(external.getExternalTripId())
                 .passengerAccountId(firstText(external.getPassengerAccountId(), passengerAccountId))
-                .physicalCardExternalId(external.getPhysicalCardExternalId())
                 .ticketExternalId(external.getTicketExternalId())
                 .checkinStationCode(external.getCheckinStationCode())
-                .checkinStationName(external.getCheckinStationName())
                 .checkoutStationCode(external.getCheckoutStationCode())
-                .checkoutStationName(external.getCheckoutStationName())
                 .checkinTime(external.getCheckinTime())
                 .checkoutTime(external.getCheckoutTime())
-                .transportId(external.getTransportId())
-                .transportType(external.getTransportType())
-                .routeCode(external.getRouteCode())
-                .expiresAt(external.getExpiresAt())
+                .transportType(external.getMode())
                 .build();
     }
 

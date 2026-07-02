@@ -1,5 +1,6 @@
 package com.ticketapp.dto.purchase;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
 import lombok.Setter;
@@ -12,7 +13,8 @@ public class TicketPurchaseRequest {
     private String userId;
 
     @NotBlank
-    private String ticketType;
+    @JsonAlias("ticketType")
+    private String packageId;
 
     @NotBlank
     private String paymentMethod;

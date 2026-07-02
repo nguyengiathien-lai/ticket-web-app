@@ -12,15 +12,23 @@ import java.time.LocalDateTime;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class CardType {
-
-    private String externalCardTypeId;
+public class FarePackage {
 
     private String code;
 
     private String name;
 
+    private String kind;
+
+    private String mode;
+
+    private String scope;
+
+    private String durationType;
+
     private Integer durationDays;
+
+    private Integer durationMonths;
 
     private BigDecimal price;
 

@@ -13,7 +13,7 @@ public class TicketPurchaseResponse {
     private String ticketId;
     private String orderId;
     private String userId;
-    private String ticketType;
+    private String packageId;
     private String origin;
     private String destination;
     private BigDecimal totalPrice;

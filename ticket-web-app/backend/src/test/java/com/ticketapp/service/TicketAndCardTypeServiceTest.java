@@ -2,12 +2,9 @@ package com.ticketapp.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ticketapp.client.level5.Level5Client;
-import com.ticketapp.dto.external.ExternalCardTypeResponse;
-import com.ticketapp.dto.external.ExternalTicketTypeResponse;
-import com.ticketapp.dto.purchase.CardTypeResponse;
-import com.ticketapp.dto.ticket.TicketTypeResponse;
-import com.ticketapp.entity.CardType;
-import com.ticketapp.entity.TicketType;
+import com.ticketapp.dto.external.ExternalFarePriceResponse;
+import com.ticketapp.dto.fare.FarePackageResponse;
+import com.ticketapp.entity.FarePackage;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.redis.core.SetOperations;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -26,72 +23,81 @@ import static org.mockito.Mockito.when;
 class TicketAndCardTypeServiceTest {
 
     @Test
-    void fetchesTicketTypesAgainAfterTheLoadedMarkerExpires() throws Exception {
+    void fetchesFarePackagesAgainAfterTheLoadedMarkerExpires() throws Exception {
         ValueOperations<String, String> values = mock(ValueOperations.class);
         SetOperations<String, String> sets = mock(SetOperations.class);
         Level5Client level5Client = mock(Level5Client.class);
         ObjectMapper mapper = new ObjectMapper().findAndRegisterModules();
         StringRedisTemplate redis = redisTemplate(values, sets);
 
-        ExternalTicketTypeResponse external = new ExternalTicketTypeResponse();
-        external.setExternalTicketTypeId("type-1");
-        external.setCode("DAY_PASS");
-        external.setName("Day pass");
-        external.setPrice(new BigDecimal("50000"));
-        external.setCurrency("VND");
-        when(level5Client.getTicketTypes()).thenReturn(List.of(external));
-        when(values.get("catalog:ticket-types:loaded")).thenReturn(null, "true", null);
-        when(sets.members("catalog:ticket-types:codes")).thenReturn(Set.of("DAY_PASS"));
+        ExternalFarePriceResponse external = new ExternalFarePriceResponse(
+                "METRO",
+                new ExternalFarePriceResponse.SingleTripPrice(
+                        new BigDecimal("8000"), new BigDecimal("850"), new BigDecimal("8000"), new BigDecimal("30000")),
+                List.of(new ExternalFarePriceResponse.PassPriceItem("DAILY", null, null, new BigDecimal("40000"))));
+        when(level5Client.getFarePrices()).thenReturn(List.of(external));
+        when(values.get("catalog:fare-packages:loaded")).thenReturn(null, "true", null);
+        when(sets.members("catalog:fare-packages:codes")).thenReturn(Set.of("METRO_DAILY"));
 
-        TicketType cached = new TicketType();
-        cached.setExternalTicketTypeId("type-1");
-        cached.setCode("DAY_PASS");
-        cached.setName("Day pass");
-        cached.setPrice(new BigDecimal("50000"));
+        FarePackage cached = new FarePackage();
+        cached.setCode("METRO_DAILY");
+        cached.setName("METRO daily pass");
+        cached.setKind("PASS");
+        cached.setMode("METRO");
+        cached.setDurationType("DAILY");
+        cached.setDurationDays(1);
+        cached.setPrice(new BigDecimal("40000"));
         cached.setCurrency("VND");
         cached.setActive(true);
-        when(values.get("catalog:ticket-types:DAY_PASS")).thenReturn(mapper.writeValueAsString(cached));
+        when(values.get("catalog:fare-packages:METRO_DAILY")).thenReturn(mapper.writeValueAsString(cached));
 
-        TicketService service = new TicketService(redis, mapper, level5Client, null, 600);
-        List<TicketTypeResponse> first = service.getActiveTicketTypes();
-        service.getActiveTicketTypes();
-        service.getActiveTicketTypes();
+        FarePackageService farePackageService = new FarePackageService(redis, mapper, level5Client, 600);
+        TicketService service = new TicketService(redis, mapper, level5Client, null, farePackageService);
+        List<FarePackageResponse> first = service.getActiveFarePackages();
+        service.getActiveFarePackages();
+        service.getActiveFarePackages();
 
-        assertThat(first).extracting(TicketTypeResponse::getCode).containsExactly("DAY_PASS");
-        verify(level5Client, times(2)).getTicketTypes();
+        assertThat(first).extracting(FarePackageResponse::getCode).containsExactly("METRO_DAILY");
+        verify(level5Client, times(2)).getFarePrices();
     }
 
     @Test
-    void fetchesAndCachesCardTypesWhenTheCatalogWasNotLoaded() throws Exception {
+    void cardServiceReadsFarePackagesFromSharedCatalog() throws Exception {
         ValueOperations<String, String> values = mock(ValueOperations.class);
         SetOperations<String, String> sets = mock(SetOperations.class);
         Level5Client level5Client = mock(Level5Client.class);
         ObjectMapper mapper = new ObjectMapper().findAndRegisterModules();
         StringRedisTemplate redis = redisTemplate(values, sets);
 
-        ExternalCardTypeResponse external = new ExternalCardTypeResponse();
-        external.setExternalCardTypeId("card-type-1");
-        external.setCode("STANDARD");
-        external.setName("Standard card");
-        external.setPrice(new BigDecimal("30000"));
-        external.setCurrency("VND");
-        when(level5Client.getCardTypes()).thenReturn(List.of(external));
-        when(sets.members("catalog:card-types:codes")).thenReturn(Set.of("STANDARD"));
+        ExternalFarePriceResponse external = new ExternalFarePriceResponse(
+                "BUS",
+                null,
+                List.of(new ExternalFarePriceResponse.PassPriceItem(
+                        "MONTHLY", 1, "SINGLE_ROUTE", new BigDecimal("140000"))));
+        when(level5Client.getFarePrices()).thenReturn(List.of(external));
+        when(sets.members("catalog:fare-packages:codes")).thenReturn(Set.of("BUS_MONTHLY_SINGLE_ROUTE"));
 
-        CardType cached = new CardType();
-        cached.setExternalCardTypeId("card-type-1");
-        cached.setCode("STANDARD");
-        cached.setName("Standard card");
-        cached.setPrice(new BigDecimal("30000"));
+        FarePackage cached = new FarePackage();
+        cached.setCode("BUS_MONTHLY_SINGLE_ROUTE");
+        cached.setName("BUS monthly single_route pass");
+        cached.setKind("PASS");
+        cached.setMode("BUS");
+        cached.setScope("SINGLE_ROUTE");
+        cached.setDurationType("MONTHLY");
+        cached.setDurationDays(30);
+        cached.setDurationMonths(1);
+        cached.setPrice(new BigDecimal("140000"));
         cached.setCurrency("VND");
         cached.setActive(true);
-        when(values.get("catalog:card-types:STANDARD")).thenReturn(mapper.writeValueAsString(cached));
+        when(values.get("catalog:fare-packages:BUS_MONTHLY_SINGLE_ROUTE"))
+                .thenReturn(mapper.writeValueAsString(cached));
 
-        List<CardTypeResponse> result = new CardService(redis, mapper, level5Client, 600)
-                .getActiveCardTypes();
+        FarePackageService farePackageService = new FarePackageService(redis, mapper, level5Client, 600);
+        List<FarePackageResponse> result = new CardService(redis, mapper, level5Client, farePackageService)
+                .getActiveFarePackages();
 
-        assertThat(result).extracting(CardTypeResponse::getCode).containsExactly("STANDARD");
-        verify(level5Client).getCardTypes();
+        assertThat(result).extracting(FarePackageResponse::getCode).containsExactly("BUS_MONTHLY_SINGLE_ROUTE");
+        verify(level5Client).getFarePrices();
     }
 
     private StringRedisTemplate redisTemplate(

@@ -14,12 +14,11 @@ import com.ticketapp.dto.purchase.TicketPurchaseRequest;
 import com.ticketapp.dto.purchase.TicketPurchaseResponse;
 import com.ticketapp.dto.ticket.TicketRequest;
 import com.ticketapp.dto.ticket.TicketResponse;
-import com.ticketapp.entity.CardType;
+import com.ticketapp.entity.FarePackage;
 import com.ticketapp.entity.Order;
 import com.ticketapp.entity.OrderItem;
 import com.ticketapp.entity.Payment;
 import com.ticketapp.entity.PhysicalCard;
-import com.ticketapp.entity.TicketType;
 import com.ticketapp.repository.OrderRepository;
 import com.ticketapp.repository.PaymentRepository;
 import org.springframework.stereotype.Service;
@@ -62,30 +61,30 @@ public class PurchaseService {
     @Transactional
     public TicketPurchaseResponse purchaseTicket(TicketPurchaseRequest request) {
         requirePurchasableAccount(request.getUserId());
-        TicketType ticketType = ticketService.requireActiveTicketType(request.getTicketType());
+        FarePackage farePackage = ticketService.requireActiveFarePackage(request.getPackageId());
         LocalDateTime now = LocalDateTime.now();
 
         Order order = createOrder(
                 request.getUserId(),
-                ticketType.getPrice(),
-                ticketType.getCurrency(),
+                farePackage.getPrice(),
+                farePackage.getCurrency(),
                 "COMPLETED",
                 now,
                 List.of(createOrderItem(
                         "TICKET",
-                        ticketType.getCode(),
-                        ticketType.getName(),
+                        farePackage.getCode(),
+                        farePackage.getName(),
                         1,
-                        ticketType.getPrice())));
+                        farePackage.getPrice())));
         Payment payment = createCompletedPayment(order, request.getUserId(), request.getPaymentMethod(), now);
 
         TicketRequest ticketRequest = new TicketRequest();
         ticketRequest.setPassengerAccountId(request.getUserId());
-        ticketRequest.setTicketTypeCode(request.getTicketType());
+        ticketRequest.setTicketTypeCode(request.getPackageId());
         ticketRequest.setIdempotencyKey(order.getExternalOrderId());
         ExternalTicketResponse externalTicket = level5Client.purchaseTicket(ExternalTicketRequest.builder()
                 .passengerAccountId(request.getUserId())
-                .ticketTypeCode(ticketType.getCode())
+                .ticketTypeCode(farePackage.getCode())
                 .idempotencyKey(order.getExternalOrderId())
                 .requestSource("TICKET_WEB_APP")
                 .orderId(order.getExternalOrderId())
@@ -101,7 +100,7 @@ public class PurchaseService {
                 .ticketId(ticket.getExternalTicketId())
                 .orderId(order.getExternalOrderId())
                 .userId(request.getUserId())
-                .ticketType(ticketType.getCode())
+                .packageId(farePackage.getCode())
                 .origin("Central Station")
                 .destination("Airport Terminal")
                 .totalPrice(order.getTotalAmount())
@@ -118,26 +117,26 @@ public class PurchaseService {
     @Transactional
     public CardPurchaseResponse purchaseCard(CardPurchaseRequest request) {
         requirePurchasableAccount(request.getUserId());
-        CardType cardType = cardService.requireActiveCardType(request.getPackageId());
+        FarePackage farePackage = cardService.requireActiveFarePackage(request.getPackageId());
         LocalDateTime now = LocalDateTime.now();
 
         Order order = createOrder(
                 request.getUserId(),
-                cardType.getPrice(),
-                cardType.getCurrency(),
+                farePackage.getPrice(),
+                farePackage.getCurrency(),
                 "PROCESSING",
                 now,
                 List.of(createOrderItem(
                         "PHYSICAL_CARD",
-                        cardType.getCode(),
-                        cardType.getName(),
+                        farePackage.getCode(),
+                        farePackage.getName(),
                         1,
-                        cardType.getPrice())));
+                        farePackage.getPrice())));
         Payment payment = createCompletedPayment(order, request.getUserId(), request.getPaymentMethod(), now);
 
         ExternalCardResponse externalCard = level5Client.purchaseCard(ExternalCardRequest.builder()
                 .passengerAccountId(request.getUserId())
-                .cardTypeCode(cardType.getCode())
+                .cardTypeCode(farePackage.getCode())
                 .orderId(order.getExternalOrderId())
                 .requestSource("TICKET_WEB_APP")
                 .paymentId(payment.getExternalPaymentId())
@@ -166,7 +165,7 @@ public class PurchaseService {
                 .cardId(savedCard.getExternalCardId())
                 .cardUid(savedCard.getCardUid())
                 .maskedCardNumber(savedCard.getMaskedCardNumber())
-                .packageId(cardType.getCode())
+                .packageId(farePackage.getCode())
                 .status("in delivery")
                 .deliveryAddress(request.getDeliveryAddress())
                 .estimatedDelivery(LocalDate.now().plusDays(3))

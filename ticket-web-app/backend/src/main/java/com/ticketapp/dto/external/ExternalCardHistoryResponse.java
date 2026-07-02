@@ -12,7 +12,6 @@ public class ExternalCardHistoryResponse {
 
     @JsonAlias({"id", "cardID", "externalCardId"})
     private String cardId;
-
     private String cardUid;
     private String status;
     private String type;

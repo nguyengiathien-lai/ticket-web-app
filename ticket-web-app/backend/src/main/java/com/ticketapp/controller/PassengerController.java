@@ -2,12 +2,12 @@ package com.ticketapp.controller;
 
 import com.ticketapp.client.level5.Level5Client;
 import com.ticketapp.dto.ApiResponse;
+import com.ticketapp.dto.external.ExternalCardHistoryResponse;
 import com.ticketapp.dto.external.ExternalDiscountResponse;
 import com.ticketapp.dto.external.ExternalFarePriceResponse;
-import com.ticketapp.dto.external.ExternalPassengerCardResponse;
 import com.ticketapp.dto.external.ExternalPassengerRouteResponse;
-import com.ticketapp.dto.external.ExternalPassengerTicketResponse;
-import com.ticketapp.dto.external.ExternalPassengerTripResponse;
+import com.ticketapp.dto.external.ExternalTicketHistoryResponse;
+import com.ticketapp.dto.external.ExternalTravelHistoryResponse;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -38,29 +38,29 @@ public class PassengerController {
                 "Passenger routes retrieved successfully"));
     }
 
-    // @GetMapping("/passengers/{userId}/cards")
-    // public ResponseEntity<ApiResponse<List<ExternalPassengerCardResponse>>> getPassengerCards(
-    //         @PathVariable String userId) {
-    //     return ResponseEntity.ok(ApiResponse.success(
-    //             level5Client.getPassengerCards(userId),
-    //             "Passenger cards retrieved successfully"));
-    // }
+    @GetMapping("/passengers/{userId}/cards")
+    public ResponseEntity<ApiResponse<List<ExternalCardHistoryResponse>>> getPassengerCards(
+            @PathVariable String userId) {
+        return ResponseEntity.ok(ApiResponse.success(
+                level5Client.getCards(userId),
+                "Passenger cards retrieved successfully"));
+    }
 
-    // @GetMapping("/passengers/{userId}/tickets")
-    // public ResponseEntity<ApiResponse<List<ExternalPassengerTicketResponse>>> getPassengerTickets(
-    //         @PathVariable String userId) {
-    //     return ResponseEntity.ok(ApiResponse.success(
-    //             level5Client.getPassengerTickets(userId),
-    //             "Passenger tickets retrieved successfully"));
-    // }
+    @GetMapping("/passengers/{userId}/tickets")
+    public ResponseEntity<ApiResponse<List<ExternalTicketHistoryResponse>>> getPassengerTickets(
+            @PathVariable String userId) {
+        return ResponseEntity.ok(ApiResponse.success(
+                level5Client.getTickets(userId),
+                "Passenger tickets retrieved successfully"));
+    }
 
-    // @GetMapping("/passengers/{userId}/trips")
-    // public ResponseEntity<ApiResponse<List<ExternalPassengerTripResponse>>> getPassengerTrips(
-    //         @PathVariable String userId) {
-    //     return ResponseEntity.ok(ApiResponse.success(
-    //             level5Client.getPassengerTrips(userId),
-    //             "Passenger trips retrieved successfully"));
-    // }
+    @GetMapping("/passengers/{userId}/trips")
+    public ResponseEntity<ApiResponse<List<ExternalTravelHistoryResponse>>> getPassengerTrips(
+            @PathVariable String userId) {
+        return ResponseEntity.ok(ApiResponse.success(
+                level5Client.getTravelHistory(userId),
+                "Passenger trips retrieved successfully"));
+    }
 
     @GetMapping("/passenger/fare/prices")
     public ResponseEntity<ApiResponse<List<ExternalFarePriceResponse>>> getFarePrices() {

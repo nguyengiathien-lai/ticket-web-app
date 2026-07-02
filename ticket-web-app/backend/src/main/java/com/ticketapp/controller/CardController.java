@@ -1,10 +1,9 @@
 package com.ticketapp.controller;
 
 import com.ticketapp.dto.ApiResponse;
-import com.ticketapp.dto.catalog.CardTypeSyncRequest;
+import com.ticketapp.dto.fare.FarePackageResponse;
 import com.ticketapp.dto.purchase.CardPurchaseRequest;
 import com.ticketapp.dto.purchase.CardPurchaseResponse;
-import com.ticketapp.dto.purchase.CardTypeResponse;
 import com.ticketapp.service.CardService;
 import com.ticketapp.service.PurchaseService;
 import jakarta.validation.Valid;
@@ -30,19 +29,11 @@ public class CardController {
         this.cardService = cardService;
     }
 
-    @GetMapping("/types")
-    public ResponseEntity<ApiResponse<List<CardTypeResponse>>> getCardTypes() {
+    @GetMapping("/fare-packages")
+    public ResponseEntity<ApiResponse<List<FarePackageResponse>>> getFarePackages() {
         return ResponseEntity.ok(ApiResponse.success(
-                cardService.getActiveCardTypes(),
-                "Card types retrieved successfully"));
-    }
-
-    @PostMapping("/types/cache")
-    public ResponseEntity<ApiResponse<List<CardTypeResponse>>> cacheCardTypes(
-            @Valid @RequestBody List<@Valid CardTypeSyncRequest> request) {
-        return ResponseEntity.ok(ApiResponse.success(
-                cardService.cacheCardTypes(request),
-                "Card types cached successfully"));
+                cardService.getActiveFarePackages(),
+                "Fare packages retrieved successfully"));
     }
 
     @PostMapping("/purchase")

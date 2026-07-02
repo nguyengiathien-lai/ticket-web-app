@@ -26,13 +26,25 @@ public class Ticket {
 
     private String status; // ACTIVE, USED, EXPIRED, CANCELLED
 
+    private String mode;
+
+    private String scope;
+
     private BigDecimal fare;
 
     private String currency;
 
+    private String fromStationCode;
+
+    private String toStationCode;
+
     private LocalDateTime validFrom;
 
     private LocalDateTime validUntil;
+
+    private String qrToken;
+
+    private Boolean expired;
 
     private Integer remainingUses;
 

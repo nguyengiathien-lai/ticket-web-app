@@ -3,17 +3,12 @@ package com.ticketapp.client.level5;
 import com.ticketapp.dto.external.ExternalCardRequest;
 import com.ticketapp.dto.external.ExternalCardResponse;
 import com.ticketapp.dto.external.ExternalCardHistoryResponse;
-import com.ticketapp.dto.external.ExternalCardTypeResponse;
 import com.ticketapp.dto.external.ExternalDiscountResponse;
 import com.ticketapp.dto.external.ExternalFarePriceResponse;
-import com.ticketapp.dto.external.ExternalPassengerCardResponse;
 import com.ticketapp.dto.external.ExternalPassengerRouteResponse;
-import com.ticketapp.dto.external.ExternalPassengerTicketResponse;
-import com.ticketapp.dto.external.ExternalPassengerTripResponse;
 import com.ticketapp.dto.external.ExternalTicketRequest;
 import com.ticketapp.dto.external.ExternalTicketResponse;
 import com.ticketapp.dto.external.ExternalTicketHistoryResponse;
-import com.ticketapp.dto.external.ExternalTicketTypeResponse;
 import com.ticketapp.dto.external.ExternalTravelHistoryResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
@@ -44,8 +39,6 @@ public class ExternalLevel5Client implements Level5Client {
     private final RestClient restClient;
     private final String ticketPurchasePath;
     private final String cardPurchasePath;
-    private final String ticketTypesPath;
-    private final String cardTypesPath;
     private final String passengerStationsPath;
     private final String passengerRoutesPath;
     private final String passengerCardsPath;
@@ -60,8 +53,6 @@ public class ExternalLevel5Client implements Level5Client {
             @Value("${app.level5.base-url:http://localhost:8082}") String baseUrl,
             @Value("${app.level5.ticket-purchase-path:/api/tickets/purchase}") String ticketPurchasePath,
             @Value("${app.level5.card-purchase-path:/api/cards/purchase}") String cardPurchasePath,
-            @Value("${app.level5.ticket-types-path:/api/tickets/types}") String ticketTypesPath,
-            @Value("${app.level5.card-types-path:/api/cards/packages}") String cardTypesPath,
             @Value("${app.level5.passenger-stations-path:/api/passenger/stations}") String passengerStationsPath,
             @Value("${app.level5.passenger-routes-path:/api/passenger/routes}") String passengerRoutesPath,
             @Value("${app.level5.passenger-cards-path:/api/passengers/{userId}/cards}") String passengerCardsPath,
@@ -73,8 +64,6 @@ public class ExternalLevel5Client implements Level5Client {
         this.restClient = baseUrl.isBlank() ? builder.build() : builder.baseUrl(baseUrl).build();
         this.ticketPurchasePath = ticketPurchasePath;
         this.cardPurchasePath = cardPurchasePath;
-        this.ticketTypesPath = ticketTypesPath;
-        this.cardTypesPath = cardTypesPath;
         this.passengerStationsPath = passengerStationsPath;
         this.passengerRoutesPath = passengerRoutesPath;
         this.passengerCardsPath = passengerCardsPath;
@@ -109,12 +98,18 @@ public class ExternalLevel5Client implements Level5Client {
         return post(cardPurchasePath, request, ExternalCardResponse.class, "card purchase");
     }
 
-     @Override
+    @Override
     public List<ExternalCardHistoryResponse> getCards(String userId) {
         if (mockEnabled) {
             Instant now = Instant.now();
-            return List.of(new ExternalCardHistoryResponse(
-                    UUID.randomUUID(), "UID-" + shortToken().toUpperCase(), "ACTIVE", "STANDARD", now, now));
+            ExternalCardHistoryResponse response = new ExternalCardHistoryResponse();
+            response.setCardId(UUID.randomUUID().toString());
+            response.setCardUid("UID-" + shortToken().toUpperCase());
+            response.setStatus("ACTIVE");
+            response.setType("STANDARD");
+            response.setActivatedAt(toLocalDateTime(now));
+            response.setLinkedAt(toLocalDateTime(now));
+            return List.of(response);
         }
         return Arrays.asList(get(
                 passengerCardsPath, "userId", userId, ExternalCardHistoryResponse[].class, "passenger cards"));
@@ -125,43 +120,42 @@ public class ExternalLevel5Client implements Level5Client {
         if (mockEnabled) {
             UUID ticketId = UUID.randomUUID();
             LocalDate today = LocalDate.now();
-            return List.of(new ExternalTicketHistoryResponse(
-                    ticketId, "SINGLE_TRIP", "METRO", null, "ACTIVE", new BigDecimal("15000"),
-                    null, null, today, today.plusDays(1), ticketId.toString(), false, Instant.now()));
+            ExternalTicketHistoryResponse response = new ExternalTicketHistoryResponse();
+            response.setTicketId(ticketId.toString());
+            response.setType("SINGLE_TRIP");
+            response.setMode("METRO");
+            response.setStatus("ACTIVE");
+            response.setPrice(new BigDecimal("15000"));
+            response.setValidFrom(today);
+            response.setValidTo(today.plusDays(1));
+            response.setQrToken(ticketId.toString());
+            response.setExpired(false);
+            response.setPurchasedAt(toLocalDateTime(Instant.now()));
+            return List.of(response);
         }
         return Arrays.asList(get(
                 passengerTicketsPath, "userId", userId, ExternalTicketHistoryResponse[].class, "passenger tickets"));
     }
 
     @Override
-    public List<ExternalTravelHistoryResponse> getTrips(String userId) {
+    public List<ExternalTravelHistoryResponse> getTravelHistory(String userId) {
         if (mockEnabled) {
             Instant now = Instant.now();
-            return List.of(new ExternalPassengerTripResponse(
-                    UUID.randomUUID(), UUID.randomUUID(), "METRO", "CL", "HD", now.minusSeconds(1800), now,
-                    new BigDecimal("8.5"), new BigDecimal("15000")));
+            ExternalTravelHistoryResponse response = new ExternalTravelHistoryResponse();
+            response.setExternalTripId(UUID.randomUUID().toString());
+            response.setPassengerAccountId(userId);
+            response.setTicketExternalId(UUID.randomUUID().toString());
+            response.setMode("METRO");
+            response.setCheckinStationCode("CL");
+            response.setCheckoutStationCode("HD");
+            response.setCheckinTime(toLocalDateTime(now.minusSeconds(1800)));
+            response.setCheckoutTime(toLocalDateTime(now));
+            response.setDistanceKm(new BigDecimal("8.5"));
+            response.setFareAmount(new BigDecimal("15000"));
+            return List.of(response);
         }
         return Arrays.asList(get(
                 passengerTripsPath, "userId", userId, ExternalTravelHistoryResponse[].class, "passenger trips"));
-    }
-
-
-    @Override
-    public List<ExternalTicketTypeResponse> getTicketTypes() {
-        if (mockEnabled) {
-            return List.of();
-        }
-        return Arrays.asList(get(
-                ticketTypesPath, ExternalTicketTypeResponse[].class, "ticket type catalog"));
-    }
-
-    @Override
-    public List<ExternalCardTypeResponse> getCardTypes() {
-        if (mockEnabled) {
-            return List.of();
-        }
-        return Arrays.asList(get(
-                cardTypesPath, ExternalCardTypeResponse[].class, "card type catalog"));
     }
 
     @Override
@@ -261,42 +255,6 @@ public class ExternalLevel5Client implements Level5Client {
     private String digits(int length) {
         String value = UUID.randomUUID().toString().replaceAll("\\D", "");
         return value.substring(0, Math.min(length, value.length()));
-    }
-
-    private ExternalTicketHistoryResponse toTicketHistory(ExternalPassengerTicketResponse passengerTicket) {
-        ExternalTicketHistoryResponse history = new ExternalTicketHistoryResponse();
-        history.setTicketId(passengerTicket.ticketId() == null ? null : passengerTicket.ticketId().toString());
-        history.setType(passengerTicket.type());
-        history.setStatus(passengerTicket.status());
-        history.setPrice(passengerTicket.price());
-        history.setValidFrom(passengerTicket.validFrom());
-        history.setValidTo(passengerTicket.validTo());
-        history.setPurchasedAt(toLocalDateTime(passengerTicket.purchasedAt()));
-        return history;
-    }
-
-    private ExternalCardHistoryResponse toCardHistory(ExternalPassengerCardResponse passengerCard) {
-        ExternalCardHistoryResponse history = new ExternalCardHistoryResponse();
-        history.setCardId(passengerCard.cardId() == null ? null : passengerCard.cardId().toString());
-        history.setCardUid(passengerCard.cardUid());
-        history.setStatus(passengerCard.status());
-        history.setType(passengerCard.type());
-        history.setActivatedAt(toLocalDateTime(passengerCard.activatedAt()));
-        history.setLinkedAt(toLocalDateTime(passengerCard.linkedAt()));
-        return history;
-    }
-
-    private ExternalTravelHistoryResponse toTravelHistory(String accountId, ExternalPassengerTripResponse passengerTrip) {
-        ExternalTravelHistoryResponse history = new ExternalTravelHistoryResponse();
-        history.setExternalTripId(passengerTrip.tripId() == null ? null : passengerTrip.tripId().toString());
-        history.setPassengerAccountId(accountId);
-        history.setTicketExternalId(passengerTrip.ticketId() == null ? null : passengerTrip.ticketId().toString());
-        history.setCheckinStationCode(passengerTrip.tapInStationCode());
-        history.setCheckoutStationCode(passengerTrip.tapOutStationCode());
-        history.setCheckinTime(toLocalDateTime(passengerTrip.tapInAt()));
-        history.setCheckoutTime(toLocalDateTime(passengerTrip.tapOutAt()));
-        history.setTransportType(passengerTrip.mode());
-        return history;
     }
 
     private LocalDateTime toLocalDateTime(Instant instant) {

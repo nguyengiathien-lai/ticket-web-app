@@ -18,10 +18,16 @@ public class ExternalTicketResponse {
     private String physicalCardExternalId;
     private String ticketCode;
     private String status;
+    private String mode;
+    private String scope;
     private BigDecimal fare;
     private String currency;
+    private String fromStationCode;
+    private String toStationCode;
     private LocalDateTime validFrom;
     private LocalDateTime validUntil;
+    private String qrToken;
+    private Boolean expired;
     private Integer remainingUses;
     private LocalDateTime issuedAt;
     private LocalDateTime expiresAt;

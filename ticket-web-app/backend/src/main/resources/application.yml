@@ -67,8 +67,6 @@ app:
     base-url: ${LEVEL5_BASE_URL:http://localhost:8082}
     ticket-purchase-path: ${LEVEL5_TICKET_PURCHASE_PATH:/api/tickets/purchase}
     card-purchase-path: ${LEVEL5_CARD_PURCHASE_PATH:/api/cards/purchase}
-    ticket-types-path: ${LEVEL5_TICKET_TYPES_PATH:/api/tickets/types}
-    card-types-path: ${LEVEL5_CARD_TYPES_PATH:/api/cards/packages}
     passenger-stations-path: ${LEVEL5_PASSENGER_STATIONS_PATH:/api/passenger/stations}
     passenger-routes-path: ${LEVEL5_PASSENGER_ROUTES_PATH:/api/passenger/routes}
     passenger-cards-path: ${LEVEL5_PASSENGER_CARDS_PATH:/api/passengers/{userId}/cards}

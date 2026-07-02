@@ -14,7 +14,7 @@ public class ExternalTravelHistoryResponse {
     @JsonAlias({"travelId", "tripId", "externalTripId"})
     private String externalTripId;
 
-    // private String passengerAccountId;
+    private String passengerAccountId;
 
     // @JsonAlias({"cardId", "externalCardId", "physicalCardExternalId"})
     // private String physicalCardExternalId;
@@ -46,6 +46,6 @@ public class ExternalTravelHistoryResponse {
     // private String transportType;
     // private String routeCode;
     // private LocalDateTime expiresAt;
-    BigDecimal distanceKm;
-    BigDecimal fareAmount;
+    private BigDecimal distanceKm;
+    private BigDecimal fareAmount;
 }
