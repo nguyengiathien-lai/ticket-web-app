@@ -91,7 +91,7 @@ public class AccountController {
                 "Past cards retrieved successfully"));
     }
 
-    @GetMapping("/{accountId}/travels")
+    @GetMapping("/{accountId}/trips")
     public ResponseEntity<ApiResponse<List<TravelHistoryResponse>>> getTravelHistory(
             @RequestHeader(name = "Authorization", required = false) String authorizationHeader,
             @PathVariable String accountId) {

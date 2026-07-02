@@ -67,11 +67,15 @@ app:
     base-url: ${LEVEL5_BASE_URL:http://localhost:8082}
     ticket-purchase-path: ${LEVEL5_TICKET_PURCHASE_PATH:/api/tickets/purchase}
     card-purchase-path: ${LEVEL5_CARD_PURCHASE_PATH:/api/cards/purchase}
-    ticket-history-path: ${LEVEL5_TICKET_HISTORY_PATH:/api/users/{accountId}/tickets/history}
-    card-history-path: ${LEVEL5_CARD_HISTORY_PATH:/api/users/{accountId}/cards}
-    travel-history-path: ${LEVEL5_TRAVEL_HISTORY_PATH:/api/accounts/{accountId}/travels}
     ticket-types-path: ${LEVEL5_TICKET_TYPES_PATH:/api/tickets/types}
     card-types-path: ${LEVEL5_CARD_TYPES_PATH:/api/cards/packages}
+    passenger-stations-path: ${LEVEL5_PASSENGER_STATIONS_PATH:/api/passenger/stations}
+    passenger-routes-path: ${LEVEL5_PASSENGER_ROUTES_PATH:/api/passenger/routes}
+    passenger-cards-path: ${LEVEL5_PASSENGER_CARDS_PATH:/api/passengers/{userId}/cards}
+    passenger-tickets-path: ${LEVEL5_PASSENGER_TICKETS_PATH:/api/passengers/{userId}/tickets}
+    passenger-trips-path: ${LEVEL5_PASSENGER_TRIPS_PATH:/api/passengers/{userId}/trips}
+    fare-prices-path: ${LEVEL5_FARE_PRICES_PATH:/api/passenger/fare/prices}
+    fare-discounts-path: ${LEVEL5_FARE_DISCOUNTS_PATH:/api/passenger/fare/discounts}
     mock-enabled: ${LEVEL5_MOCK_ENABLED:false}
   cache:
     catalog-refresh-ttl-seconds: ${CATALOG_REFRESH_TTL_SECONDS:600}

@@ -18,15 +18,27 @@ public class ExternalTicketHistoryResponse {
     @JsonAlias("ticketType")
     private String type;
 
+    String mode;
+        
+    String scope;
+
     private String status;
 
     @JsonAlias("fare")
     private BigDecimal price;
 
+    String fromStationCode;
+
+    String toStationCode;
+
     private LocalDate validFrom;
 
     @JsonAlias({"validUntil", "expiresAt"})
     private LocalDate validTo;
+
+    String qrToken;
+
+    @JsonAlias("isExpired") @JsonProperty("isExpired") boolean expired;
 
     @JsonAlias({"issuedAt", "createdAt"})
     private LocalDateTime purchasedAt;

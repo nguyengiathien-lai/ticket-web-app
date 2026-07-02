@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonAlias;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Getter
@@ -13,34 +14,38 @@ public class ExternalTravelHistoryResponse {
     @JsonAlias({"travelId", "tripId", "externalTripId"})
     private String externalTripId;
 
-    private String passengerAccountId;
+    // private String passengerAccountId;
 
-    @JsonAlias({"cardId", "externalCardId", "physicalCardExternalId"})
-    private String physicalCardExternalId;
+    // @JsonAlias({"cardId", "externalCardId", "physicalCardExternalId"})
+    // private String physicalCardExternalId;
+
+    private String mode;
 
     @JsonAlias({"ticketId", "externalTicketId", "ticketExternalId"})
     private String ticketExternalId;
 
-    @JsonAlias({"originStationCode", "checkInStationCode", "checkinStationCode"})
+    @JsonAlias({"tapInStationCode", "checkInStationCode", "checkinStationCode"})
     private String checkinStationCode;
 
-    @JsonAlias({"originStationName", "checkInStationName", "checkinStationName"})
-    private String checkinStationName;
+    // @JsonAlias({"originStationName", "checkInStationName", "checkinStationName"})
+    // private String checkinStationName;
 
-    @JsonAlias({"destinationStationCode", "checkOutStationCode", "checkoutStationCode"})
+    @JsonAlias({"tapOutStationCode", "checkOutStationCode", "checkoutStationCode"})
     private String checkoutStationCode;
 
-    @JsonAlias({"destinationStationName", "checkOutStationName", "checkoutStationName"})
-    private String checkoutStationName;
+    // @JsonAlias({"destinationStationName", "checkOutStationName", "checkoutStationName"})
+    // private String checkoutStationName;
 
-    @JsonAlias({"checkInTime", "tapInTime", "startedAt", "checkinTime"})
+    @JsonAlias({"checkInTime", "tapInTime", "tapIndAt", "checkinTime"})
     private LocalDateTime checkinTime;
 
-    @JsonAlias({"checkOutTime", "tapOutTime", "completedAt", "checkoutTime"})
+    @JsonAlias({"checkOutTime", "tapOutTime", "tapOutAt", "checkoutTime"})
     private LocalDateTime checkoutTime;
 
-    private String transportId;
-    private String transportType;
-    private String routeCode;
-    private LocalDateTime expiresAt;
+    // private String transportId;
+    // private String transportType;
+    // private String routeCode;
+    // private LocalDateTime expiresAt;
+    BigDecimal distanceKm;
+    BigDecimal fareAmount;
 }
