@@ -47,4 +47,24 @@ public class TicketController {
                 .body(ApiResponse.success(purchase, "Ticket purchased successfully"));
     }
 
+    @PostMapping("/single-trip")
+    public ResponseEntity<ApiResponse<TicketPurchaseResponse>> purchaseSingleTripTicket(
+            @Valid @RequestBody TicketPurchaseRequest request) {
+        TicketPurchaseResponse purchase = purchaseService.purchaseSingleTripTicket(request);
+
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(ApiResponse.success(purchase, "Single-trip ticket purchased successfully"));
+    }
+
+    @PostMapping("/pass")
+    public ResponseEntity<ApiResponse<TicketPurchaseResponse>> purchaseMonthlyPassTicket(
+            @Valid @RequestBody TicketPurchaseRequest request) {
+        TicketPurchaseResponse purchase = purchaseService.purchaseMonthlyPassTicket(request);
+
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(ApiResponse.success(purchase, "Monthly pass purchased successfully"));
+    }
+
 }

@@ -23,6 +23,8 @@ public class ExternalTicketHistoryResponse {
         
     private String scope;
 
+    private String routeId;
+
     private String status;
 
     @JsonAlias("fare")

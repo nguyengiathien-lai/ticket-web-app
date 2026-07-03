@@ -11,6 +11,8 @@ import com.validationgate.entity.DeviceConfigPackage;
 import com.validationgate.entity.TapEvent;
 import com.validationgate.repository.DeviceConfigPackageRepository;
 import com.validationgate.repository.TapEventRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -30,6 +32,8 @@ import javax.crypto.spec.SecretKeySpec;
 
 @Service
 public class GateValidationService {
+
+    private static final Logger log = LoggerFactory.getLogger(GateValidationService.class);
 
     private static final String STATUS_PENDING = "PENDING";
     private static final String STATUS_SENT = "SENT";
@@ -105,8 +109,11 @@ public class GateValidationService {
             markSent(batch);
             return response;
         } catch (RuntimeException exception) {
-            markFailed(batch, exception.getMessage());
-            return response(batch.size(), 0, batch.size(), FAILED_BATCH_MESSAGE);
+            String error = trimError(exception.getMessage());
+            log.error("Scan record batch delivery failed; records will be retried. batchSize={}, error={}",
+                    batch.size(), error, exception);
+            markFailed(batch, error);
+            return response(batch.size(), 0, batch.size(), FAILED_BATCH_MESSAGE + ": " + error);
         }
     }
 
@@ -260,10 +267,22 @@ public class GateValidationService {
     private DeviceConfig loadDeviceConfig(ScanContext scanContext) {
         return deviceConfigRepository.findByStationCode(scanContext.stationCode())
                 .filter(packageEntity -> scanContext.deviceCode().equals(packageEntity.getDeviceCode()))
-                .map(DeviceConfigPackage::getPayloadJson)
-                .map(this::readJson)
-                .map(DeviceConfig::fromJson)
+                .map(this::toDeviceConfig)
                 .orElse(null);
+    }
+
+    private DeviceConfig toDeviceConfig(DeviceConfigPackage packageEntity) {
+        if (packageEntity.getQrVerificationAlgorithm() != null || packageEntity.getQrVerificationKey() != null
+                || packageEntity.getMaxClockDriftSeconds() != null || packageEntity.getAllowOfflineValidation() != null) {
+            return new DeviceConfig(
+                    packageEntity.getQrVerificationAlgorithm(),
+                    packageEntity.getQrVerificationKey(),
+                    Math.max(0, packageEntity.getMaxClockDriftSeconds() == null
+                            ? 0
+                            : packageEntity.getMaxClockDriftSeconds()),
+                    Boolean.TRUE.equals(packageEntity.getAllowOfflineValidation()));
+        }
+        return DeviceConfig.fromJson(readJson(packageEntity.getPayloadJson()));
     }
 
     private boolean isValidSignature(DeviceConfig deviceConfig, QrPayload qrPayload) {

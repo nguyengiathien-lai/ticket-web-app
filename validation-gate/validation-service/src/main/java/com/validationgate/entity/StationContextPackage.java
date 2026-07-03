@@ -9,6 +9,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Getter
@@ -27,6 +28,21 @@ public class StationContextPackage extends BaseEntity {
 
     @Column(name = "station_code", nullable = false, length = 100)
     private String stationCode;
+
+    @Column(name = "station_name", length = 200)
+    private String stationName;
+
+    @Column(name = "route_code", length = 100)
+    private String routeCode;
+
+    @Column(name = "station_order")
+    private Integer stationOrder;
+
+    @Column(name = "distance", precision = 12, scale = 3)
+    private BigDecimal distance;
+
+    @Column(name = "operator_code", length = 100)
+    private String operatorCode;
 
     @Lob
     @Column(name = "payload_json", nullable = false)

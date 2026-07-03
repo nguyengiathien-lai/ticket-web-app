@@ -106,10 +106,19 @@ public class TicketService {
 
     public List<TicketResponse> getTicketsForPassenger(String passengerAccountId) {
         String normalizedAccountId = requireText(passengerAccountId, "passenger account ID");
+        List<TicketResponse> cachedTickets = readPassengerTickets(normalizedAccountId);
+        if (!cachedTickets.isEmpty()) {
+            return cachedTickets;
+        }
+
         if (!historyLoaded(passengerTicketsLoadedKey(normalizedAccountId))) {
-            level5Client.getTickets(normalizedAccountId)
-                    .forEach(ticket -> cacheHistoryTicket(normalizedAccountId, ticket));
-            markHistoryLoaded(passengerTicketsLoadedKey(normalizedAccountId));
+            try {
+                level5Client.getTickets(normalizedAccountId)
+                        .forEach(ticket -> cacheHistoryTicket(normalizedAccountId, ticket));
+                markHistoryLoaded(passengerTicketsLoadedKey(normalizedAccountId));
+            } catch (RuntimeException exception) {
+                throw exception;
+            }
         }
         return readPassengerTickets(normalizedAccountId);
     }
@@ -151,6 +160,7 @@ public class TicketService {
         external.setStatus(history.getStatus());
         external.setMode(history.getMode());
         external.setScope(history.getScope());
+        external.setRouteId(history.getRouteId());
         external.setFare(history.getPrice());
         external.setCurrency("VND");
         external.setFromStationCode(history.getFromStationCode());
@@ -240,6 +250,7 @@ public class TicketService {
         ticket.setStatus(firstText(externalTicket.getStatus(), ticket.getStatus(), "ACTIVE"));
         ticket.setMode(firstText(externalTicket.getMode(), ticket.getMode()));
         ticket.setScope(firstText(externalTicket.getScope(), ticket.getScope()));
+        ticket.setRouteId(firstText(externalTicket.getRouteId(), ticket.getRouteId()));
         ticket.setFare(fare);
         ticket.setCurrency(firstText(externalTicket.getCurrency(), ticket.getCurrency(), "VND"));
         ticket.setFromStationCode(firstText(externalTicket.getFromStationCode(), ticket.getFromStationCode()));

@@ -39,7 +39,7 @@ app:
   cors:
     allowed-origins: ${VALIDATION_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:4173}
   level4:
-    base-url: ${LEVEL4_BASE_URL:http://localhost:8082}
+    base-url: ${LEVEL4_BASE_URL:http://localhost:8083}
     scan-record-batch-path: ${LEVEL4_SCAN_RECORD_BATCH_PATH:${LEVEL4_SCAN_RECORD_PATH:/vdt/transaction/submit-batch}}
     scan-record-batch-size: ${LEVEL4_SCAN_RECORD_BATCH_SIZE:100}
     scan-record-flush-delay-ms: ${LEVEL4_SCAN_RECORD_FLUSH_DELAY_MS:30000}

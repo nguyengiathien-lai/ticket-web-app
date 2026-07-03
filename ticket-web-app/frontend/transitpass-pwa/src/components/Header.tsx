@@ -1,17 +1,39 @@
 import { Bell, Menu, Search } from 'lucide-react';
-import { passenger } from '../services/mockData';
+import type { AccountResponse } from '../services/authApi';
 
-interface HeaderProps { title: string; subtitle?: string; onMenuClick: () => void; }
+interface HeaderProps {
+  title: string;
+  subtitle?: string;
+  account: AccountResponse | null;
+  role: 'admin' | 'passenger';
+  onMenuClick: () => void;
+}
 
-export function Header({ title, subtitle, onMenuClick }: HeaderProps) {
+function displayName(account: AccountResponse | null) {
+  return account?.fullName || account?.email || 'TransitPass';
+}
+
+function initials(account: AccountResponse | null) {
+  const name = displayName(account).trim();
+  const parts = name.split(/\s+/);
+  if (parts.length > 1) {
+    return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+  }
+  return name.slice(0, 2).toUpperCase();
+}
+
+export function Header({ title, subtitle, account, role, onMenuClick }: HeaderProps) {
   return (
     <header className="topbar">
       <button className="icon-button mobile-only" onClick={onMenuClick}><Menu size={22}/></button>
       <div><h2>{title}</h2>{subtitle && <p>{subtitle}</p>}</div>
       <div className="topbar-actions">
-        <label className="search-box"><Search size={18}/><input placeholder="Tìm tuyến, vé, giao dịch..."/></label>
+        <label className="search-box">
+          <Search size={18}/>
+          <input placeholder={role === 'admin' ? 'Tìm người dùng, báo cáo...' : 'Tìm tuyến, vé, giao dịch...'} />
+        </label>
         <button className="icon-button"><Bell size={20}/></button>
-        <div className="user-chip"><div className="avatar">NA</div><span>{passenger.name}</span></div>
+        <div className="user-chip"><div className="avatar">{initials(account)}</div><span>{displayName(account)}</span></div>
       </div>
     </header>
   );

@@ -30,6 +30,8 @@ public class Ticket {
 
     private String scope;
 
+    private String routeId;
+
     private BigDecimal fare;
 
     private String currency;

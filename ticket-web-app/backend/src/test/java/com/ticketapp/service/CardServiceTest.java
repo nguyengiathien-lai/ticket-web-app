@@ -61,7 +61,7 @@ class CardServiceTest {
         external.setCardUid("uid-1");
         external.setStatus("ACTIVE");
         when(level5Client.getCards("user-1")).thenReturn(List.of(external));
-        when(sets.members("cache:cards:passenger:user-1")).thenReturn(Set.of("card-1"));
+        when(sets.members("cache:cards:passenger:user-1")).thenReturn(Set.of(), Set.of("card-1"));
         when(values.get("cache:cards:id:card-1")).thenAnswer(invocation -> {
             PhysicalCard card = new PhysicalCard();
             card.setExternalCardId("card-1");

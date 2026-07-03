@@ -133,7 +133,7 @@ class TicketRequestServiceTest {
         cached.setFare(new BigDecimal("50000"));
         cached.setCurrency("VND");
         cached.setIssuedAt(external.getPurchasedAt());
-        when(sets.members("cache:tickets:passenger:account-1")).thenReturn(Set.of("ticket-1"));
+        when(sets.members("cache:tickets:passenger:account-1")).thenReturn(Set.of(), Set.of("ticket-1"));
         when(values.get("cache:tickets:id:ticket-1")).thenReturn(mapper.writeValueAsString(cached));
 
         List<TicketResponse> result = service.getTicketsForPassenger("account-1");

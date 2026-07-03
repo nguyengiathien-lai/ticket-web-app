@@ -26,8 +26,8 @@ export const histories: TravelHistory[] = [
 ];
 
 export const routes: TransitRoute[] = [
-  { id: 'r1', code: '05', name: 'Bến Thành - Chợ Lớn', type: 'Bus', status: 'Đang hoạt động' },
-  { id: 'r2', code: '12', name: 'Bến xe Miền Đông - Hiệp Bình Phước', type: 'Bus', status: 'Đang hoạt động' },
+  { id: 'r1', code: '05', name: 'Bến Thành - Chợ Lớn', type: 'Xe buýt', status: 'Đang hoạt động' },
+  { id: 'r2', code: '12', name: 'Bến xe Miền Đông - Hiệp Bình Phước', type: 'Xe buýt', status: 'Đang hoạt động' },
   { id: 'r3', code: '01', name: 'Metro Bến Thành - Suối Tiên', type: 'Metro', status: 'Đang hoạt động' },
   { id: 'r4', code: '2A', name: 'Metro Bến Thành - Tham Lương', type: 'Metro', status: 'Bảo trì' }
 ];

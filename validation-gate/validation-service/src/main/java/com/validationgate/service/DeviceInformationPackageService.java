@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.validationgate.config.DeviceProperties;
 import com.validationgate.dto.DeviceInformationPackageMessage;
 import com.validationgate.entity.DeviceConfigPackage;
+import com.validationgate.entity.MediaAccessCardStatusRule;
 import com.validationgate.entity.MediaAccessRulesPackage;
 import com.validationgate.entity.StationContextPackage;
 import com.validationgate.repository.DeviceConfigPackageRepository;
@@ -14,7 +15,12 @@ import com.validationgate.repository.StationContextPackageRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -75,6 +81,15 @@ public class DeviceInformationPackageService {
         entity.setPackageId(packageId);
         entity.setDeviceCode(deviceCode);
         entity.setStationCode(stationCode);
+        entity.setVersion(integer(payload, "version"));
+        entity.setMaxOfflineSeconds(integer(payload, "maxOfflineSeconds"));
+        entity.setAllowOfflineValidation(booleanValue(payload, "allowOfflineValidation"));
+        entity.setDeviceTypes(toJson(payload.path("deviceTypes")));
+        entity.setQrVerificationAlgorithm(text(payload, "qrVerificationAlgorithm"));
+        entity.setQrVerificationKey(text(payload, "qrVerificationKey"));
+        entity.setQrMaxTtlSeconds(integer(payload, "qrMaxTtlSeconds"));
+        entity.setMaxClockDriftSeconds(integer(payload, "maxClockDriftSeconds"));
+        entity.setHeartbeatIntervalSeconds(integer(payload, "heartbeatIntervalSeconds"));
         entity.setPayloadJson(toJson(payload));
         entity.setReceivedAt(receivedAt);
         deviceConfigRepository.save(entity);
@@ -87,6 +102,11 @@ public class DeviceInformationPackageService {
         entity.setPackageId(packageId);
         entity.setDeviceCode(deviceCode);
         entity.setStationCode(stationCode);
+        entity.setStationName(text(payload, "stationName"));
+        entity.setRouteCode(text(payload, "routeCode"));
+        entity.setStationOrder(integer(payload, "stationOrder"));
+        entity.setDistance(decimal(payload, "distance"));
+        entity.setOperatorCode(text(payload, "operatorCode"));
         entity.setPayloadJson(toJson(payload));
         entity.setReceivedAt(receivedAt);
         stationContextRepository.save(entity);
@@ -99,9 +119,33 @@ public class DeviceInformationPackageService {
         entity.setPackageId(packageId);
         entity.setDeviceCode(deviceCode);
         entity.setStationCode(stationCode);
+        entity.setVersion(integer(payload, "version"));
         entity.setPayloadJson(toJson(payload));
         entity.setReceivedAt(receivedAt);
+        entity.replaceCardStatusRules(cardStatusRules(payload));
         mediaAccessRulesRepository.save(entity);
+    }
+
+    private List<MediaAccessCardStatusRule> cardStatusRules(JsonNode payload) {
+        List<MediaAccessCardStatusRule> rules = new ArrayList<>();
+        JsonNode ruleNodes = payload.path("cardStatusRules");
+        if (!ruleNodes.isArray()) {
+            return rules;
+        }
+        for (JsonNode ruleNode : ruleNodes) {
+            String cardId = text(ruleNode, "cardId");
+            String status = text(ruleNode, "status");
+            if (!hasText(cardId) || !hasText(status)) {
+                continue;
+            }
+            MediaAccessCardStatusRule rule = new MediaAccessCardStatusRule();
+            rule.setCardId(cardId);
+            rule.setStatus(status);
+            rule.setStatusReason(text(ruleNode, "statusReason"));
+            rule.setRuleUpdatedAt(dateTime(ruleNode, "updatedAt"));
+            rules.add(rule);
+        }
+        return rules;
     }
 
     private String toJson(JsonNode payload) {
@@ -119,5 +163,41 @@ public class DeviceInformationPackageService {
     private String stationCode(DeviceInformationPackageMessage message) {
         JsonNode stationCode = message.stationContext().get("stationCode");
         return stationCode == null || stationCode.isNull() ? null : stationCode.asText();
+    }
+
+    private String text(JsonNode payload, String fieldName) {
+        JsonNode value = payload.get(fieldName);
+        return value == null || value.isNull() ? null : value.asText();
+    }
+
+    private Integer integer(JsonNode payload, String fieldName) {
+        JsonNode value = payload.get(fieldName);
+        return value == null || value.isNull() || !value.canConvertToInt() ? null : value.asInt();
+    }
+
+    private Boolean booleanValue(JsonNode payload, String fieldName) {
+        JsonNode value = payload.get(fieldName);
+        return value == null || value.isNull() ? null : value.asBoolean();
+    }
+
+    private BigDecimal decimal(JsonNode payload, String fieldName) {
+        JsonNode value = payload.get(fieldName);
+        return value == null || value.isNull() || !value.isNumber() ? null : value.decimalValue();
+    }
+
+    private LocalDateTime dateTime(JsonNode payload, String fieldName) {
+        String value = text(payload, fieldName);
+        if (!hasText(value)) {
+            return null;
+        }
+        try {
+            return LocalDateTime.parse(value);
+        } catch (RuntimeException ignored) {
+            try {
+                return LocalDateTime.ofInstant(Instant.parse(value), ZoneId.systemDefault());
+            } catch (RuntimeException exception) {
+                throw new IllegalArgumentException("Invalid datetime field " + fieldName, exception);
+            }
+        }
     }
 }

@@ -18,15 +18,19 @@ export interface TicketPackage {
   price: number;
   durationDays: number;
   type: 'single' | 'daily' | 'weekly' | 'monthly' | 'yearly';
+  mode?: string;
+  scope?: string;
+  durationType?: string;
+  durationMonths?: number;
 }
 
 export interface TravelHistory {
   id: string;
   time: string;
-  vehicle: 'Xe buýt' | 'Metro' | 'Tàu điện';
+  vehicle: string;
   route: string;
   station: string;
-  status: 'Thành công' | 'Thất bại';
+  status: string;
   amount: number;
 }
 
@@ -34,8 +38,16 @@ export interface TransitRoute {
   id: string;
   code: string;
   name: string;
-  type: 'Bus' | 'Metro' | 'Tram';
-  status: 'Đang hoạt động' | 'Bảo trì';
+  type: string;
+  status: string;
+}
+
+export interface TransitStation {
+  id: string;
+  code: string;
+  name: string;
+  routeId?: string;
+  sequence?: number;
 }
 
 export interface AdminMetric {

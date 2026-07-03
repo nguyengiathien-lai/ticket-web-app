@@ -1,16 +1,18 @@
 package com.ticketapp.client.level5;
 
-import com.ticketapp.dto.external.ExternalCardRequest;
-import com.ticketapp.dto.external.ExternalCardResponse;
 import com.ticketapp.dto.external.ExternalCardHistoryResponse;
 import com.ticketapp.dto.external.ExternalDiscountResponse;
 import com.ticketapp.dto.external.ExternalFarePriceResponse;
+import com.ticketapp.dto.external.ExternalPassTicketRequest;
 import com.ticketapp.dto.external.ExternalPassengerRouteResponse;
 import com.ticketapp.dto.external.ExternalPassengerStationResponse;
+import com.ticketapp.dto.external.ExternalSingleTripTicketRequest;
 import com.ticketapp.dto.external.ExternalTicketRequest;
 import com.ticketapp.dto.external.ExternalTicketResponse;
 import com.ticketapp.dto.external.ExternalTicketHistoryResponse;
 import com.ticketapp.dto.external.ExternalTravelHistoryResponse;
+import com.ticketapp.dto.purchase.CardPurchaseRequest;
+import com.ticketapp.dto.purchase.CardPurchaseResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
@@ -39,6 +41,8 @@ public class ExternalLevel5Client implements Level5Client {
 
     private final RestClient restClient;
     private final String ticketPurchasePath;
+    private final String singleTripTicketPurchasePath;
+    private final String passTicketPurchasePath;
     private final String cardPurchasePath;
     private final String passengerStationsPath;
     private final String passengerRoutesPath;
@@ -53,6 +57,8 @@ public class ExternalLevel5Client implements Level5Client {
             RestClient.Builder builder,
             @Value("${app.level5.base-url:http://localhost:8082}") String baseUrl,
             @Value("${app.level5.ticket-purchase-path:/api/tickets/purchase}") String ticketPurchasePath,
+            @Value("${app.level5.single-trip-ticket-purchase-path:/api/tickets/single-trip}") String singleTripTicketPurchasePath,
+            @Value("${app.level5.pass-ticket-purchase-path:/api/tickets/pass}") String passTicketPurchasePath,
             @Value("${app.level5.card-purchase-path:/api/cards/purchase}") String cardPurchasePath,
             @Value("${app.level5.passenger-stations-path:/api/passenger/stations}") String passengerStationsPath,
             @Value("${app.level5.passenger-routes-path:/api/passenger/routes}") String passengerRoutesPath,
@@ -64,6 +70,8 @@ public class ExternalLevel5Client implements Level5Client {
             @Value("${app.level5.mock-enabled:false}") boolean mockEnabled) {
         this.restClient = baseUrl.isBlank() ? builder.build() : builder.baseUrl(baseUrl).build();
         this.ticketPurchasePath = ticketPurchasePath;
+        this.singleTripTicketPurchasePath = singleTripTicketPurchasePath;
+        this.passTicketPurchasePath = passTicketPurchasePath;
         this.cardPurchasePath = cardPurchasePath;
         this.passengerStationsPath = passengerStationsPath;
         this.passengerRoutesPath = passengerRoutesPath;
@@ -75,28 +83,85 @@ public class ExternalLevel5Client implements Level5Client {
         this.mockEnabled = mockEnabled;
     }
 
+    // @Override
+    // public ExternalTicketResponse purchaseTicket(ExternalTicketRequest request) {
+    //     if (mockEnabled) {
+    //         return mockTicket(request);
+    //     }
+    //     return post(ticketPurchasePath, request, ExternalTicketResponse.class, "ticket purchase");
+    // }
+
     @Override
-    public ExternalTicketResponse purchaseTicket(ExternalTicketRequest request) {
+    public ExternalTicketResponse purchaseSingleTripTicket(ExternalSingleTripTicketRequest request) {
         if (mockEnabled) {
-            return mockTicket(request);
+            return mockSingleTripTicket(request);
         }
-        return post(ticketPurchasePath, request, ExternalTicketResponse.class, "ticket purchase");
+        return post(
+                singleTripTicketPurchasePath,
+                request,
+                ExternalTicketResponse.class,
+                "single-trip ticket purchase");
     }
 
     @Override
-    public ExternalCardResponse purchaseCard(ExternalCardRequest request) {
+    public ExternalTicketResponse purchasePassTicket(ExternalPassTicketRequest request) {
+        if (mockEnabled) {
+            return mockPassTicket(request);
+        }
+        return post(passTicketPurchasePath, request, ExternalTicketResponse.class, "pass ticket purchase");
+    }
+
+    @Override
+    public CardPurchaseResponse purchaseCard(CardPurchaseRequest request) {
         if (mockEnabled) {
             LocalDateTime now = LocalDateTime.now();
-            ExternalCardResponse response = new ExternalCardResponse();
-            response.setExternalCardId("card_" + shortToken());
-            response.setCardUid("UID-" + shortToken().toUpperCase());
-            response.setMaskedCardNumber("**** **** **** " + digits(4));
-            response.setStatus("INACTIVE");
-            response.setIssuedAt(now);
-            response.setExpiresAt(now.plusDays(30));
-            return response;
+            LocalDate validFrom = request.getTicket() == null || request.getTicket().getValidFrom() == null
+                    ? LocalDate.now()
+                    : request.getTicket().getValidFrom();
+            int months = request.getTicket() == null || request.getTicket().getDurationMonths() == null
+                    ? 1
+                    : Math.max(request.getTicket().getDurationMonths(), 1);
+            String userId = coalesce(
+                    request.getCard() == null ? null : request.getCard().getUserId(),
+                    request.getTicket() == null ? null : request.getTicket().getUserId());
+            String mode = coalesce(request.getTicket() == null ? null : request.getTicket().getMode(), "METRO");
+            String cardId = "card_" + shortToken();
+            return CardPurchaseResponse.builder()
+                    .card(CardPurchaseResponse.IssuedCard.builder()
+                            .id(cardId)
+                            .cardUid(coalesce(
+                                    request.getCard() == null ? null : request.getCard().getCardUid(),
+                                    "UID-" + shortToken().toUpperCase()))
+                            .status("ACTIVE")
+                            .type("MONTHLY_PASS")
+                            .supportsMetro(firstValue(
+                                    request.getCard() == null ? null : request.getCard().getSupportsMetro(),
+                                    "METRO".equalsIgnoreCase(mode)))
+                            .supportsBus(firstValue(
+                                    request.getCard() == null ? null : request.getCard().getSupportsBus(),
+                                    "BUS".equalsIgnoreCase(mode)))
+                            .linkedUserId(userId)
+                            .activatedAt(now)
+                            .createdAt(now)
+                            .updatedAt(now)
+                            .build())
+                    .ticket(CardPurchaseResponse.IssuedTicket.builder()
+                            .ticketId("ticket_" + shortToken())
+                            .type("MONTHLY_PASS")
+                            .mode(mode)
+                            .scope(coalesce(request.getTicket() == null ? null : request.getTicket().getScope(), "SINGLE_ROUTE"))
+                            .routeId(request.getTicket() == null ? null : request.getTicket().getRouteId())
+                            .status("ACTIVE")
+                            .cardId(cardId)
+                            .userId(userId)
+                            .price(new BigDecimal("200000").multiply(BigDecimal.valueOf(months)))
+                            .validFrom(validFrom)
+                            .validTo(validFrom.plusMonths(months).minusDays(1))
+                            .purchasedAt(now)
+                            .build())
+                    .build();
         }
-        return post(cardPurchasePath, request, ExternalCardResponse.class, "card purchase");
+        return post(cardPurchasePath, request, CardPurchaseResponse.class, "card purchase");
     }
 
     @Override
@@ -231,6 +296,52 @@ public class ExternalLevel5Client implements Level5Client {
         return response;
     }
 
+    private ExternalTicketResponse mockSingleTripTicket(ExternalSingleTripTicketRequest request) {
+        LocalDate today = LocalDate.now();
+        String token = shortToken();
+        ExternalTicketResponse response = new ExternalTicketResponse();
+        response.setExternalTicketId("ticket_" + token);
+        response.setTicketTypeCode("SINGLE_TRIP");
+        response.setPassengerAccountId(request.getUserId());
+        response.setMode(request.getMode());
+        response.setStatus("ACTIVE");
+        response.setFare(new BigDecimal("15000"));
+        response.setCurrency("VND");
+        response.setFromStationCode(coalesce(request.getFromStationId(), "FROM"));
+        response.setToStationCode(coalesce(request.getToStationId(), "TO"));
+        response.setValidFrom(today.atStartOfDay());
+        response.setValidUntil(today.atTime(23, 59, 59));
+        response.setIssuedAt(LocalDateTime.now());
+        response.setExpiresAt(response.getValidUntil());
+        response.setQrToken(response.getExternalTicketId());
+        response.setExpired(false);
+        return response;
+    }
+
+    private ExternalTicketResponse mockPassTicket(ExternalPassTicketRequest request) {
+        LocalDate validFrom = request.getValidFrom() == null ? LocalDate.now() : request.getValidFrom();
+        int months = request.getDurationMonths() == null ? 1 : Math.max(request.getDurationMonths(), 1);
+        String token = shortToken();
+        ExternalTicketResponse response = new ExternalTicketResponse();
+        response.setExternalTicketId("ticket_" + token);
+        response.setTicketTypeCode("MONTHLY_PASS");
+        response.setPassengerAccountId(request.getUserId());
+        response.setMode(request.getMode());
+        response.setScope(request.getScope());
+        response.setRouteId(request.getRouteId());
+        response.setPhysicalCardExternalId(request.getCardId());
+        response.setStatus("ACTIVE");
+        response.setFare(new BigDecimal("200000").multiply(BigDecimal.valueOf(months)));
+        response.setCurrency("VND");
+        response.setValidFrom(validFrom.atStartOfDay());
+        response.setValidUntil(validFrom.plusMonths(months).minusDays(1).atTime(23, 59, 59));
+        response.setIssuedAt(LocalDateTime.now());
+        response.setExpiresAt(response.getValidUntil());
+        response.setQrToken(response.getExternalTicketId());
+        response.setExpired(false);
+        return response;
+    }
+
     private <T> T post(String path, Object body, Class<T> responseType, String operation) {
         T response = restClient.post().uri(path).contentType(MediaType.APPLICATION_JSON)
                 .body(body).retrieve().body(responseType);
@@ -260,9 +371,22 @@ public class ExternalLevel5Client implements Level5Client {
         return UUID.randomUUID().toString().replace("-", "").substring(0, 12);
     }
 
-    private String digits(int length) {
-        String value = UUID.randomUUID().toString().replaceAll("\\D", "");
-        return value.substring(0, Math.min(length, value.length()));
+    private String coalesce(String first, String second) {
+        return first == null || first.isBlank() ? second : first;
+    }
+
+    private String coalesce(String first, String second, String third) {
+        return coalesce(coalesce(first, second), third);
+    }
+
+    @SafeVarargs
+    private final <T> T firstValue(T... values) {
+        for (T value : values) {
+            if (value != null) {
+                return value;
+            }
+        }
+        return null;
     }
 
     private LocalDateTime toLocalDateTime(Instant instant) {

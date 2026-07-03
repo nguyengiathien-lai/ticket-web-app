@@ -90,10 +90,19 @@ public class CardService {
 
     public List<CardResponse> getCardsForPassenger(String passengerAccountId) {
         String normalizedAccountId = requireText(passengerAccountId, "passenger account ID");
+        List<CardResponse> cachedCards = readPassengerCards(normalizedAccountId);
+        if (!cachedCards.isEmpty()) {
+            return cachedCards;
+        }
+
         if (!historyLoaded(passengerCardsLoadedKey(normalizedAccountId))) {
-            level5Client.getCards(normalizedAccountId)
-                    .forEach(card -> cacheHistoryCard(normalizedAccountId, card));
-            markHistoryLoaded(passengerCardsLoadedKey(normalizedAccountId));
+            try {
+                level5Client.getCards(normalizedAccountId)
+                        .forEach(card -> cacheHistoryCard(normalizedAccountId, card));
+                markHistoryLoaded(passengerCardsLoadedKey(normalizedAccountId));
+            } catch (RuntimeException exception) {
+                throw exception;
+            }
         }
         return readPassengerCards(normalizedAccountId);
     }

@@ -40,9 +40,48 @@ class DeviceInformationPackageServiceTest {
                 mediaAccessRulesRepository);
         DeviceInformationPackageMessage message = new DeviceInformationPackageMessage(
                 "2026-06-25T00:00:00Z",
-                objectMapper.readTree("{\"mode\":\"online\"}"),
-                objectMapper.readTree("{\"stationCode\":\"station-1\",\"name\":\"Central\"}"),
-                objectMapper.readTree("{\"cardStatusRules\":[{\"cardId\":\"uuid-1\",\"status\":\"BLACKLISTED\"}]}"));
+                objectMapper.readTree("""
+                        {
+                          "version": 13,
+                          "maxOfflineSeconds": 60,
+                          "allowOfflineValidation": true,
+                          "deviceTypes": ["QR_SCANNER_SIMULATOR"],
+                          "qrVerificationAlgorithm": "HMAC_SHA256",
+                          "qrVerificationKey": "base64url-encoded-secret",
+                          "qrMaxTtlSeconds": 30,
+                          "maxClockDriftSeconds": 30,
+                          "heartbeatIntervalSeconds": 30
+                        }
+                        """),
+                objectMapper.readTree("""
+                        {
+                          "stationCode": "station-1",
+                          "stationName": "Central",
+                          "routeCode": "METRO-001",
+                          "stationOrder": 1,
+                          "distance": 0.0,
+                          "operatorCode": "HCMC-METRO"
+                        }
+                        """),
+                objectMapper.readTree("""
+                        {
+                          "version": 5,
+                          "cardStatusRules": [
+                            {
+                              "cardId": "uuid-1",
+                              "status": "BLACKLISTED",
+                              "statusReason": "LOST_CARD",
+                              "updatedAt": "2026-06-25T00:00:00"
+                            },
+                            {
+                              "cardId": "uuid-2",
+                              "status": "CANCELLED",
+                              "statusReason": "FRAUD",
+                              "updatedAt": "2026-06-25T00:00:00"
+                            }
+                          ]
+                        }
+                        """));
 
         service.storePackage(message);
 
@@ -52,9 +91,27 @@ class DeviceInformationPackageServiceTest {
         verify(deviceConfigRepository).save(deviceConfigCaptor.capture());
         verify(stationContextRepository).save(stationContextCaptor.capture());
         verify(mediaAccessRulesRepository).save(mediaRulesCaptor.capture());
-        assertThat(deviceConfigCaptor.getValue().getPayloadJson()).isEqualTo("{\"mode\":\"online\"}");
-        assertThat(stationContextCaptor.getValue().getPayloadJson()).isEqualTo("{\"stationCode\":\"station-1\",\"name\":\"Central\"}");
-        assertThat(mediaRulesCaptor.getValue().getPayloadJson()).isEqualTo("{\"cardStatusRules\":[{\"cardId\":\"uuid-1\",\"status\":\"BLACKLISTED\"}]}");
+        assertThat(deviceConfigCaptor.getValue().getVersion()).isEqualTo(13);
+        assertThat(deviceConfigCaptor.getValue().getMaxOfflineSeconds()).isEqualTo(60);
+        assertThat(deviceConfigCaptor.getValue().getAllowOfflineValidation()).isTrue();
+        assertThat(deviceConfigCaptor.getValue().getDeviceTypes()).isEqualTo("[\"QR_SCANNER_SIMULATOR\"]");
+        assertThat(deviceConfigCaptor.getValue().getQrVerificationAlgorithm()).isEqualTo("HMAC_SHA256");
+        assertThat(deviceConfigCaptor.getValue().getQrVerificationKey()).isEqualTo("base64url-encoded-secret");
+        assertThat(deviceConfigCaptor.getValue().getQrMaxTtlSeconds()).isEqualTo(30);
+        assertThat(deviceConfigCaptor.getValue().getMaxClockDriftSeconds()).isEqualTo(30);
+        assertThat(deviceConfigCaptor.getValue().getHeartbeatIntervalSeconds()).isEqualTo(30);
+        assertThat(stationContextCaptor.getValue().getStationName()).isEqualTo("Central");
+        assertThat(stationContextCaptor.getValue().getRouteCode()).isEqualTo("METRO-001");
+        assertThat(stationContextCaptor.getValue().getStationOrder()).isEqualTo(1);
+        assertThat(stationContextCaptor.getValue().getDistance()).isEqualByComparingTo("0.0");
+        assertThat(stationContextCaptor.getValue().getOperatorCode()).isEqualTo("HCMC-METRO");
+        assertThat(mediaRulesCaptor.getValue().getVersion()).isEqualTo(5);
+        assertThat(mediaRulesCaptor.getValue().getCardStatusRules()).hasSize(2);
+        assertThat(mediaRulesCaptor.getValue().getCardStatusRules())
+                .extracting("cardId", "status", "statusReason")
+                .containsExactly(
+                        org.assertj.core.groups.Tuple.tuple("uuid-1", "BLACKLISTED", "LOST_CARD"),
+                        org.assertj.core.groups.Tuple.tuple("uuid-2", "CANCELLED", "FRAUD"));
         assertThat(deviceConfigCaptor.getValue().getPackageId()).isEqualTo("2026-06-25T00:00:00Z");
         assertThat(deviceConfigCaptor.getValue().getDeviceCode()).isEqualTo("device-1");
         assertThat(deviceConfigCaptor.getValue().getStationCode()).isEqualTo("station-1");

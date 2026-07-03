@@ -19,6 +19,7 @@ public class TicketResponse {
     private String status;
     private String mode;
     private String scope;
+    private String routeId;
     private BigDecimal fare;
     private String currency;
     private String fromStationCode;
@@ -42,6 +43,7 @@ public class TicketResponse {
                 .status(ticket.getStatus())
                 .mode(ticket.getMode())
                 .scope(ticket.getScope())
+                .routeId(ticket.getRouteId())
                 .fare(ticket.getFare())
                 .currency(ticket.getCurrency())
                 .fromStationCode(ticket.getFromStationCode())

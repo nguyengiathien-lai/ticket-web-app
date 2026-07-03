@@ -7,9 +7,10 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
     ports:
-      - "5432:5432"
+      - "${POSTGRES_HOST_PORT:-15432}:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d ticket_app"]
       interval: 10s
@@ -20,7 +21,7 @@ services:
     image: redis:7-alpine
     container_name: ticket-redis
     ports:
-      - "6379:6379"
+      - "${REDIS_HOST_PORT:-6380}:6379"
     volumes:
       - redis-data:/data
     healthcheck:
@@ -71,23 +72,26 @@ services:
     env_file:
       - .env
     depends_on:
+      postgres:
+        condition: service_healthy
       rabbitmq:
         condition: service_healthy
     environment:
-      VALIDATION_DATASOURCE_URL: jdbc:h2:file:/app/data/validation-gate;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE
-      VALIDATION_DATASOURCE_USERNAME: sa
-      VALIDATION_DB_PASSWORD: ""
-      SPRING_DATASOURCE_URL: jdbc:h2:file:/app/data/validation-gate;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE
-      SPRING_DATASOURCE_USERNAME: sa
-      SPRING_DATASOURCE_PASSWORD: ""
+      VALIDATION_DATASOURCE_URL: jdbc:postgresql://postgres:5432/validation-gate
+      VALIDATION_DATASOURCE_USERNAME: postgres
+      VALIDATION_DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/validation-gate
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_PORT: 5672
       DEVICE_CODE: ${DEVICE_CODE:-gate-device-1}
+      DEVICE_SECRET: ${DEVICE_SECRET:-}
       DEVICE_STATION_CODE: ${DEVICE_STATION_CODE:-station-1}
       DEVICE_PACKAGE_EXCHANGE: ${DEVICE_PACKAGE_EXCHANGE:-level4.device.packages}
-      LEVEL4_BASE_URL: ${LEVEL4_BASE_URL:-}
-      LEVEL4_SCAN_RECORD_BATCH_PATH: ${LEVEL4_SCAN_RECORD_BATCH_PATH:-/scan-record/batch}
-      LEVEL4_MOCK_ENABLED: ${LEVEL4_MOCK_ENABLED:-true}
+      LEVEL4_BASE_URL: ${VALIDATION_LEVEL4_BASE_URL:-http://host.docker.internal:8083}
+      LEVEL4_SCAN_RECORD_BATCH_PATH: ${LEVEL4_SCAN_RECORD_BATCH_PATH:-/vdt/transaction/submit-batch}
+      LEVEL4_MOCK_ENABLED: ${LEVEL4_MOCK_ENABLED:-false}
       VALIDATION_SERVICE_PORT: 8081
       VALIDATION_ALLOWED_ORIGINS: ${VALIDATION_ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:4173}
     ports:
