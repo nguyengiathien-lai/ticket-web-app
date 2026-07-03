@@ -6,6 +6,7 @@ import com.ticketapp.dto.external.ExternalCardHistoryResponse;
 import com.ticketapp.dto.external.ExternalDiscountResponse;
 import com.ticketapp.dto.external.ExternalFarePriceResponse;
 import com.ticketapp.dto.external.ExternalPassengerRouteResponse;
+import com.ticketapp.dto.external.ExternalPassengerStationResponse;
 import com.ticketapp.dto.external.ExternalTicketRequest;
 import com.ticketapp.dto.external.ExternalTicketResponse;
 import com.ticketapp.dto.external.ExternalTicketHistoryResponse;
@@ -24,7 +25,7 @@ public interface Level5Client {
 
     List<ExternalTravelHistoryResponse> getTravelHistory(String userId);
 
-    List<ExternalFarePriceResponse> getStations();
+    List<ExternalPassengerStationResponse> getStations();
 
     List<ExternalPassengerRouteResponse> getRoutes();
 

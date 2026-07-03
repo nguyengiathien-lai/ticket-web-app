@@ -6,6 +6,7 @@ import com.ticketapp.dto.external.ExternalCardHistoryResponse;
 import com.ticketapp.dto.external.ExternalDiscountResponse;
 import com.ticketapp.dto.external.ExternalFarePriceResponse;
 import com.ticketapp.dto.external.ExternalPassengerRouteResponse;
+import com.ticketapp.dto.external.ExternalPassengerStationResponse;
 import com.ticketapp.dto.external.ExternalTicketHistoryResponse;
 import com.ticketapp.dto.external.ExternalTravelHistoryResponse;
 import org.springframework.http.ResponseEntity;
@@ -25,7 +26,7 @@ public class PassengerController {
     }
 
     @GetMapping("/passenger/stations")
-    public ResponseEntity<ApiResponse<List<ExternalFarePriceResponse>>> getStations() {
+    public ResponseEntity<ApiResponse<List<ExternalPassengerStationResponse>>> getStations() {
         return ResponseEntity.ok(ApiResponse.success(
                 level5Client.getStations(),
                 "Passenger stations retrieved successfully"));

@@ -14,6 +14,7 @@ import com.ticketapp.dto.purchase.TicketPurchaseRequest;
 import com.ticketapp.dto.purchase.TicketPurchaseResponse;
 import com.ticketapp.dto.ticket.TicketRequest;
 import com.ticketapp.dto.ticket.TicketResponse;
+import com.ticketapp.entity.Account;
 import com.ticketapp.entity.FarePackage;
 import com.ticketapp.entity.Order;
 import com.ticketapp.entity.OrderItem;
@@ -21,8 +22,11 @@ import com.ticketapp.entity.Payment;
 import com.ticketapp.entity.PhysicalCard;
 import com.ticketapp.repository.OrderRepository;
 import com.ticketapp.repository.PaymentRepository;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -31,6 +35,7 @@ import java.util.List;
 import java.util.UUID;
 
 @Service
+@Slf4j
 public class PurchaseService {
 
     private final AccountService accountService;
@@ -40,6 +45,7 @@ public class PurchaseService {
     private final CardService cardService;
     private final Level4Client level4Client;
     private final Level5Client level5Client;
+    private final EmailService emailService;
 
     public PurchaseService(
             AccountService accountService,
@@ -48,7 +54,8 @@ public class PurchaseService {
             PaymentRepository paymentRepository,
             CardService cardService,
             Level4Client level4Client,
-            Level5Client level5Client) {
+            Level5Client level5Client,
+            EmailService emailService) {
         this.accountService = accountService;
         this.ticketService = ticketService;
         this.orderRepository = orderRepository;
@@ -56,11 +63,12 @@ public class PurchaseService {
         this.cardService = cardService;
         this.level4Client = level4Client;
         this.level5Client = level5Client;
+        this.emailService = emailService;
     }
 
     @Transactional
     public TicketPurchaseResponse purchaseTicket(TicketPurchaseRequest request) {
-        requirePurchasableAccount(request.getUserId());
+        Account account = requirePurchasableAccount(request.getUserId());
         FarePackage farePackage = ticketService.requireActiveFarePackage(request.getPackageId());
         LocalDateTime now = LocalDateTime.now();
 
@@ -96,7 +104,7 @@ public class PurchaseService {
         TicketResponse ticket = ticketService.cacheExternalTicket(ticketRequest, externalTicket);
         QrCodeResponse qrCode = level4Client.generateQrCode(new QrCodeRequest(ticket.getExternalTicketId()));
 
-        return TicketPurchaseResponse.builder()
+        TicketPurchaseResponse response = TicketPurchaseResponse.builder()
                 .ticketId(ticket.getExternalTicketId())
                 .orderId(order.getExternalOrderId())
                 .userId(request.getUserId())
@@ -112,11 +120,14 @@ public class PurchaseService {
                 .paymentStatus(payment.getStatus())
                 .purchasedAt(now)
                 .build();
+        runAfterCommit(() -> sendTicketPurchaseConfirmation(account, response));
+
+        return response;
     }
 
     @Transactional
     public CardPurchaseResponse purchaseCard(CardPurchaseRequest request) {
-        requirePurchasableAccount(request.getUserId());
+        Account account = requirePurchasableAccount(request.getUserId());
         FarePackage farePackage = cardService.requireActiveFarePackage(request.getPackageId());
         LocalDateTime now = LocalDateTime.now();
 
@@ -159,7 +170,7 @@ public class PurchaseService {
         card.setExpiresAt(externalCard.getExpiresAt());
         PhysicalCard savedCard = cardService.cacheCard(card);
 
-        return CardPurchaseResponse.builder()
+        CardPurchaseResponse response = CardPurchaseResponse.builder()
                 .orderId(order.getExternalOrderId())
                 .userId(request.getUserId())
                 .cardId(savedCard.getExternalCardId())
@@ -175,12 +186,62 @@ public class PurchaseService {
                 .paymentStatus(payment.getStatus())
                 .createdAt(now)
                 .build();
+        runAfterCommit(() -> sendCardPurchaseConfirmation(account, response));
+
+        return response;
     }
 
-    private void requirePurchasableAccount(String userId) {
-        accountService.findById(userId)
+    private Account requirePurchasableAccount(String userId) {
+        return accountService.findById(userId)
                 .filter(account -> account.getIsActive() && account.getIsEmailVerified())
                 .orElseThrow(() -> new IllegalArgumentException("Passenger account not found, inactive, or unverified"));
+    }
+
+    private void sendTicketPurchaseConfirmation(Account account, TicketPurchaseResponse response) {
+        try {
+            emailService.sendTicketPurchaseConfirmed(
+                    account.getEmail(),
+                    account.getFullName(),
+                    response.getConfirmationNumber(),
+                    response.getTicketId(),
+                    response.getPackageId(),
+                    response.getTotalPrice(),
+                    response.getCurrency(),
+                    response.getPurchasedAt());
+        } catch (RuntimeException exception) {
+            log.warn("Ticket purchase confirmation email failed for order: {}", response.getOrderId(), exception);
+        }
+    }
+
+    private void sendCardPurchaseConfirmation(Account account, CardPurchaseResponse response) {
+        try {
+            emailService.sendCardPurchaseConfirmed(
+                    account.getEmail(),
+                    account.getFullName(),
+                    response.getOrderId(),
+                    response.getCardId(),
+                    response.getPackageId(),
+                    response.getDeliveryAddress(),
+                    response.getEstimatedDelivery(),
+                    response.getTotalPrice(),
+                    response.getCurrency());
+        } catch (RuntimeException exception) {
+            log.warn("Card purchase confirmation email failed for order: {}", response.getOrderId(), exception);
+        }
+    }
+
+    private void runAfterCommit(Runnable action) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            action.run();
+            return;
+        }
+
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                action.run();
+            }
+        });
     }
 
     private Order createOrder(

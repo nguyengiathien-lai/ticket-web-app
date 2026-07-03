@@ -11,6 +11,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -36,6 +38,9 @@ public class AccountService {
 
     @Autowired
     private OtpService otpService;
+
+    @Autowired
+    private EmailService emailService;
 
     /**
      * Register a new account
@@ -101,8 +106,31 @@ public class AccountService {
 
         Account updated = accountRepository.save(account);
         log.info("Email verified with OTP for account: {}", account.getId());
+        runAfterCommit(() -> sendAccountRegistrationConfirmation(updated));
 
         return updated;
+    }
+
+    private void sendAccountRegistrationConfirmation(Account account) {
+        try {
+            emailService.sendAccountRegistrationConfirmed(account.getEmail(), account.getFullName());
+        } catch (RuntimeException exception) {
+            log.warn("Account registration confirmation email failed for account: {}", account.getId(), exception);
+        }
+    }
+
+    private void runAfterCommit(Runnable action) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            action.run();
+            return;
+        }
+
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                action.run();
+            }
+        });
     }
 
     /**

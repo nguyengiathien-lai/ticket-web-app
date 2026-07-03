@@ -6,6 +6,7 @@ import com.ticketapp.dto.external.ExternalCardHistoryResponse;
 import com.ticketapp.dto.external.ExternalDiscountResponse;
 import com.ticketapp.dto.external.ExternalFarePriceResponse;
 import com.ticketapp.dto.external.ExternalPassengerRouteResponse;
+import com.ticketapp.dto.external.ExternalPassengerStationResponse;
 import com.ticketapp.dto.external.ExternalTicketRequest;
 import com.ticketapp.dto.external.ExternalTicketResponse;
 import com.ticketapp.dto.external.ExternalTicketHistoryResponse;
@@ -159,12 +160,19 @@ public class ExternalLevel5Client implements Level5Client {
     }
 
     @Override
-    public List<ExternalFarePriceResponse> getStations() {
+    public List<ExternalPassengerStationResponse> getStations() {
         if (mockEnabled) {
-            return mockFarePrices();
+            Instant now = Instant.now();
+            return List.of(
+                    new ExternalPassengerStationResponse(
+                            UUID.randomUUID(), UUID.randomUUID(), "HN_2A_01", "Cat Linh",
+                            BigDecimal.ZERO, 1, now),
+                    new ExternalPassengerStationResponse(
+                            UUID.randomUUID(), UUID.randomUUID(), "HN_2A_02", "La Thanh",
+                            new BigDecimal("0.700"), 2, now));
         }
         return Arrays.asList(get(
-                passengerStationsPath, ExternalFarePriceResponse[].class, "passenger stations"));
+                passengerStationsPath, ExternalPassengerStationResponse[].class, "passenger stations"));
     }
 
     @Override
