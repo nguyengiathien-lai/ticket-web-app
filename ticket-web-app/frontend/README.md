@@ -1,5 +1,18 @@
 # Ticket Web Frontend
 
-Place the ticket web frontend application here.
+This directory contains the Vite React frontend for the ticket web application.
 
-This directory is intentionally kept separate from `validation-gate/scanner`, which is only for QR scanning and gate validation simulation.
+## Development
+
+```bash
+npm install
+npm run dev
+```
+
+## Production Build
+
+```bash
+npm run build
+```
+
+The production output is written to `dist/`.

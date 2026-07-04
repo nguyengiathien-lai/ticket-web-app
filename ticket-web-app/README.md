@@ -5,7 +5,7 @@ This folder contains the passenger/admin ticket web application.
 ## Parts
 
 - `backend/` - Spring Boot API for accounts, authentication, catalog sync, ticket/card purchase, history, and integration with upstream systems.
-- `frontend/` - Reserved for the ticket web frontend application.
+- `frontend/` - Vite React frontend for the passenger/admin ticket web application.
 
 ## Backend
 
