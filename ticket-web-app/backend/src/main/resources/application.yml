@@ -32,7 +32,7 @@ spring:
     show-sql: false
   
   profiles:
-    active: dev
+    active: ${SPRING_PROFILES_ACTIVE:dev}
 
   mail:
     host: ${MAIL_HOST:smtp.gmail.com}
