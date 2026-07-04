@@ -10,10 +10,14 @@ import org.springframework.mail.MailException;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
 
 @Service
 @Slf4j
@@ -21,46 +25,36 @@ public class EmailService {
 
     private final ObjectProvider<JavaMailSender> mailSenderProvider;
     private final String fromAddress;
+    private final String fromName;
+    private final String brevoApiKey;
+    private final RestClient restClient;
 
     public EmailService(
             ObjectProvider<JavaMailSender> mailSenderProvider,
-            @Value("${app.mail.from:no-reply@ticketapp.local}") String fromAddress) {
+            @Value("${app.mail.from:no-reply@ticketapp.local}") String fromAddress,
+            @Value("${app.mail.from-name:Ticket App}") String fromName,
+            @Value("${app.mail.brevo-api-key:}") String brevoApiKey,
+            RestClient.Builder restClientBuilder) {
         this.mailSenderProvider = mailSenderProvider;
         this.fromAddress = fromAddress;
+        this.fromName = fromName;
+        this.brevoApiKey = brevoApiKey;
+        this.restClient = restClientBuilder
+                .baseUrl("https://api.brevo.com/v3")
+                .build();
     }
 
     public void sendEmailVerificationOtp(String to, String fullName, String code) {
-        JavaMailSender mailSender = mailSenderProvider.getIfAvailable();
-
-        if (mailSender == null) {
-            throw new EmailDeliveryException("Email sender is not configured");
-        }
-
-        String validFromAddress = validateEmailAddress(fromAddress, "Sender email address");
-        String validToAddress = validateEmailAddress(to, "Recipient email address");
-
-        log.info("Sending email verification OTP to {}", validToAddress);
-
-        try {
-            SimpleMailMessage message = new SimpleMailMessage();
-            message.setFrom(validFromAddress);
-            message.setTo(validToAddress);
-            message.setSubject("Verify your Ticket App account");
-            message.setText("""
+        sendPlainTextEmail(
+                to,
+                "Verify your Ticket App account",
+                """
                     Hi %s,
 
                     Your Ticket App verification code is: %s
 
                     This code expires in 15 minutes. If you did not create this account, ignore this email.
                     """.formatted(fullName, code));
-
-            mailSender.send(message);
-            log.info("Email verification OTP sent to {}", validToAddress);
-        } catch (MailException exception) {
-            String failureReason = failureReason(exception);
-            log.warn("Email delivery failed for {}: {}", validToAddress, failureReason, exception);
-            throw new EmailDeliveryException("Email delivery failed: " + failureReason, exception);
-        }
     }
 
     public void sendAccountRegistrationConfirmed(String to, String fullName) {
@@ -148,27 +142,58 @@ public class EmailService {
     }
 
     private void sendPlainTextEmail(String to, String subject, String text) {
+        String validFromAddress = validateEmailAddress(fromAddress, "Sender email address");
+        String validToAddress = validateEmailAddress(to, "Recipient email address");
+
+        if (brevoApiKey != null && !brevoApiKey.isBlank()) {
+            sendWithBrevoApi(validFromAddress, validToAddress, subject, text);
+            return;
+        }
+
+        sendWithSmtp(validFromAddress, validToAddress, subject, text);
+    }
+
+    private void sendWithBrevoApi(String from, String to, String subject, String text) {
+        try {
+            restClient.post()
+                    .uri("/smtp/email")
+                    .header("api-key", brevoApiKey)
+                    .body(Map.of(
+                            "sender", Map.of(
+                                    "name", fromName,
+                                    "email", from),
+                            "to", List.of(Map.of("email", to)),
+                            "subject", subject,
+                            "textContent", text))
+                    .retrieve()
+                    .toBodilessEntity();
+            log.info("Email '{}' sent to {} using Brevo API", subject, to);
+        } catch (RestClientException exception) {
+            String failureReason = failureReason(exception);
+            log.warn("Brevo API email delivery failed for {}: {}", to, failureReason, exception);
+            throw new EmailDeliveryException("Email delivery failed: " + failureReason, exception);
+        }
+    }
+
+    private void sendWithSmtp(String from, String to, String subject, String text) {
         JavaMailSender mailSender = mailSenderProvider.getIfAvailable();
 
         if (mailSender == null) {
             throw new EmailDeliveryException("Email sender is not configured");
         }
 
-        String validFromAddress = validateEmailAddress(fromAddress, "Sender email address");
-        String validToAddress = validateEmailAddress(to, "Recipient email address");
-
         try {
             SimpleMailMessage message = new SimpleMailMessage();
-            message.setFrom(validFromAddress);
-            message.setTo(validToAddress);
+            message.setFrom(from);
+            message.setTo(to);
             message.setSubject(subject);
             message.setText(text);
 
             mailSender.send(message);
-            log.info("Email '{}' sent to {}", subject, validToAddress);
+            log.info("Email '{}' sent to {} using SMTP", subject, to);
         } catch (MailException exception) {
             String failureReason = failureReason(exception);
-            log.warn("Email delivery failed for {}: {}", validToAddress, failureReason, exception);
+            log.warn("SMTP email delivery failed for {}: {}", to, failureReason, exception);
             throw new EmailDeliveryException("Email delivery failed: " + failureReason, exception);
         }
     }

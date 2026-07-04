@@ -71,6 +71,8 @@ app:
     allowed-origin-patterns: ${APP_ALLOWED_ORIGIN_PATTERNS:}
   mail:
     from: ${MAIL_FROM:${MAIL_USERNAME:}}
+    from-name: ${MAIL_FROM_NAME:Ticket App}
+    brevo-api-key: ${BREVO_API_KEY:}
   jwt:
     secret: ${JWT_SECRET:change-this-local-dev-secret-that-is-at-least-32-bytes}
     expiration-seconds: ${JWT_EXPIRATION_SECONDS:86400}
