@@ -166,6 +166,7 @@ export interface SingleTripPurchaseInput {
   mode: string;
   fromStationId: string;
   toStationId: string;
+  paymentMethod?: string;
 }
 
 export interface PassPurchaseInput {
@@ -176,6 +177,7 @@ export interface PassPurchaseInput {
   validFrom: string;
   durationType: string;
   durationMonths: number;
+  paymentMethod?: string;
 }
 
 export async function getTicketPackages(): Promise<TicketPackage[]> {
@@ -239,7 +241,7 @@ export async function purchaseSingleTripTicket(input: SingleTripPurchaseInput): 
     mode: input.mode,
     fromStationId: input.fromStationId,
     toStationId: input.toStationId,
-    paymentMethod: 'VNPAY'
+    paymentMethod: input.paymentMethod ?? 'VNPAY'
   });
 }
 
@@ -254,7 +256,7 @@ export async function purchaseMonthlyPassTicket(input: PassPurchaseInput): Promi
     validFrom: input.validFrom,
     durationType: input.durationType,
     durationMonths: input.durationMonths,
-    paymentMethod: 'VNPAY'
+    paymentMethod: input.paymentMethod ?? 'VNPAY'
   });
 }
 

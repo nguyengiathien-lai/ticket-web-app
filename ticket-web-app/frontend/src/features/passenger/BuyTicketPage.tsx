@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Bus, TrainFront } from 'lucide-react';
+import { Bus, CreditCard, Landmark, TrainFront, Wallet } from 'lucide-react';
 import { Card } from '../../components/Card';
 import {
   getTicketPackages,
@@ -12,11 +12,19 @@ import type { TicketPackage, TransitRoute, TransitStation } from '../../types';
 import { currency } from '../../utils/format';
 
 type PurchaseMode = 'single' | 'pass';
+type PaymentMethod = 'VNPAY' | 'CARD' | 'BANK_TRANSFER' | 'WALLET';
 
 const purchaseModeLabels: Record<PurchaseMode, string> = {
   single: 'Vé lượt',
   pass: 'Vé gói'
 };
+
+const paymentMethods: Array<{ value: PaymentMethod; label: string; helper: string; icon: typeof CreditCard }> = [
+  { value: 'VNPAY', label: 'VNPay', helper: 'Cổng thanh toán thử nghiệm', icon: Wallet },
+  { value: 'CARD', label: 'Thẻ', helper: 'Thẻ ATM, Visa, Mastercard', icon: CreditCard },
+  { value: 'BANK_TRANSFER', label: 'Chuyển khoản', helper: 'Ngân hàng nội địa', icon: Landmark },
+  { value: 'WALLET', label: 'Ví điện tử', helper: 'Ví mô phỏng', icon: Wallet }
+];
 
 export function BuyTicketPage() {
   const today = new Date().toISOString().slice(0, 10);
@@ -34,6 +42,8 @@ export function BuyTicketPage() {
   const [durationMonths, setDurationMonths] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isPaymentOpen, setIsPaymentOpen] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('VNPAY');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
 
@@ -69,22 +79,30 @@ export function BuyTicketPage() {
 
   function handleModeChange(nextMode: PurchaseMode) {
     setMode(nextMode);
+    setIsPaymentOpen(false);
     setMessage('');
     setError('');
   }
 
-  async function handleSubmit() {
+  function handlePaymentStart() {
+    setMessage('');
+    setError('');
+    setIsPaymentOpen(true);
+  }
+
+  async function handleSubmit(method: PaymentMethod) {
     setMessage('');
     setError('');
     setIsSubmitting(true);
     try {
       if (mode === 'single') {
-        await purchaseSingleTripTicket({ mode: transportMode, fromStationId, toStationId });
+        await purchaseSingleTripTicket({ mode: transportMode, fromStationId, toStationId, paymentMethod: method });
         setMessage('Mua vé lượt thành công.');
       } else {
-        await purchaseMonthlyPassTicket(passInput());
+        await purchaseMonthlyPassTicket(passInput(method));
         setMessage('Mua vé gói thành công.');
       }
+      setIsPaymentOpen(false);
     } catch (exception) {
       setError(exception instanceof Error ? exception.message : 'Không thể hoàn tất giao dịch.');
     } finally {
@@ -92,7 +110,7 @@ export function BuyTicketPage() {
     }
   }
 
-  function passInput() {
+  function passInput(method: PaymentMethod) {
     return {
       mode: transportMode,
       scope,
@@ -100,7 +118,8 @@ export function BuyTicketPage() {
       passengerType,
       validFrom,
       durationType: 'MONTHLY',
-      durationMonths
+      durationMonths,
+      paymentMethod: method
     };
   }
 
@@ -141,9 +160,33 @@ export function BuyTicketPage() {
         )}
 
         <div className="total"><span>Tổng tiền</span><b>{currency(total)}</b></div>
-        <button className="primary-button" disabled={isLoading || isSubmitting || !selectedPackage || (mode !== 'single' && !routeId) || (mode === 'single' && (!fromStationId || !toStationId))} onClick={handleSubmit}>
-          {isSubmitting ? 'Đang xử lý...' : 'Thanh toán bằng VNPay thử nghiệm'}
+        <button className="primary-button" disabled={isLoading || isSubmitting || !selectedPackage || (mode !== 'single' && !routeId) || (mode === 'single' && (!fromStationId || !toStationId))} onClick={handlePaymentStart}>
+          Thanh toán
         </button>
+
+        {isPaymentOpen && (
+          <div style={{ marginTop: 16, border: '1px solid var(--border)', borderRadius: 14, padding: 14, background: '#f8fbff', display: 'grid', gap: 12 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
+              <b>Thanh toán giả lập</b>
+              <strong>{currency(total)}</strong>
+            </div>
+            <div className="transport-options" style={{ gridTemplateColumns: 'repeat(2, 1fr)', marginBottom: 0 }}>
+              {paymentMethods.map((method) => {
+                const Icon = method.icon;
+                return (
+                  <button key={method.value} className={paymentMethod === method.value ? 'active' : ''} onClick={() => setPaymentMethod(method.value)}>
+                    <Icon />
+                    <span>{method.label}</span>
+                    <small>{method.helper}</small>
+                  </button>
+                );
+              })}
+            </div>
+            <button className="primary-button" disabled={isSubmitting} onClick={() => handleSubmit(paymentMethod)}>
+              {isSubmitting ? 'Đang xử lý...' : 'Xác nhận thanh toán'}
+            </button>
+          </div>
+        )}
       </Card>
 
       <Card title="Gói vé được xác định">
