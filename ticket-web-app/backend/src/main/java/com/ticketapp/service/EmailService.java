@@ -39,7 +39,7 @@ public class EmailService {
         String validFromAddress = validateEmailAddress(fromAddress, "Sender email address");
         String validToAddress = validateEmailAddress(to, "Recipient email address");
 
-        log.info("Sending email verification OTP to {}: {}", to, code);
+        log.info("Sending email verification OTP to {}", validToAddress);
 
         try {
             SimpleMailMessage message = new SimpleMailMessage();
@@ -57,8 +57,9 @@ public class EmailService {
             mailSender.send(message);
             log.info("Email verification OTP sent to {}", validToAddress);
         } catch (MailException exception) {
-            log.warn("Email delivery failed for {}", validToAddress, exception);
-            throw new EmailDeliveryException("Email delivery failed. Check mail configuration and try again", exception);
+            String failureReason = failureReason(exception);
+            log.warn("Email delivery failed for {}: {}", validToAddress, failureReason, exception);
+            throw new EmailDeliveryException("Email delivery failed: " + failureReason, exception);
         }
     }
 
@@ -166,9 +167,31 @@ public class EmailService {
             mailSender.send(message);
             log.info("Email '{}' sent to {}", subject, validToAddress);
         } catch (MailException exception) {
-            log.warn("Email delivery failed for {}", validToAddress, exception);
-            throw new EmailDeliveryException("Email delivery failed. Check mail configuration and try again", exception);
+            String failureReason = failureReason(exception);
+            log.warn("Email delivery failed for {}: {}", validToAddress, failureReason, exception);
+            throw new EmailDeliveryException("Email delivery failed: " + failureReason, exception);
         }
+    }
+
+    private String failureReason(Throwable exception) {
+        Throwable current = exception;
+        Throwable root = exception;
+
+        while (current != null) {
+            root = current;
+            current = current.getCause();
+        }
+
+        String message = root.getMessage();
+        if (message == null || message.isBlank()) {
+            message = exception.getMessage();
+        }
+
+        if (message == null || message.isBlank()) {
+            return root.getClass().getSimpleName();
+        }
+
+        return root.getClass().getSimpleName() + ": " + message;
     }
 
     private String validateEmailAddress(String value, String label) {

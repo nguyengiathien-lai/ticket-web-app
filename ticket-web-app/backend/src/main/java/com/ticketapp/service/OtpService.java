@@ -43,10 +43,10 @@ public class OtpService {
         otpCode.setMaxAttempts(3);
         otpCode.setIsUsed(false);
         otpCode.setExpiresAt(LocalDateTime.now().plusMinutes(2));
-        log.info("Save OTP to {}: {}", account.getEmail(), code);
+        log.info("Saving email verification OTP for {}", account.getEmail());
         otpCodeRepository.save(otpCode);
 
-        log.info("Sending email verification OTP to {}: {}", account.getEmail(), code);
+        log.info("Sending email verification OTP to {}", account.getEmail());
         emailService.sendEmailVerificationOtp(account.getEmail(), account.getFullName(), code);
     }
 
