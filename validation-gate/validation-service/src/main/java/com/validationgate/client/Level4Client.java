@@ -5,4 +5,6 @@ import com.validationgate.dto.SubmitBatchResponse;
 
 public interface Level4Client {
     SubmitBatchResponse sendBatch(SubmitBatchRequest request);
+
+    void ackControlPackageApply(Long syncId, String syncStatus, String errorMessage);
 }

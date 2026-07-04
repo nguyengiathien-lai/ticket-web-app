@@ -3,6 +3,7 @@ package com.validationgate.client;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.validationgate.dto.ControlPackageAckRequest;
 import com.validationgate.dto.SubmitBatchRequest;
 import com.validationgate.dto.SubmitBatchResponse;
 import org.springframework.beans.factory.annotation.Value;
@@ -20,6 +21,7 @@ public class ExternalLevel4Client implements Level4Client {
     private final ObjectMapper objectMapper;
     private final String baseUrl;
     private final String scanRecordBatchPath;
+    private final String controlPackageAckApplyPath;
     private final String deviceCode;
     private final String deviceSecret;
     private final boolean mockEnabled;
@@ -29,6 +31,7 @@ public class ExternalLevel4Client implements Level4Client {
             ObjectMapper objectMapper,
             @Value("${app.level4.base-url:}") String baseUrl,
             @Value("${app.level4.scan-record-batch-path:/vdt/transaction/submit-batch}") String scanRecordBatchPath,
+            @Value("${app.level4.control-package-ack-apply-path:/control-package/ack-apply/{syncId}}") String controlPackageAckApplyPath,
             @Value("${app.device.code:}") String deviceCode,
             @Value("${app.device.secret:}") String deviceSecret,
             @Value("${app.level4.mock-enabled:false}") boolean mockEnabled) {
@@ -36,6 +39,7 @@ public class ExternalLevel4Client implements Level4Client {
         this.objectMapper = objectMapper;
         this.baseUrl = baseUrl;
         this.scanRecordBatchPath = scanRecordBatchPath;
+        this.controlPackageAckApplyPath = controlPackageAckApplyPath;
         this.deviceCode = deviceCode;
         this.deviceSecret = deviceSecret;
         this.mockEnabled = mockEnabled;
@@ -55,6 +59,25 @@ public class ExternalLevel4Client implements Level4Client {
                     .build();
         }
         return post(scanRecordBatchPath, request, SubmitBatchResponse.class, "scan record batch");
+    }
+
+    @Override
+    public void ackControlPackageApply(Long syncId, String syncStatus, String errorMessage) {
+        if (syncId == null) {
+            log.warn("Skipping control package apply ack because syncId is missing; syncStatus={}", syncStatus);
+            return;
+        }
+        log.info("Sending control package apply ack to Level 4; syncId={}, syncStatus={}, mockEnabled={}, baseUrl={}, path={}",
+                syncId, syncStatus, mockEnabled, baseUrl, controlPackageAckApplyPath);
+        if (mockEnabled) {
+            log.info("Mock enabled, skipping external control package apply ack; syncId={}, syncStatus={}", syncId, syncStatus);
+            return;
+        }
+        post(
+                controlPackageAckApplyPath.replace("{syncId}", String.valueOf(syncId)),
+                new ControlPackageAckRequest(syncStatus, errorMessage),
+                JsonNode.class,
+                "control package apply ack");
     }
 
     private <T> T post(

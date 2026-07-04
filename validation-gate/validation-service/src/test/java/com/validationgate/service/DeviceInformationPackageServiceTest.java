@@ -39,6 +39,7 @@ class DeviceInformationPackageServiceTest {
                 stationContextRepository,
                 mediaAccessRulesRepository);
         DeviceInformationPackageMessage message = new DeviceInformationPackageMessage(
+                1001L,
                 "2026-06-25T00:00:00Z",
                 objectMapper.readTree("""
                         {
@@ -126,6 +127,7 @@ class DeviceInformationPackageServiceTest {
                 mock(StationContextPackageRepository.class),
                 mock(MediaAccessRulesPackageRepository.class));
         DeviceInformationPackageMessage message = new DeviceInformationPackageMessage(
+                1002L,
                 "2026-06-25T00:00:00Z",
                 objectMapper.readTree("{}"),
                 objectMapper.readTree("{\"stationCode\":\"station-2\"}"),

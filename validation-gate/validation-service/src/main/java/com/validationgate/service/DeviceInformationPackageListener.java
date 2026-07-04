@@ -1,7 +1,9 @@
 package com.validationgate.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.validationgate.client.Level4Client;
 import com.validationgate.dto.DeviceInformationPackageMessage;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
@@ -18,12 +20,15 @@ public class DeviceInformationPackageListener {
 
     private final ObjectMapper objectMapper;
     private final DeviceInformationPackageService packageService;
+    private final Level4Client level4Client;
 
     public DeviceInformationPackageListener(
             ObjectMapper objectMapper,
-            DeviceInformationPackageService packageService) {
+            DeviceInformationPackageService packageService,
+            Level4Client level4Client) {
         this.objectMapper = objectMapper;
         this.packageService = packageService;
+        this.level4Client = level4Client;
     }
 
     @RabbitListener(queues = "#{devicePackageQueue.name}")
@@ -31,17 +36,42 @@ public class DeviceInformationPackageListener {
         String packageJson = new String(message.getBody(), StandardCharsets.UTF_8);
         log.info("Received device information package message, routingKey='{}', payloadLength={}",
                 message.getMessageProperties().getReceivedRoutingKey(), packageJson.length());
+        DeviceInformationPackageMessage packageMessage;
         try {
-            DeviceInformationPackageMessage packageMessage =
-                    objectMapper.readValue(packageJson, DeviceInformationPackageMessage.class);
-            packageService.storePackage(packageMessage);
-            log.info("Stored device information package successfully");
+            packageMessage = objectMapper.readValue(packageJson, DeviceInformationPackageMessage.class);
         } catch (JsonProcessingException exception) {
             log.error("Could not parse device information package JSON", exception);
+            ackFailure(extractSyncId(packageJson), "Could not parse device information package JSON");
             throw new IllegalArgumentException("Could not parse device information package JSON", exception);
+        }
+
+        try {
+            packageService.storePackage(packageMessage);
         } catch (RuntimeException exception) {
             log.error("Could not store device information package", exception);
+            ackFailure(packageMessage.syncId(), exception.getMessage());
             throw exception;
+        }
+
+        level4Client.ackControlPackageApply(packageMessage.syncId(), "APPLIED", null);
+        log.info("Stored device information package successfully");
+    }
+
+    private void ackFailure(Long syncId, String errorMessage) {
+        try {
+            level4Client.ackControlPackageApply(syncId, "FAILED", errorMessage);
+        } catch (RuntimeException ackException) {
+            log.error("Could not ack failed device information package apply; syncId={}", syncId, ackException);
+        }
+    }
+
+    private Long extractSyncId(String packageJson) {
+        try {
+            JsonNode root = objectMapper.readTree(packageJson);
+            JsonNode syncId = root.get("syncId");
+            return syncId == null || syncId.isNull() || !syncId.canConvertToLong() ? null : syncId.asLong();
+        } catch (JsonProcessingException exception) {
+            return null;
         }
     }
 }
