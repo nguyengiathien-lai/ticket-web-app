@@ -19,6 +19,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.util.List;
@@ -26,6 +28,8 @@ import java.util.function.Supplier;
 
 @RestController
 public class PassengerController {
+
+    private static final Logger log = LoggerFactory.getLogger(PassengerController.class);
 
     private final Level5Client level5Client;
     private final StringRedisTemplate redisTemplate;
@@ -119,9 +123,14 @@ public class PassengerController {
     private <T> List<T> cachedList(String cacheKey, Class<T> elementType, Supplier<List<T>> loader) {
         try {
             List<T> freshData = loader.get();
+            log.info("Loaded fresh passenger catalog data; cacheKey={}, size={}", cacheKey, freshData.size());
             cacheList(cacheKey, freshData);
             return freshData;
         } catch (RuntimeException exception) {
+            log.warn("Could not load fresh passenger catalog data; attempting Redis fallback. cacheKey={}, cause={}: {}",
+                    cacheKey,
+                    exception.getClass().getSimpleName(),
+                    exception.getMessage());
             return readCachedList(cacheKey, elementType, exception);
         }
     }
@@ -137,13 +146,16 @@ public class PassengerController {
     private <T> List<T> readCachedList(String cacheKey, Class<T> elementType, RuntimeException originalException) {
         String json = redisTemplate.opsForValue().get(cacheKey);
         if (json == null || json.isBlank()) {
+            log.warn("Redis fallback cache miss; cacheKey={}", cacheKey);
             throw originalException;
         }
 
         try {
-            return objectMapper.readValue(
+            List<T> cachedData = objectMapper.readValue(
                     json,
                     objectMapper.getTypeFactory().constructCollectionType(List.class, elementType));
+            log.warn("Returning Redis fallback passenger catalog data; cacheKey={}, size={}", cacheKey, cachedData.size());
+            return cachedData;
         } catch (JsonProcessingException exception) {
             throw new IllegalStateException("Unable to read passenger cache entry: " + cacheKey, exception);
         }

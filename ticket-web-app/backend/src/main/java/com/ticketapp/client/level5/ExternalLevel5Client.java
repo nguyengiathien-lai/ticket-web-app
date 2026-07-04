@@ -18,6 +18,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -32,6 +34,8 @@ import java.util.UUID;
 
 @Component
 public class ExternalLevel5Client implements Level5Client {
+
+    private static final Logger log = LoggerFactory.getLogger(ExternalLevel5Client.class);
 
     private static final Map<String, TicketDefaults> TICKET_DEFAULTS = Map.of(
             "single_trip", new TicketDefaults(new BigDecimal("15000"), 1, 1),
@@ -86,6 +90,15 @@ public class ExternalLevel5Client implements Level5Client {
         this.farePricesPath = farePricesPath;
         this.fareDiscountsPath = fareDiscountsPath;
         this.mockEnabled = mockEnabled;
+
+        log.info(
+                "Level 5 client configured; mockEnabled={}, baseUrl={}, stationsPath={}, routesPath={}, farePricesPath={}, fareDiscountsPath={}",
+                mockEnabled,
+                baseUrl,
+                passengerStationsPath,
+                passengerRoutesPath,
+                farePricesPath,
+                fareDiscountsPath);
     }
 
     // @Override
@@ -232,6 +245,7 @@ public class ExternalLevel5Client implements Level5Client {
     @Override
     public List<ExternalPassengerStationResponse> getStations() {
         if (mockEnabled) {
+            log.warn("Returning mock Level 5 passenger stations because LEVEL5_MOCK_ENABLED is true");
             Instant now = Instant.now();
             return List.of(
                     new ExternalPassengerStationResponse(
@@ -248,6 +262,7 @@ public class ExternalLevel5Client implements Level5Client {
     @Override
     public List<ExternalPassengerRouteResponse> getRoutes() {
         if (mockEnabled) {
+            log.warn("Returning mock Level 5 passenger routes because LEVEL5_MOCK_ENABLED is true");
             Instant now = Instant.now();
             return List.of(
                     new ExternalPassengerRouteResponse(
@@ -263,6 +278,7 @@ public class ExternalLevel5Client implements Level5Client {
     @Override
     public List<ExternalFarePriceResponse> getFarePrices() {
         if (mockEnabled) {
+            log.warn("Returning mock Level 5 fare prices because LEVEL5_MOCK_ENABLED is true");
             return mockFarePrices();
         }
         return Arrays.asList(get(
