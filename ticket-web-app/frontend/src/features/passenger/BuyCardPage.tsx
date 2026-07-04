@@ -96,7 +96,7 @@ export function BuyCardPage() {
         </div>
 
         <label>
-          Gói vé tháng gắn với thẻ
+          Vé gói gắn với thẻ
           <select value={selectedPackageId} onChange={(event) => setSelectedPackageId(event.target.value)} disabled={isLoading || packages.length === 0}>
             {packages.map((farePackage) => <option key={farePackage.id} value={farePackage.id}>{farePackage.name}</option>)}
           </select>

@@ -67,6 +67,6 @@ function formatTicketType(value?: string) {
   if (!value) return 'Vé';
   const normalized = value.toUpperCase();
   if (normalized === 'SINGLE_TRIP') return 'Vé lượt';
-  if (normalized === 'MONTHLY_PASS') return 'Vé tháng';
+  if (normalized === 'MONTHLY_PASS') return 'Vé gói';
   return value;
 }

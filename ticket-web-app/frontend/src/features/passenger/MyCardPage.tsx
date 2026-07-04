@@ -167,13 +167,13 @@ function formatTicketType(value?: string) {
   if (!value) return 'Vé';
   const normalized = value.toUpperCase();
   if (normalized === 'SINGLE_TRIP') return 'Vé lượt';
-  if (normalized === 'MONTHLY_PASS') return 'Vé tháng';
+  if (normalized === 'MONTHLY_PASS') return 'Vé gói';
   return value;
 }
 
 function formatCardType(value?: string) {
-  if (!value) return 'Thẻ vé tháng';
+  if (!value) return 'Thẻ vé gói';
   const normalized = value.toUpperCase();
-  if (normalized === 'MONTHLY_PASS') return 'Thẻ vé tháng';
+  if (normalized === 'MONTHLY_PASS') return 'Thẻ vé gói';
   return value;
 }

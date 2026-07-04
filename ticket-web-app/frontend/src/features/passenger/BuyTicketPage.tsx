@@ -15,7 +15,7 @@ type PurchaseMode = 'single' | 'pass';
 
 const purchaseModeLabels: Record<PurchaseMode, string> = {
   single: 'Vé lượt',
-  pass: 'Vé tháng'
+  pass: 'Vé gói'
 };
 
 export function BuyTicketPage() {
@@ -92,7 +92,7 @@ export function BuyTicketPage() {
         setMessage('Mua vé lượt thành công.');
       } else {
         await purchaseMonthlyPassTicket(passInput());
-        setMessage('Mua vé tháng thành công.');
+        setMessage('Mua vé gói thành công.');
       }
     } catch (exception) {
       setError(exception instanceof Error ? exception.message : 'Không thể hoàn tất giao dịch.');

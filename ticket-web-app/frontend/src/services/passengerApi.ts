@@ -458,7 +458,7 @@ function formatScope(scope?: string) {
 function formatDurationType(durationType?: string) {
   if (!durationType) return 'gói';
   const normalized = durationType.toUpperCase();
-  if (normalized.includes('MONTH')) return 'vé tháng';
+  if (normalized.includes('MONTH')) return 'vé gói';
   if (normalized.includes('DAY')) return 'vé ngày';
   if (normalized.includes('WEEK')) return 'vé tuần';
   if (normalized.includes('YEAR')) return 'vé năm';
