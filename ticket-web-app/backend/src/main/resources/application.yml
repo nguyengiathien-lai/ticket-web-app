@@ -91,6 +91,7 @@ app:
     fare-discounts-path: ${LEVEL5_FARE_DISCOUNTS_PATH:/api/passenger/fare/discounts}
     mock-enabled: ${LEVEL5_MOCK_ENABLED:false}
   cache:
+    passenger-data-ttl-seconds: ${APP_CACHE_PASSENGER_DATA_TTL_SECONDS:${CATALOG_REFRESH_TTL_SECONDS:600}}
     catalog-refresh-ttl-seconds: ${CATALOG_REFRESH_TTL_SECONDS:600}
   level4:
     base-url: ${LEVEL4_BASE_URL:}

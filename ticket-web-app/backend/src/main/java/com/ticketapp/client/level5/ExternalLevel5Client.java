@@ -1,6 +1,7 @@
 package com.ticketapp.client.level5;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.ticketapp.dto.external.ExternalCardHistoryResponse;
 import com.ticketapp.dto.external.ExternalDiscountResponse;
 import com.ticketapp.dto.external.ExternalFarePriceResponse;
@@ -23,6 +24,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -31,11 +33,19 @@ import java.util.Map;
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
+import java.util.function.Supplier;
+
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.http.HttpStatusCode;
 
 @Component
 public class ExternalLevel5Client implements Level5Client {
 
     private static final Logger log = LoggerFactory.getLogger(ExternalLevel5Client.class);
+    private static final String STATIONS_CACHE_KEY = "passenger:stations";
+    private static final String ROUTES_CACHE_KEY = "passenger:routes";
+    private static final String FARE_PRICES_CACHE_KEY = "passenger:fare:prices";
+    private static final String FARE_DISCOUNTS_CACHE_KEY = "passenger:fare:discounts";
 
     private static final Map<String, TicketDefaults> TICKET_DEFAULTS = Map.of(
             "single_trip", new TicketDefaults(new BigDecimal("15000"), 1, 1),
@@ -47,6 +57,8 @@ public class ExternalLevel5Client implements Level5Client {
 
     private final RestClient restClient;
     private final ObjectMapper objectMapper;
+    private final StringRedisTemplate redisTemplate;
+    private final Duration passengerCacheTtl;
     private final String ticketPurchasePath;
     private final String singleTripTicketPurchasePath;
     private final String passTicketPurchasePath;
@@ -63,6 +75,7 @@ public class ExternalLevel5Client implements Level5Client {
     public ExternalLevel5Client(
             RestClient.Builder builder,
             ObjectMapper objectMapper,
+            StringRedisTemplate redisTemplate,
             @Value("${app.level5.base-url:http://localhost:8082}") String baseUrl,
             @Value("${app.level5.ticket-purchase-path:/api/tickets/purchase}") String ticketPurchasePath,
             @Value("${app.level5.single-trip-ticket-purchase-path:/api/tickets/single-trip}") String singleTripTicketPurchasePath,
@@ -75,9 +88,12 @@ public class ExternalLevel5Client implements Level5Client {
             @Value("${app.level5.passenger-trips-path:/api/passengers/{userId}/trips}") String passengerTripsPath,
             @Value("${app.level5.fare-prices-path:/api/passenger/fare/prices}") String farePricesPath,
             @Value("${app.level5.fare-discounts-path:/api/passenger/fare/discounts}") String fareDiscountsPath,
+            @Value("${app.cache.passenger-data-ttl-seconds:600}") int passengerCacheTtlSeconds,
             @Value("${app.level5.mock-enabled:false}") boolean mockEnabled) {
         this.restClient = baseUrl.isBlank() ? builder.build() : builder.baseUrl(baseUrl).build();
         this.objectMapper = objectMapper;
+        this.redisTemplate = redisTemplate;
+        this.passengerCacheTtl = Duration.ofSeconds(passengerCacheTtlSeconds);
         this.ticketPurchasePath = ticketPurchasePath;
         this.singleTripTicketPurchasePath = singleTripTicketPurchasePath;
         this.passTicketPurchasePath = passTicketPurchasePath;
@@ -223,76 +239,87 @@ public class ExternalLevel5Client implements Level5Client {
 
     @Override
     public List<ExternalTravelHistoryResponse> getTravelHistory(String userId) {
-        if (mockEnabled) {
-            Instant now = Instant.now();
-            ExternalTravelHistoryResponse response = new ExternalTravelHistoryResponse();
-            response.setExternalTripId(UUID.randomUUID().toString());
-            response.setPassengerAccountId(userId);
-            response.setTicketExternalId(UUID.randomUUID().toString());
-            response.setMode("METRO");
-            response.setCheckinStationCode("CL");
-            response.setCheckoutStationCode("HD");
-            response.setCheckinTime(toLocalDateTime(now.minusSeconds(1800)));
-            response.setCheckoutTime(toLocalDateTime(now));
-            response.setDistanceKm(new BigDecimal("8.5"));
-            response.setFareAmount(new BigDecimal("15000"));
-            return List.of(response);
-        }
-        return Arrays.asList(get(
-                passengerTripsPath, "userId", userId, ExternalTravelHistoryResponse[].class, "passenger trips"));
+        String normalizedUserId = normalizeUserId(userId);
+        return cachedList("passenger:" + normalizedUserId + ":trips", ExternalTravelHistoryResponse.class, () -> {
+            if (mockEnabled) {
+                Instant now = Instant.now();
+                ExternalTravelHistoryResponse response = new ExternalTravelHistoryResponse();
+                response.setExternalTripId(UUID.randomUUID().toString());
+                response.setPassengerAccountId(normalizedUserId);
+                response.setTicketExternalId(UUID.randomUUID().toString());
+                response.setMode("METRO");
+                response.setCheckinStationCode("CL");
+                response.setCheckoutStationCode("HD");
+                response.setCheckinTime(toLocalDateTime(now.minusSeconds(1800)));
+                response.setCheckoutTime(toLocalDateTime(now));
+                response.setDistanceKm(new BigDecimal("8.5"));
+                response.setFareAmount(new BigDecimal("15000"));
+                return List.of(response);
+            }
+            return Arrays.asList(get(
+                    passengerTripsPath, "userId", normalizedUserId, ExternalTravelHistoryResponse[].class, "passenger trips"));
+        });
     }
 
     @Override
     public List<ExternalPassengerStationResponse> getStations() {
-        if (mockEnabled) {
-            log.warn("Returning mock Level 5 passenger stations because LEVEL5_MOCK_ENABLED is true");
-            Instant now = Instant.now();
-            return List.of(
-                    new ExternalPassengerStationResponse(
-                            UUID.randomUUID(), UUID.randomUUID(), "HN_2A_01", "Cat Linh",
-                            BigDecimal.ZERO, 1, now),
-                    new ExternalPassengerStationResponse(
-                            UUID.randomUUID(), UUID.randomUUID(), "HN_2A_02", "La Thanh",
-                            new BigDecimal("0.700"), 2, now));
-        }
-        return Arrays.asList(get(
-                passengerStationsPath, ExternalPassengerStationResponse[].class, "passenger stations"));
+        return cachedList(STATIONS_CACHE_KEY, ExternalPassengerStationResponse.class, () -> {
+            if (mockEnabled) {
+                log.warn("Returning mock Level 5 passenger stations because LEVEL5_MOCK_ENABLED is true");
+                Instant now = Instant.now();
+                return List.of(
+                        new ExternalPassengerStationResponse(
+                                UUID.randomUUID(), UUID.randomUUID(), "HN_2A_01", "Cat Linh",
+                                BigDecimal.ZERO, 1, now),
+                        new ExternalPassengerStationResponse(
+                                UUID.randomUUID(), UUID.randomUUID(), "HN_2A_02", "La Thanh",
+                                new BigDecimal("0.700"), 2, now));
+            }
+            return Arrays.asList(get(
+                    passengerStationsPath, ExternalPassengerStationResponse[].class, "passenger stations"));
+        });
     }
 
     @Override
     public List<ExternalPassengerRouteResponse> getRoutes() {
-        if (mockEnabled) {
-            log.warn("Returning mock Level 5 passenger routes because LEVEL5_MOCK_ENABLED is true");
-            Instant now = Instant.now();
-            return List.of(
-                    new ExternalPassengerRouteResponse(
-                            UUID.randomUUID(), UUID.randomUUID(), "HN_2A", "Cat Linh - Ha Dong", "METRO", now),
-                    new ExternalPassengerRouteResponse(
-                            UUID.randomUUID(), UUID.randomUUID(), "HN_BUS_32", "Bus 32: Giap Bat - Nhon", "BUS", now));
-        }
-        return Arrays.asList(get(
-                passengerRoutesPath, ExternalPassengerRouteResponse[].class, "passenger routes"));
+        return cachedList(ROUTES_CACHE_KEY, ExternalPassengerRouteResponse.class, () -> {
+            if (mockEnabled) {
+                log.warn("Returning mock Level 5 passenger routes because LEVEL5_MOCK_ENABLED is true");
+                Instant now = Instant.now();
+                return List.of(
+                        new ExternalPassengerRouteResponse(
+                                UUID.randomUUID(), UUID.randomUUID(), "HN_2A", "Cat Linh - Ha Dong", "METRO", now),
+                        new ExternalPassengerRouteResponse(
+                                UUID.randomUUID(), UUID.randomUUID(), "HN_BUS_32", "Bus 32: Giap Bat - Nhon", "BUS", now));
+            }
+            return Arrays.asList(get(
+                    passengerRoutesPath, ExternalPassengerRouteResponse[].class, "passenger routes"));
+        });
     }
 
 
     @Override
     public List<ExternalFarePriceResponse> getFarePrices() {
-        if (mockEnabled) {
-            log.warn("Returning mock Level 5 fare prices because LEVEL5_MOCK_ENABLED is true");
-            return mockFarePrices();
-        }
-        return Arrays.asList(get(
-                farePricesPath, ExternalFarePriceResponse[].class, "fare prices"));
+        return cachedList(FARE_PRICES_CACHE_KEY, ExternalFarePriceResponse.class, () -> {
+            if (mockEnabled) {
+                log.warn("Returning mock Level 5 fare prices because LEVEL5_MOCK_ENABLED is true");
+                return mockFarePrices();
+            }
+            return Arrays.asList(get(
+                    farePricesPath, ExternalFarePriceResponse[].class, "fare prices"));
+        });
     }
 
     @Override
     public List<ExternalDiscountResponse> getFareDiscounts() {
-        if (mockEnabled) {
-            return List.of(new ExternalDiscountResponse(
-                    "STUDENT", "PERCENTAGE", new BigDecimal("50"), LocalDate.now(), null));
-        }
-        return Arrays.asList(get(
-                fareDiscountsPath, ExternalDiscountResponse[].class, "fare discounts"));
+        return cachedList(FARE_DISCOUNTS_CACHE_KEY, ExternalDiscountResponse.class, () -> {
+            if (mockEnabled) {
+                return List.of(new ExternalDiscountResponse(
+                        "STUDENT", "PERCENTAGE", new BigDecimal("50"), LocalDate.now(), null));
+            }
+            return Arrays.asList(get(
+                    fareDiscountsPath, ExternalDiscountResponse[].class, "fare discounts"));
+        });
     }
 
     private ExternalTicketResponse mockTicket(ExternalTicketRequest request) {
@@ -365,7 +392,12 @@ public class ExternalLevel5Client implements Level5Client {
 
     private <T> T post(String path, Object body, Class<T> responseType, String operation) {
         T response = restClient.post().uri(path).contentType(MediaType.APPLICATION_JSON)
-                .body(body).retrieve().body(responseType);
+                .body(body)
+                .retrieve()
+                .onStatus(HttpStatusCode::is3xxRedirection, (request, httpResponse) -> {
+                    throw redirectedLevel5Request(operation, httpResponse.getHeaders().getFirst("Location"));
+                })
+                .body(responseType);
         if (response == null) {
             throw new IllegalStateException("Level 5 returned an empty response for " + operation);
         }
@@ -373,7 +405,13 @@ public class ExternalLevel5Client implements Level5Client {
     }
 
     private <T> T get(String path, String variableName, String variableValue, Class<T> responseType, String operation) {
-        byte[] response = restClient.get().uri(path, Map.of(variableName, variableValue)).retrieve().body(byte[].class);
+        byte[] response = restClient.get()
+                .uri(path, Map.of(variableName, variableValue))
+                .retrieve()
+                .onStatus(HttpStatusCode::is3xxRedirection, (request, httpResponse) -> {
+                    throw redirectedLevel5Request(operation, httpResponse.getHeaders().getFirst("Location"));
+                })
+                .body(byte[].class);
         if (response == null || response.length == 0) {
             throw new IllegalStateException("Level 5 returned an empty response for " + operation);
         }
@@ -381,11 +419,24 @@ public class ExternalLevel5Client implements Level5Client {
     }
 
     private <T> T get(String path, Class<T> responseType, String operation) {
-        byte[] response = restClient.get().uri(path).retrieve().body(byte[].class);
+        byte[] response = restClient.get()
+                .uri(path)
+                .retrieve()
+                .onStatus(HttpStatusCode::is3xxRedirection, (request, httpResponse) -> {
+                    throw redirectedLevel5Request(operation, httpResponse.getHeaders().getFirst("Location"));
+                })
+                .body(byte[].class);
         if (response == null || response.length == 0) {
             throw new IllegalStateException("Level 5 returned an empty response for " + operation);
         }
         return readJson(response, responseType, operation);
+    }
+
+    private IllegalStateException redirectedLevel5Request(String operation, String location) {
+        String target = location == null || location.isBlank() ? "another URL" : location;
+        return new IllegalStateException(
+                "Level 5 redirected " + operation + " to " + target
+                        + "; configure LEVEL5_BASE_URL with the final HTTPS URL");
     }
 
     private <T> T readJson(byte[] response, Class<T> responseType, String operation) {
@@ -393,6 +444,63 @@ public class ExternalLevel5Client implements Level5Client {
             return objectMapper.readValue(response, responseType);
         } catch (IOException exception) {
             throw new IllegalStateException("Level 5 returned invalid JSON for " + operation, exception);
+        }
+    }
+
+    private <T> List<T> cachedList(String cacheKey, Class<T> elementType, Supplier<List<T>> freshLoader) {
+        List<T> cachedData = readCachedList(cacheKey, elementType);
+        if (cachedData != null) {
+            return cachedData;
+        }
+
+        List<T> freshData = freshLoader.get();
+        cacheList(cacheKey, freshData);
+        return freshData;
+    }
+
+    private <T> List<T> readCachedList(String cacheKey, Class<T> elementType) {
+        try {
+            String json = redisTemplate.opsForValue().get(cacheKey);
+            if (json == null || json.isBlank()) {
+                log.debug("Level 5 Redis cache miss; cacheKey={}", cacheKey);
+                return null;
+            }
+
+            List<T> cachedData = objectMapper.readValue(
+                    json,
+                    objectMapper.getTypeFactory().constructCollectionType(List.class, elementType));
+            log.info("Using cached Level 5 data from Redis; cacheKey={}, size={}", cacheKey, cachedData.size());
+            return cachedData;
+        } catch (JsonProcessingException exception) {
+            log.warn("Ignoring invalid Level 5 Redis cache entry; cacheKey={}, cause={}",
+                    cacheKey,
+                    exception.getMessage());
+            return null;
+        } catch (RuntimeException exception) {
+            log.warn("Could not read Level 5 Redis cache; cacheKey={}, cause={}: {}",
+                    cacheKey,
+                    exception.getClass().getSimpleName(),
+                    exception.getMessage());
+            return null;
+        }
+    }
+
+    private void cacheList(String cacheKey, List<?> data) {
+        try {
+            redisTemplate.opsForValue().set(cacheKey, objectMapper.writeValueAsString(data), passengerCacheTtl);
+            log.info("Cached fresh Level 5 data in Redis; cacheKey={}, size={}, ttlSeconds={}",
+                    cacheKey,
+                    data.size(),
+                    passengerCacheTtl.toSeconds());
+        } catch (JsonProcessingException exception) {
+            log.warn("Could not serialize Level 5 Redis cache entry; cacheKey={}, cause={}",
+                    cacheKey,
+                    exception.getMessage());
+        } catch (RuntimeException exception) {
+            log.warn("Could not write Level 5 Redis cache; cacheKey={}, cause={}: {}",
+                    cacheKey,
+                    exception.getClass().getSimpleName(),
+                    exception.getMessage());
         }
     }
 
@@ -420,6 +528,13 @@ public class ExternalLevel5Client implements Level5Client {
 
     private LocalDateTime toLocalDateTime(Instant instant) {
         return instant == null ? null : LocalDateTime.ofInstant(instant, ZoneId.systemDefault());
+    }
+
+    private String normalizeUserId(String userId) {
+        if (userId == null || userId.isBlank()) {
+            throw new IllegalArgumentException("Passenger user ID is required");
+        }
+        return userId.trim();
     }
 
     private List<ExternalFarePriceResponse> mockFarePrices() {
