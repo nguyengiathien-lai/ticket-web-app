@@ -69,7 +69,7 @@ export function OtpPage() {
 
   return (
     <div className="auth-page compact">
-      <form className="auth-card center" onSubmit={handleSubmit}>
+      <form className="auth-card center otp-card" onSubmit={handleSubmit}>
         <h2>Xác thực email</h2>
         <p>Nhập mã OTP gồm 6 chữ số đã gửi đến email của bạn.</p>
         <label>
@@ -101,6 +101,7 @@ export function OtpPage() {
         </div>
         {message && <p className="success" role="status">{message}</p>}
         {error && <p className="danger" role="alert">{error}</p>}
+        <div className="otp-actions" style={{ display: 'grid', gap: '14px', marginTop: '18px' }}>
         <button className="primary-button" disabled={isSubmitting}>
           {isSubmitting ? 'Đang xác thực...' : 'Xác thực'}
         </button>
@@ -113,6 +114,7 @@ export function OtpPage() {
           {isResending ? 'Đang gửi...' : 'Gửi lại mã'}
         </button>
         <Link to="/login">Quay lại đăng nhập</Link>
+        </div>
       </form>
     </div>
   );
