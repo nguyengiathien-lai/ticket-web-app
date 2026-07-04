@@ -1,5 +1,6 @@
 package com.ticketapp.client.level5;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ticketapp.dto.external.ExternalCardHistoryResponse;
 import com.ticketapp.dto.external.ExternalDiscountResponse;
 import com.ticketapp.dto.external.ExternalFarePriceResponse;
@@ -18,6 +19,7 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -40,6 +42,7 @@ public class ExternalLevel5Client implements Level5Client {
             "pkg002", new TicketDefaults(new BigDecimal("300000"), 60, 50));
 
     private final RestClient restClient;
+    private final ObjectMapper objectMapper;
     private final String ticketPurchasePath;
     private final String singleTripTicketPurchasePath;
     private final String passTicketPurchasePath;
@@ -55,6 +58,7 @@ public class ExternalLevel5Client implements Level5Client {
 
     public ExternalLevel5Client(
             RestClient.Builder builder,
+            ObjectMapper objectMapper,
             @Value("${app.level5.base-url:http://localhost:8082}") String baseUrl,
             @Value("${app.level5.ticket-purchase-path:/api/tickets/purchase}") String ticketPurchasePath,
             @Value("${app.level5.single-trip-ticket-purchase-path:/api/tickets/single-trip}") String singleTripTicketPurchasePath,
@@ -69,6 +73,7 @@ public class ExternalLevel5Client implements Level5Client {
             @Value("${app.level5.fare-discounts-path:/api/passenger/fare/discounts}") String fareDiscountsPath,
             @Value("${app.level5.mock-enabled:false}") boolean mockEnabled) {
         this.restClient = baseUrl.isBlank() ? builder.build() : builder.baseUrl(baseUrl).build();
+        this.objectMapper = objectMapper;
         this.ticketPurchasePath = ticketPurchasePath;
         this.singleTripTicketPurchasePath = singleTripTicketPurchasePath;
         this.passTicketPurchasePath = passTicketPurchasePath;
@@ -352,19 +357,27 @@ public class ExternalLevel5Client implements Level5Client {
     }
 
     private <T> T get(String path, String variableName, String variableValue, Class<T> responseType, String operation) {
-        T response = restClient.get().uri(path, Map.of(variableName, variableValue)).retrieve().body(responseType);
-        if (response == null) {
+        byte[] response = restClient.get().uri(path, Map.of(variableName, variableValue)).retrieve().body(byte[].class);
+        if (response == null || response.length == 0) {
             throw new IllegalStateException("Level 5 returned an empty response for " + operation);
         }
-        return response;
+        return readJson(response, responseType, operation);
     }
 
     private <T> T get(String path, Class<T> responseType, String operation) {
-        T response = restClient.get().uri(path).retrieve().body(responseType);
-        if (response == null) {
+        byte[] response = restClient.get().uri(path).retrieve().body(byte[].class);
+        if (response == null || response.length == 0) {
             throw new IllegalStateException("Level 5 returned an empty response for " + operation);
         }
-        return response;
+        return readJson(response, responseType, operation);
+    }
+
+    private <T> T readJson(byte[] response, Class<T> responseType, String operation) {
+        try {
+            return objectMapper.readValue(response, responseType);
+        } catch (IOException exception) {
+            throw new IllegalStateException("Level 5 returned invalid JSON for " + operation, exception);
+        }
     }
 
     private String shortToken() {
