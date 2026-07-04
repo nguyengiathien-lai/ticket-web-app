@@ -13,10 +13,17 @@ import { currency } from '../../utils/format';
 
 type PurchaseMode = 'single' | 'pass';
 type PaymentMethod = 'VNPAY' | 'CARD' | 'BANK_TRANSFER' | 'WALLET';
+type PassDurationType = 'DAILY' | 'WEEKLY' | 'MONTHLY';
 
 const purchaseModeLabels: Record<PurchaseMode, string> = {
   single: 'Vé lượt',
   pass: 'Vé gói'
+};
+
+const passDurationLabels: Record<PassDurationType, string> = {
+  DAILY: 'Gói ngày',
+  WEEKLY: 'Gói tuần',
+  MONTHLY: 'Gói tháng'
 };
 
 const paymentMethods: Array<{ value: PaymentMethod; label: string; helper: string; icon: typeof CreditCard }> = [
@@ -39,6 +46,7 @@ export function BuyTicketPage() {
   const [scope, setScope] = useState('SINGLE_ROUTE');
   const [passengerType, setPassengerType] = useState('ADULT');
   const [validFrom, setValidFrom] = useState(today);
+  const [durationType, setDurationType] = useState<PassDurationType>('MONTHLY');
   const [durationMonths, setDurationMonths] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -72,9 +80,10 @@ export function BuyTicketPage() {
     return passPackages.find((farePackage) =>
       sameMode(farePackage.mode, transportMode)
       && sameScope(farePackage.scope, scope)
-      && sameDurationMonths(farePackage, durationMonths)
+      && sameDurationType(farePackage, durationType)
+      && sameDurationValue(farePackage, durationType, durationMonths)
     );
-  }, [durationMonths, mode, passPackages, scope, singlePackages, transportMode]);
+  }, [durationMonths, durationType, mode, passPackages, scope, singlePackages, transportMode]);
   const total = selectedPackage?.price ?? 0;
 
   function handleModeChange(nextMode: PurchaseMode) {
@@ -117,8 +126,8 @@ export function BuyTicketPage() {
       routeId,
       passengerType,
       validFrom,
-      durationType: 'MONTHLY',
-      durationMonths,
+      durationType,
+      ...(durationType === 'MONTHLY' ? { durationMonths } : {}),
       paymentMethod: method
     };
   }
@@ -153,9 +162,11 @@ export function BuyTicketPage() {
           <div className="form-grid compact-grid">
             <label>Tuyến<select value={routeId} onChange={(event) => setRouteId(event.target.value)}>{routes.map((route) => <option key={route.id} value={route.id}>{route.code} - {route.name}</option>)}</select></label>
             <label>Phạm vi<select value={scope} onChange={(event) => setScope(event.target.value)}><option value="SINGLE_ROUTE">Một tuyến</option><option value="MULTI_ROUTE">Nhiều tuyến</option></select></label>
+            <label>Loại gói<select value={durationType} onChange={(event) => setDurationType(event.target.value as PassDurationType)}>{(Object.keys(passDurationLabels) as PassDurationType[]).map((key) => <option key={key} value={key}>{passDurationLabels[key]}</option>)}</select></label>
             <label>Loại hành khách<select value={passengerType} onChange={(event) => setPassengerType(event.target.value)}><option value="ADULT">Người lớn</option><option value="STUDENT">Sinh viên</option><option value="SENIOR">Người cao tuổi</option></select></label>
             <label>Hiệu lực từ<input type="date" value={validFrom} onChange={(event) => setValidFrom(event.target.value)} /></label>
-            <label>Số tháng<input type="number" min="1" value={durationMonths} onChange={(event) => setDurationMonths(Number(event.target.value) || 1)} /></label>
+            {durationType === 'MONTHLY' && <label>Số tháng<input type="number" min="1" value={durationMonths} onChange={(event) => setDurationMonths(Number(event.target.value) || 1)} /></label>}
+            {durationType !== 'MONTHLY' && <label>Thời hạn<input value={durationType === 'DAILY' ? '1 ngày' : '1 tuần'} readOnly /></label>}
           </div>
         )}
 
@@ -213,7 +224,22 @@ function sameScope(packageScope: string | undefined, selectedScope: string) {
   return (packageScope ?? 'SINGLE_ROUTE').toUpperCase() === selectedScope.toUpperCase();
 }
 
-function sameDurationMonths(farePackage: TicketPackage, selectedMonths: number) {
+function sameDurationType(farePackage: TicketPackage, selectedDurationType: PassDurationType) {
+  const normalized = farePackage.durationType?.toUpperCase();
+  if (normalized) {
+    return normalized === selectedDurationType;
+  }
+
+  if (selectedDurationType === 'DAILY') return farePackage.type === 'daily' || farePackage.durationDays <= 1;
+  if (selectedDurationType === 'WEEKLY') return farePackage.type === 'weekly' || farePackage.durationDays === 7;
+  return farePackage.type === 'monthly' || farePackage.durationDays >= 28;
+}
+
+function sameDurationValue(farePackage: TicketPackage, selectedDurationType: PassDurationType, selectedMonths: number) {
+  if (selectedDurationType !== 'MONTHLY') {
+    return true;
+  }
+
   if (farePackage.durationMonths != null) {
     return farePackage.durationMonths === selectedMonths;
   }

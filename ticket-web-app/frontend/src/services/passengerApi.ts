@@ -176,7 +176,7 @@ export interface PassPurchaseInput {
   passengerType: string;
   validFrom: string;
   durationType: string;
-  durationMonths: number;
+  durationMonths?: number;
   paymentMethod?: string;
 }
 
@@ -255,7 +255,7 @@ export async function purchaseMonthlyPassTicket(input: PassPurchaseInput): Promi
     passengerType: input.passengerType,
     validFrom: input.validFrom,
     durationType: input.durationType,
-    durationMonths: input.durationMonths,
+    ...(input.durationMonths == null ? {} : { durationMonths: input.durationMonths }),
     paymentMethod: input.paymentMethod ?? 'VNPAY'
   });
 }
