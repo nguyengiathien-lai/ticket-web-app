@@ -20,6 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
@@ -70,27 +71,110 @@ public class GateValidationService {
 
     @Transactional
     public Boolean validateTicket(ValidationRequest request) {
+        String secretHmac = "my-secret-key-for-qr-hmac-signing";
+        String qrVerificationKey = Base64.getUrlEncoder()
+                                        .withoutPadding()
+                                        .encodeToString(secretHmac.getBytes(StandardCharsets.UTF_8));     
+        
+        log.info("QR verification key generated for testing; qrVerificationKeyPreview={}", qrVerificationKey);
+        log.info("Starting ticket validation request; deviceCode={}, stationCode={}, eventType={}, payloadPresent={}, payloadLength={}",
+                request == null ? null : request.getDeviceCode(),
+                request == null ? null : request.getStationCode(),
+                request == null ? null : request.getEventType(),
+                request != null && request.getQrPayload() != null && !request.getQrPayload().isBlank(),
+                request == null || request.getQrPayload() == null ? 0 : request.getQrPayload().length());
+
         ScanContext scanContext = scanContext(request);
+        log.debug("Validation scan context resolved; deviceCode={}, stationCode={}",
+                scanContext.deviceCode(), scanContext.stationCode());
+
         QrPayload qrPayload = parseQrPayload(request);
         if (qrPayload == null) {
+            log.warn("Ticket validation rejected: QR payload is missing or malformed; deviceCode={}, stationCode={}, eventType={}, payloadPreview={}",
+                    scanContext.deviceCode(), scanContext.stationCode(), request.getEventType(),
+                    preview(request.getQrPayload()));
+            return false;
+        }
+        log.info("QR payload extracted; ticketId={}, expiresAtEpochSeconds={}, expiresAt={}, hmacPreview={}, dataToSign={}",
+                qrPayload.ticketId(),
+                qrPayload.expiresAtEpochSeconds(),
+                Instant.ofEpochSecond(qrPayload.expiresAtEpochSeconds()),
+                mask(qrPayload.hmac()),
+                qrPayload.dataToSign());
+
+        DeviceConfig deviceConfig = loadDeviceConfig(scanContext);
+        if (deviceConfig == null) {
+            log.warn("Ticket validation rejected: no device config found for station/device; stationCode={}, deviceCode={}",
+                    scanContext.stationCode(), scanContext.deviceCode());
+            return false;
+        }
+        log.info("Device config loaded; stationCode={}, deviceCode={}, algorithm={}, allowOfflineValidation={}, maxClockDriftSeconds={}, verificationKeyPresent={}, verificationKeyPreview={}",
+                scanContext.stationCode(),
+                scanContext.deviceCode(),
+                deviceConfig.qrVerificationAlgorithm(),
+                deviceConfig.allowOfflineValidation(),
+                deviceConfig.maxClockDriftSeconds(),
+                deviceConfig.qrVerificationKey() != null && !deviceConfig.qrVerificationKey().isBlank(),
+                mask(deviceConfig.qrVerificationKey()));
+
+        if (!deviceConfig.allowsQrValidation()) {
+            log.warn("Ticket validation rejected: device config does not allow QR validation; algorithm={}, allowOfflineValidation={}, verificationKeyPresent={}",
+                    deviceConfig.qrVerificationAlgorithm(),
+                    deviceConfig.allowOfflineValidation(),
+                    deviceConfig.qrVerificationKey() != null && !deviceConfig.qrVerificationKey().isBlank());
             return false;
         }
 
-        DeviceConfig deviceConfig = loadDeviceConfig(scanContext);
-        if (deviceConfig == null || !deviceConfig.allowsQrValidation()
-                || isExpired(qrPayload.expiresAtEpochSeconds(), deviceConfig.maxClockDriftSeconds())
-                || !isValidSignature(deviceConfig, qrPayload)) {
+        long currentEpochSeconds = System.currentTimeMillis() / 1000;
+        boolean expired = isExpired(qrPayload.expiresAtEpochSeconds(), deviceConfig.maxClockDriftSeconds());
+        log.info("QR expiry check; ticketId={}, nowEpochSeconds={}, expiresAtEpochSeconds={}, maxClockDriftSeconds={}, acceptedUntilEpochSeconds={}, expired={}",
+                qrPayload.ticketId(),
+                currentEpochSeconds,
+                qrPayload.expiresAtEpochSeconds(),
+                deviceConfig.maxClockDriftSeconds(),
+                qrPayload.expiresAtEpochSeconds() + deviceConfig.maxClockDriftSeconds(),
+                expired);
+        if (expired) {
+            log.warn("Ticket validation rejected: QR payload expired; ticketId={}, now={}, expiresAt={}, maxClockDriftSeconds={}",
+                    qrPayload.ticketId(),
+                    Instant.ofEpochSecond(currentEpochSeconds),
+                    Instant.ofEpochSecond(qrPayload.expiresAtEpochSeconds()),
+                    deviceConfig.maxClockDriftSeconds());
+            return false;
+        }
+
+        SignatureCheck signatureCheck = checkSignature(deviceConfig, qrPayload);
+        log.info("QR signature check; ticketId={}, expectedHmacPreview={}, receivedHmacPreview={}, valid={}",
+                qrPayload.ticketId(),
+                mask(signatureCheck.expectedHmac()),
+                mask(qrPayload.hmac()),
+                signatureCheck.valid());
+        if (!signatureCheck.valid()) {
+            log.warn("Ticket validation rejected: QR signature mismatch; ticketId={}, dataToSign={}, expectedHmacPreview={}, receivedHmacPreview={}",
+                    qrPayload.ticketId(),
+                    qrPayload.dataToSign(),
+                    mask(signatureCheck.expectedHmac()),
+                    mask(qrPayload.hmac()));
             return false;
         }
 
         recordTapEvent(request);
+        log.info("Ticket validation accepted; ticketId={}, deviceCode={}, stationCode={}, eventType={}",
+                qrPayload.ticketId(), scanContext.deviceCode(), scanContext.stationCode(), request.getEventType());
         return true;
     }
 
     @Transactional
     public void recordTapEvent(ValidationRequest request) {
         TapEvent tapEvent = toQueuedTapEvent(request);
-        tapEventRepository.save(tapEvent);
+        TapEvent savedEvent = tapEventRepository.save(tapEvent);
+        TapEvent loggedEvent = savedEvent == null ? tapEvent : savedEvent;
+        log.info("Tap event queued; tapEventId={}, eventType={}, recordedAt={}, deliveryStatus={}, payloadPreview={}",
+                loggedEvent.getId(),
+                loggedEvent.getEventType(),
+                loggedEvent.getRecordedAt(),
+                loggedEvent.getDeliveryStatus(),
+                preview(loggedEvent.getQrPayload()));
         // return new SubmitBatchResponse(QUEUED_MESSAGE);
     }
 
@@ -265,7 +349,17 @@ public class GateValidationService {
     }
 
     private DeviceConfig loadDeviceConfig(ScanContext scanContext) {
+        log.debug("Loading device config package; stationCode={}, deviceCode={}",
+                scanContext.stationCode(), scanContext.deviceCode());
         return deviceConfigRepository.findByStationCode(scanContext.stationCode())
+                .map(packageEntity -> {
+                    log.debug("Device config package found by station; stationCode={}, packageDeviceCode={}, requestedDeviceCode={}, packageId={}",
+                            scanContext.stationCode(),
+                            packageEntity.getDeviceCode(),
+                            scanContext.deviceCode(),
+                            packageEntity.getPackageId());
+                    return packageEntity;
+                })
                 .filter(packageEntity -> scanContext.deviceCode().equals(packageEntity.getDeviceCode()))
                 .map(this::toDeviceConfig)
                 .orElse(null);
@@ -274,6 +368,8 @@ public class GateValidationService {
     private DeviceConfig toDeviceConfig(DeviceConfigPackage packageEntity) {
         if (packageEntity.getQrVerificationAlgorithm() != null || packageEntity.getQrVerificationKey() != null
                 || packageEntity.getMaxClockDriftSeconds() != null || packageEntity.getAllowOfflineValidation() != null) {
+            log.debug("Using flattened device config columns; packageId={}, stationCode={}, configVersion={}",
+                    packageEntity.getPackageId(), packageEntity.getStationCode(), packageEntity.getVersion());
             return new DeviceConfig(
                     packageEntity.getQrVerificationAlgorithm(),
                     packageEntity.getQrVerificationKey(),
@@ -282,11 +378,14 @@ public class GateValidationService {
                             : packageEntity.getMaxClockDriftSeconds()),
                     Boolean.TRUE.equals(packageEntity.getAllowOfflineValidation()));
         }
+        log.debug("Using device config JSON payload; packageId={}, stationCode={}, configVersion={}",
+                packageEntity.getPackageId(), packageEntity.getStationCode(), packageEntity.getVersion());
         return DeviceConfig.fromJson(readJson(packageEntity.getPayloadJson()));
     }
 
-    private boolean isValidSignature(DeviceConfig deviceConfig, QrPayload qrPayload) {
-        return hmacSha256Base64Url(deviceConfig.qrVerificationKey(), qrPayload.dataToSign()).equals(qrPayload.hmac());
+    private SignatureCheck checkSignature(DeviceConfig deviceConfig, QrPayload qrPayload) {
+        String expectedHmac = hmacSha256Base64Url(decodeQrVerificationKey(deviceConfig.qrVerificationKey()), qrPayload.dataToSign());
+        return new SignatureCheck(expectedHmac, expectedHmac.equals(qrPayload.hmac()));
     }
 
     private JsonNode readJson(String payloadJson) {
@@ -300,6 +399,11 @@ public class GateValidationService {
     private boolean isExpired(long expiresAtEpochSeconds, long maxClockDriftSeconds) {
         return System.currentTimeMillis() / 1000 > expiresAtEpochSeconds + maxClockDriftSeconds;
     }
+
+    private String decodeQrVerificationKey(String qrVerificationKey) {
+        byte[] decoded = Base64.getUrlDecoder().decode(qrVerificationKey);
+    return new String(decoded, StandardCharsets.UTF_8);
+}
 
     private String hmacSha256Base64Url(String secret, String data) {
         try {
@@ -320,6 +424,25 @@ public class GateValidationService {
         }
     }
 
+    private String preview(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.length() <= 80 ? trimmed : trimmed.substring(0, 80) + "...";
+    }
+
+    private String mask(String value) {
+        if (value == null || value.isBlank()) {
+            return "<blank>";
+        }
+        String trimmed = value.trim();
+        if (trimmed.length() <= 8) {
+            return "***" + trimmed.length();
+        }
+        return trimmed.substring(0, 4) + "..." + trimmed.substring(trimmed.length() - 4);
+    }
+
     private record ScanContext(String deviceCode, String stationCode) {
     }
 
@@ -327,6 +450,9 @@ public class GateValidationService {
         private String dataToSign() {
             return "AFCQR:v1:" + ticketId + ":exp=" + expiresAtEpochSeconds;
         }
+    }
+
+    private record SignatureCheck(String expectedHmac, boolean valid) {
     }
 
     private record DeviceConfig(

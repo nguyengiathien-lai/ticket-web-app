@@ -4,8 +4,8 @@ import ScannerView from "./components/ScannerView";
 import TestQrGenerator from "./components/TestQrGenerator";
 import ValidationResult from "./components/ValidationResult";
 
-const GATE_ID = import.meta.env.VITE_GATE_ID ?? "GATE-01";
-const STATION_ID = import.meta.env.VITE_STATION_ID ?? "STATION-01";
+const DEVICE_CODE = import.meta.env.VITE_DEVICE_CODE ?? "gate-device-1";
+const STATION_CODE = import.meta.env.VITE_STATION_CODE ?? "station-1";
 const EVENT_TYPE = import.meta.env.VITE_GATE_EVENT_TYPE ?? "TAP_IN";
 
 export default function App() {
@@ -13,14 +13,14 @@ export default function App() {
   const [result, setResult] = useState(null);
   const [history, setHistory] = useState([]);
   const [scannerContext, setScannerContext] = useState({
-    gateId: GATE_ID,
-    stationId: STATION_ID,
+    deviceCode: DEVICE_CODE,
+    stationCode: STATION_CODE,
     eventType: EVENT_TYPE
   });
 
   const gateLabel = useMemo(
-    () => `${scannerContext.stationId} / ${scannerContext.gateId}`,
-    [scannerContext.gateId, scannerContext.stationId]
+    () => `${scannerContext.stationCode} / ${scannerContext.deviceCode}`,
+    [scannerContext.deviceCode, scannerContext.stationCode]
   );
 
   const handleScan = useCallback(async qrPayload => {
@@ -29,8 +29,8 @@ export default function App() {
     try {
       const validation = await validateTicket({
         qrPayload,
-        gateId: scannerContext.gateId,
-        stationId: scannerContext.stationId,
+        deviceCode: scannerContext.deviceCode,
+        stationCode: scannerContext.stationCode,
         eventType: scannerContext.eventType
       });
 
@@ -40,8 +40,9 @@ export default function App() {
       const failedResult = {
         status: "ERROR",
         ticketId: qrPayload,
-        gateId: scannerContext.gateId,
-        stationId: scannerContext.stationId,
+        qrPayload,
+        deviceCode: scannerContext.deviceCode,
+        stationCode: scannerContext.stationCode,
         eventType: scannerContext.eventType,
         message: error.message
       };
@@ -51,7 +52,7 @@ export default function App() {
     } finally {
       setLoading(false);
     }
-  }, [scannerContext.eventType, scannerContext.gateId, scannerContext.stationId]);
+  }, [scannerContext.deviceCode, scannerContext.eventType, scannerContext.stationCode]);
 
   return (
     <main className="app-shell">
@@ -64,7 +65,7 @@ export default function App() {
 
       <aside className="gate-panel">
         <div className="gate-status">
-          <span>Active gate</span>
+          <span>Active scanner</span>
           <strong>{gateLabel}</strong>
           <em>{scannerContext.eventType.replace("_", " ")}</em>
         </div>

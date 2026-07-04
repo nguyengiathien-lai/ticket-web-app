@@ -133,7 +133,7 @@ export default function ScannerView({
       <header className="scanner-bar">
         <div className="scanner-heading">
           <Camera size={20} aria-hidden="true" />
-          <span>Ticket gate</span>
+          <span>Ticket scanner</span>
         </div>
 
         <button
@@ -149,25 +149,25 @@ export default function ScannerView({
 
       <section className="scanner-context" aria-label="Scanner context">
         <label>
-          <span>Station</span>
+          <span>Device code</span>
           <input
-            value={scannerContext.stationId}
-            onChange={event => updateScannerContext("stationId", event.target.value)}
+            value={scannerContext.deviceCode}
+            onChange={event => updateScannerContext("deviceCode", event.target.value)}
             disabled={disabled}
           />
         </label>
 
         <label>
-          <span>Gate</span>
+          <span>Station code</span>
           <input
-            value={scannerContext.gateId}
-            onChange={event => updateScannerContext("gateId", event.target.value)}
+            value={scannerContext.stationCode}
+            onChange={event => updateScannerContext("stationCode", event.target.value)}
             disabled={disabled}
           />
         </label>
 
         <label>
-          <span>Mode</span>
+          <span>Tap mode</span>
           <select
             value={scannerContext.eventType}
             onChange={event => updateScannerContext("eventType", event.target.value)}
@@ -180,8 +180,8 @@ export default function ScannerView({
 
         <div className="scanner-context-badge">
           <TrainFront size={18} aria-hidden="true" />
-          <strong>{scannerContext.stationId}</strong>
-          <span>{scannerContext.gateId}</span>
+          <strong>{scannerContext.stationCode}</strong>
+          <span>{scannerContext.deviceCode}</span>
         </div>
       </section>
 

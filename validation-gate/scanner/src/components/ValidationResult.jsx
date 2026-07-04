@@ -81,12 +81,16 @@ export default function ValidationResult({ loading, result }) {
           <dd>{result.ticketId}</dd>
         </div>
         <div>
-          <dt>Gate</dt>
-          <dd>{result.gateId}</dd>
+          <dt>Device</dt>
+          <dd>{result.deviceCode}</dd>
         </div>
         <div>
           <dt>Station</dt>
-          <dd>{result.stationId}</dd>
+          <dd>{result.stationCode}</dd>
+        </div>
+        <div>
+          <dt>Tap</dt>
+          <dd>{result.eventType?.replace("_", " ")}</dd>
         </div>
       </dl>
     </section>

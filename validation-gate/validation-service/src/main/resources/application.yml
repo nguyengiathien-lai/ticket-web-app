@@ -23,7 +23,7 @@ spring:
     port: ${RABBITMQ_PORT:5672}
     username: ${RABBITMQ_USERNAME:guest}
     password: ${RABBITMQ_PASSWORD:guest}
-    virtual-host: ${RABBITMQ_VIRTUAL_HOST:${RABBITMQ_USERNAME:guest}}
+    virtual-host: ${RABBITMQ_VIRTUAL_HOST:/}
     ssl:
       enabled: ${RABBITMQ_SSL_ENABLED:false}
 
@@ -41,6 +41,7 @@ app:
     device-package-exchange: ${DEVICE_PACKAGE_EXCHANGE:level4.device.packages}
   cors:
     allowed-origins: ${VALIDATION_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:4173}
+    allowed-origin-patterns: ${VALIDATION_ALLOWED_ORIGIN_PATTERNS:http://localhost:*}
   level4:
     base-url: ${LEVEL4_BASE_URL:http://localhost:8083}
     scan-record-batch-path: ${LEVEL4_SCAN_RECORD_BATCH_PATH:${LEVEL4_SCAN_RECORD_PATH:/vdt/transaction/submit-batch}}
