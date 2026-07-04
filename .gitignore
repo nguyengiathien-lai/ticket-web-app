@@ -1,2 +1,14 @@
 .env
 .env.local
+
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+target/
+
+# Logs and local build metadata
+*.log
+*.tsbuildinfo
