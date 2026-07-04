@@ -42,7 +42,7 @@ public class DeviceInformationPackageListener {
         } catch (JsonProcessingException exception) {
             log.error("Could not parse device information package JSON", exception);
             ackFailure(extractSyncId(packageJson), "Could not parse device information package JSON");
-            throw new IllegalArgumentException("Could not parse device information package JSON", exception);
+            return;
         }
 
         try {
@@ -50,10 +50,15 @@ public class DeviceInformationPackageListener {
         } catch (RuntimeException exception) {
             log.error("Could not store device information package", exception);
             ackFailure(packageMessage.syncId(), exception.getMessage());
-            throw exception;
+            return;
         }
 
-        level4Client.ackControlPackageApply(packageMessage.syncId(), "APPLIED", null);
+        try {
+            level4Client.ackControlPackageApply(packageMessage.syncId(), "APPLIED", null);
+        } catch (RuntimeException exception) {
+            log.error("Could not ack applied device information package; syncId={}", packageMessage.syncId(), exception);
+            throw exception;
+        }
         log.info("Stored device information package successfully");
     }
 

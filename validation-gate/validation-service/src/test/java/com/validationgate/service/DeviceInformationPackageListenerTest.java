@@ -51,22 +51,39 @@ class DeviceInformationPackageListenerTest {
                 packageService,
                 level4Client);
 
-        try {
-            listener.receive(message("""
-                    {
-                      "syncId": 43,
-                      "publishedAt": "2026-06-25T00:00:00Z",
-                      "deviceConfig": {},
-                      "stationContext": {"stationCode": "station-2"},
-                      "mediaAccessRules": {"cardStatusRules": []}
-                    }
-                    """));
-        } catch (IllegalArgumentException ignored) {
-            // Expected so Rabbit can retry according to listener container policy.
-        }
+        listener.receive(message("""
+                {
+                  "syncId": 43,
+                  "publishedAt": "2026-06-25T00:00:00Z",
+                  "deviceConfig": {},
+                  "stationContext": {"stationCode": "station-2"},
+                  "mediaAccessRules": {"cardStatusRules": []}
+                }
+                """));
 
         org.assertj.core.api.Assertions.assertThat(level4Client.acks)
                 .containsExactly(new Ack(43L, "FAILED", "wrong station"));
+    }
+
+    @Test
+    void acksFailedWhenPackageCannotBeParsed() {
+        StubPackageService packageService = new StubPackageService();
+        CapturingLevel4Client level4Client = new CapturingLevel4Client();
+        DeviceInformationPackageListener listener = new DeviceInformationPackageListener(
+                objectMapper,
+                packageService,
+                level4Client);
+
+        listener.receive(message("""
+                {
+                  "syncId": 44,
+                  "publishedAt":
+                }
+                """));
+
+        org.assertj.core.api.Assertions.assertThat(packageService.storedMessages).isEmpty();
+        org.assertj.core.api.Assertions.assertThat(level4Client.acks)
+                .containsExactly(new Ack(null, "FAILED", "Could not parse device information package JSON"));
     }
 
     private Message message(String json) {
