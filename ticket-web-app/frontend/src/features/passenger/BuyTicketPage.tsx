@@ -24,7 +24,6 @@ export function BuyTicketPage() {
   const [routes, setRoutes] = useState<TransitRoute[]>([]);
   const [stations, setStations] = useState<TransitStation[]>([]);
   const [mode, setMode] = useState<PurchaseMode>('single');
-  const [selectedPackageId, setSelectedPackageId] = useState('');
   const [transportMode, setTransportMode] = useState('METRO');
   const [fromStationId, setFromStationId] = useState('');
   const [toStationId, setToStationId] = useState('');
@@ -32,7 +31,6 @@ export function BuyTicketPage() {
   const [scope, setScope] = useState('SINGLE_ROUTE');
   const [passengerType, setPassengerType] = useState('ADULT');
   const [validFrom, setValidFrom] = useState(today);
-  const [durationType, setDurationType] = useState('MONTHLY');
   const [durationMonths, setDurationMonths] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -42,11 +40,9 @@ export function BuyTicketPage() {
   useEffect(() => {
     Promise.all([getTicketPackages(), getTransitRoutes(), getTransitStations()])
       .then(([farePackages, routeList, stationList]) => {
-        const firstPurchasablePackage = farePackages.find((farePackage) => farePackage.mode !== 'TRAIN');
         setPackages(farePackages);
         setRoutes(routeList);
         setStations(stationList);
-        setSelectedPackageId(firstPurchasablePackage?.id ?? '');
         setRouteId(routeList[0]?.id ?? '');
         setFromStationId(stationList[0]?.id ?? '');
         setToStationId(stationList[1]?.id ?? stationList[0]?.id ?? '');
@@ -55,29 +51,24 @@ export function BuyTicketPage() {
       .finally(() => setIsLoading(false));
   }, []);
 
-  const selectedPackage = useMemo(
-    () => packages.find((farePackage) => farePackage.id === selectedPackageId),
-    [packages, selectedPackageId]
-  );
   const purchasablePackages = packages.filter((farePackage) => farePackage.mode !== 'TRAIN');
   const singlePackages = purchasablePackages.filter((farePackage) => farePackage.type === 'single');
   const passPackages = purchasablePackages.filter((farePackage) => farePackage.type !== 'single');
-  const visiblePackages = mode === 'single' ? singlePackages : passPackages;
-  const total = selectedPackage?.price ?? 0;
-
-  useEffect(() => {
-    if (selectedPackage) {
-      setTransportMode(selectedPackage.mode ?? transportMode);
-      setScope(selectedPackage.scope ?? scope);
-      setDurationType(selectedPackage.durationType ?? durationType);
-      setDurationMonths(selectedPackage.durationMonths ?? durationMonths);
+  const selectedPackage = useMemo(() => {
+    if (mode === 'single') {
+      return singlePackages.find((farePackage) => sameMode(farePackage.mode, transportMode));
     }
-  }, [selectedPackage]);
+
+    return passPackages.find((farePackage) =>
+      sameMode(farePackage.mode, transportMode)
+      && sameScope(farePackage.scope, scope)
+      && sameDurationMonths(farePackage, durationMonths)
+    );
+  }, [durationMonths, mode, passPackages, scope, singlePackages, transportMode]);
+  const total = selectedPackage?.price ?? 0;
 
   function handleModeChange(nextMode: PurchaseMode) {
     setMode(nextMode);
-    const nextPackage = (nextMode === 'single' ? singlePackages : passPackages)[0];
-    setSelectedPackageId(nextPackage?.id ?? '');
     setMessage('');
     setError('');
   }
@@ -108,7 +99,7 @@ export function BuyTicketPage() {
       routeId,
       passengerType,
       validFrom,
-      durationType,
+      durationType: 'MONTHLY',
       durationMonths
     };
   }
@@ -134,13 +125,6 @@ export function BuyTicketPage() {
           <button className={transportMode === 'METRO' ? 'active' : ''} onClick={() => setTransportMode('METRO')}><TrainFront />Metro</button>
         </div>
 
-        <label>
-          Gói vé
-          <select value={selectedPackageId} onChange={(event) => setSelectedPackageId(event.target.value)} disabled={isLoading || visiblePackages.length === 0}>
-            {visiblePackages.map((farePackage) => <option key={farePackage.id} value={farePackage.id}>{farePackage.name}</option>)}
-          </select>
-        </label>
-
         {mode === 'single' ? (
           <div className="form-grid compact-grid">
             <label>Ga đi<select value={fromStationId} onChange={(event) => setFromStationId(event.target.value)}>{stations.map((station) => <option key={station.id} value={station.id}>{station.name}</option>)}</select></label>
@@ -152,29 +136,43 @@ export function BuyTicketPage() {
             <label>Phạm vi<select value={scope} onChange={(event) => setScope(event.target.value)}><option value="SINGLE_ROUTE">Một tuyến</option><option value="MULTI_ROUTE">Nhiều tuyến</option></select></label>
             <label>Loại hành khách<select value={passengerType} onChange={(event) => setPassengerType(event.target.value)}><option value="ADULT">Người lớn</option><option value="STUDENT">Sinh viên</option><option value="SENIOR">Người cao tuổi</option></select></label>
             <label>Hiệu lực từ<input type="date" value={validFrom} onChange={(event) => setValidFrom(event.target.value)} /></label>
-            <label>Loại thời hạn<select value={durationType} onChange={(event) => setDurationType(event.target.value)}><option value="MONTHLY">Theo tháng</option><option value="DAILY">Theo ngày</option></select></label>
             <label>Số tháng<input type="number" min="1" value={durationMonths} onChange={(event) => setDurationMonths(Number(event.target.value) || 1)} /></label>
           </div>
         )}
 
         <div className="total"><span>Tổng tiền</span><b>{currency(total)}</b></div>
-        <button className="primary-button" disabled={isLoading || isSubmitting || (mode !== 'single' && !routeId) || (mode === 'single' && (!fromStationId || !toStationId))} onClick={handleSubmit}>
+        <button className="primary-button" disabled={isLoading || isSubmitting || !selectedPackage || (mode !== 'single' && !routeId) || (mode === 'single' && (!fromStationId || !toStationId))} onClick={handleSubmit}>
           {isSubmitting ? 'Đang xử lý...' : 'Thanh toán bằng VNPay thử nghiệm'}
         </button>
       </Card>
 
-      <Card title="Các gói vé hiện có">
+      <Card title="Gói vé được xác định">
         <div className="package-list">
-          {visiblePackages.map((farePackage) => (
-            <label className={selectedPackageId === farePackage.id ? 'package-option selected' : 'package-option'} key={farePackage.id}>
-              <input type="radio" checked={selectedPackageId === farePackage.id} onChange={() => setSelectedPackageId(farePackage.id)} />
-              <span><b>{farePackage.name}</b><small>{farePackage.description}</small></span>
-              <b>{currency(farePackage.price)}</b>
-            </label>
-          ))}
-          {!isLoading && visiblePackages.length === 0 && <p>Chưa có gói vé phù hợp với loại mua này.</p>}
+          {selectedPackage ? (
+            <div className="package-option selected" style={{ gridTemplateColumns: '1fr auto' }}>
+              <span><b>{selectedPackage.name}</b><small>{selectedPackage.description}</small></span>
+              <b>{currency(selectedPackage.price)}</b>
+            </div>
+          ) : (
+            !isLoading && <p>Chưa có gói vé phù hợp với lựa chọn hiện tại.</p>
+          )}
         </div>
       </Card>
     </div>
   );
+}
+
+function sameMode(packageMode: string | undefined, selectedMode: string) {
+  return (packageMode ?? '').toUpperCase() === selectedMode.toUpperCase();
+}
+
+function sameScope(packageScope: string | undefined, selectedScope: string) {
+  return (packageScope ?? 'SINGLE_ROUTE').toUpperCase() === selectedScope.toUpperCase();
+}
+
+function sameDurationMonths(farePackage: TicketPackage, selectedMonths: number) {
+  if (farePackage.durationMonths != null) {
+    return farePackage.durationMonths === selectedMonths;
+  }
+  return Math.round(farePackage.durationDays / 30) === selectedMonths;
 }
