@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { QrCode } from 'lucide-react';
+import QRCode from 'qrcode';
 import { Card } from '../../components/Card';
 import { getStoredAccount } from '../../services/authApi';
 import {
@@ -20,6 +21,7 @@ export function MyCardPage() {
   const [tickets, setTickets] = useState<PassengerTicket[]>([]);
   const [routes, setRoutes] = useState<TransitRoute[]>([]);
   const [qr, setQr] = useState<TicketQr | null>(null);
+  const [qrImageUrl, setQrImageUrl] = useState('');
   const [selectedTicketId, setSelectedTicketId] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isQrLoading, setIsQrLoading] = useState(false);
@@ -48,6 +50,21 @@ export function MyCardPage() {
       })
       .finally(() => setIsLoading(false));
   }, []);
+
+  useEffect(() => {
+    if (!qr?.qrCode) {
+      setQrImageUrl('');
+      return;
+    }
+
+    QRCode.toDataURL(qr.qrCode, {
+      errorCorrectionLevel: 'M',
+      margin: 2,
+      scale: 8
+    })
+      .then(setQrImageUrl)
+      .catch(() => setQrImageUrl(''));
+  }, [qr]);
 
   async function handleQr(ticketId: string) {
     setSelectedTicketId(ticketId);
@@ -127,6 +144,23 @@ export function MyCardPage() {
         {qr && (
           <div className="qr-panel">
             <b>{qr.ticketId}</b>
+            {qrImageUrl && (
+              <img
+                src={qrImageUrl}
+                alt={`QR vé ${qr.ticketId}`}
+                style={{
+                  width: 220,
+                  height: 220,
+                  maxWidth: '100%',
+                  justifySelf: 'center',
+                  background: 'white',
+                  border: '1px solid var(--border)',
+                  borderRadius: 8,
+                  padding: 10,
+                  imageRendering: 'pixelated'
+                }}
+              />
+            )}
             <code>{qr.qrCode}</code>
           </div>
         )}

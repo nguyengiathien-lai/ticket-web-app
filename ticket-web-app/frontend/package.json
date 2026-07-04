@@ -10,19 +10,21 @@
     "lint": "eslint ."
   },
   "dependencies": {
+    "@types/qrcode": "^1.5.6",
     "@vitejs/plugin-react": "latest",
-    "vite": "latest",
-    "vite-plugin-pwa": "latest",
-    "typescript": "latest",
+    "lucide-react": "latest",
+    "qrcode": "^1.5.4",
     "react": "latest",
     "react-dom": "latest",
     "react-router-dom": "latest",
-    "lucide-react": "latest",
-    "recharts": "latest"
+    "recharts": "latest",
+    "typescript": "latest",
+    "vite": "latest",
+    "vite-plugin-pwa": "latest"
   },
   "devDependencies": {
-    "eslint": "latest",
     "@types/react": "latest",
-    "@types/react-dom": "latest"
+    "@types/react-dom": "latest",
+    "eslint": "latest"
   }
 }
