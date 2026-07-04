@@ -61,7 +61,7 @@ export function BuyTicketPage() {
         setPackages(farePackages);
         setRoutes(routeList);
         setStations(stationList);
-        setRouteId(routeList[0]?.id ?? '');
+        setRouteId(routeList.find((route) => sameRouteMode(route, transportMode))?.id ?? routeList[0]?.id ?? '');
         setFromStationId(stationList[0]?.id ?? '');
         setToStationId(stationList[1]?.id ?? stationList[0]?.id ?? '');
       })
@@ -72,6 +72,7 @@ export function BuyTicketPage() {
   const purchasablePackages = packages.filter((farePackage) => farePackage.mode !== 'TRAIN');
   const singlePackages = purchasablePackages.filter((farePackage) => farePackage.type === 'single');
   const passPackages = purchasablePackages.filter((farePackage) => farePackage.type !== 'single');
+  const routesForMode = routes.filter((route) => sameRouteMode(route, transportMode));
   const selectedPackage = useMemo(() => {
     if (mode === 'single') {
       return singlePackages.find((farePackage) => sameMode(farePackage.mode, transportMode));
@@ -85,6 +86,16 @@ export function BuyTicketPage() {
     );
   }, [durationMonths, durationType, mode, passPackages, scope, singlePackages, transportMode]);
   const total = selectedPackage?.price ?? 0;
+
+  useEffect(() => {
+    if (mode !== 'pass' || routesForMode.length === 0) {
+      return;
+    }
+
+    if (!routesForMode.some((route) => route.id === routeId)) {
+      setRouteId(routesForMode[0].id);
+    }
+  }, [mode, routeId, routesForMode]);
 
   function handleModeChange(nextMode: PurchaseMode) {
     setMode(nextMode);
@@ -122,7 +133,7 @@ export function BuyTicketPage() {
   function passInput(method: PaymentMethod) {
     return {
       mode: transportMode,
-      scope,
+      ...(selectedPackage?.scope ? { scope: selectedPackage.scope } : {}),
       routeId,
       passengerType,
       validFrom,
@@ -160,7 +171,7 @@ export function BuyTicketPage() {
           </div>
         ) : (
           <div className="form-grid compact-grid">
-            <label>Tuyến<select value={routeId} onChange={(event) => setRouteId(event.target.value)}>{routes.map((route) => <option key={route.id} value={route.id}>{route.code} - {route.name}</option>)}</select></label>
+            <label>Tuyến<select value={routeId} onChange={(event) => setRouteId(event.target.value)}>{routesForMode.map((route) => <option key={route.id} value={route.id}>{route.code} - {route.name}</option>)}</select></label>
             <label>Phạm vi<select value={scope} onChange={(event) => setScope(event.target.value)}><option value="SINGLE_ROUTE">Một tuyến</option><option value="MULTI_ROUTE">Nhiều tuyến</option></select></label>
             <label>Loại gói<select value={durationType} onChange={(event) => setDurationType(event.target.value as PassDurationType)}>{(Object.keys(passDurationLabels) as PassDurationType[]).map((key) => <option key={key} value={key}>{passDurationLabels[key]}</option>)}</select></label>
             <label>Loại hành khách<select value={passengerType} onChange={(event) => setPassengerType(event.target.value)}><option value="ADULT">Người lớn</option><option value="STUDENT">Sinh viên</option><option value="SENIOR">Người cao tuổi</option></select></label>
@@ -222,6 +233,18 @@ function sameMode(packageMode: string | undefined, selectedMode: string) {
 
 function sameScope(packageScope: string | undefined, selectedScope: string) {
   return (packageScope ?? 'SINGLE_ROUTE').toUpperCase() === selectedScope.toUpperCase();
+}
+
+function sameRouteMode(route: TransitRoute, selectedMode: string) {
+  const normalizedRouteType = route.type.toLowerCase();
+  const normalizedMode = selectedMode.toLowerCase();
+  if (normalizedMode === 'metro') {
+    return normalizedRouteType.includes('metro');
+  }
+  if (normalizedMode === 'bus') {
+    return normalizedRouteType.includes('buýt') || normalizedRouteType.includes('bus');
+  }
+  return false;
 }
 
 function sameDurationType(farePackage: TicketPackage, selectedDurationType: PassDurationType) {

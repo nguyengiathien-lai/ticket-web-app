@@ -171,7 +171,7 @@ export interface SingleTripPurchaseInput {
 
 export interface PassPurchaseInput {
   mode: string;
-  scope: string;
+  scope?: string;
   routeId: string;
   passengerType: string;
   validFrom: string;

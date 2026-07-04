@@ -1,5 +1,6 @@
 package com.ticketapp.dto.external;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -7,6 +8,7 @@ import java.time.LocalDate;
 
 @Getter
 @Builder
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class ExternalPassTicketRequest {
 
     private String userId;

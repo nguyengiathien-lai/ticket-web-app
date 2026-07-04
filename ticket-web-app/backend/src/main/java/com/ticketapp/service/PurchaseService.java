@@ -149,7 +149,7 @@ public class PurchaseService {
         return level5Client.purchasePassTicket(ExternalPassTicketRequest.builder()
                 .userId(request.getUserId())
                 .mode(firstText(request.getMode(), inferMode(request.getPackageId()), "METRO"))
-                .scope(firstText(request.getScope(), "SINGLE_ROUTE"))
+                .scope(request.getScope())
                 .routeId(requireText(request.getRouteId(), "routeId is required for monthly pass tickets"))
                 .passengerType(firstText(request.getPassengerType(), "ADULT"))
                 .validFrom(firstValue(request.getValidFrom(), LocalDate.now()))
