@@ -375,7 +375,7 @@ function mapFarePrice(farePrice: ExternalFarePriceResponse): TicketPackage[] {
       description: describePackage(mode, pass.scope, durationDays),
       price: toNumber(pass.price),
       durationDays,
-      type: mapPackageType(pass.durationType, durationDays),
+      type: mapPassPackageType(pass.durationType, durationDays),
       mode,
       scope: pass.scope,
       durationType: pass.durationType,
@@ -424,6 +424,11 @@ function mapPackageType(durationType?: string, durationDays = 1): TicketPackage[
   if (normalized.includes('week') || durationDays >= 7) return 'weekly';
   if (normalized.includes('day') || durationDays > 1) return 'daily';
   return 'single';
+}
+
+function mapPassPackageType(durationType?: string, durationDays = 1): TicketPackage['type'] {
+  const packageType = mapPackageType(durationType, durationDays);
+  return packageType === 'single' ? 'daily' : packageType;
 }
 
 function mapMode(value?: string): TransitRoute['type'] {
