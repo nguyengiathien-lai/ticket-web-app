@@ -20,6 +20,7 @@ export function MyCardPage() {
   const [tickets, setTickets] = useState<PassengerTicket[]>([]);
   const [routes, setRoutes] = useState<TransitRoute[]>([]);
   const [qr, setQr] = useState<TicketQr | null>(null);
+  const [selectedTicketId, setSelectedTicketId] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isQrLoading, setIsQrLoading] = useState(false);
   const [error, setError] = useState('');
@@ -35,6 +36,7 @@ export function MyCardPage() {
         }
         if (ticketResult.status === 'fulfilled') {
           setTickets(ticketResult.value);
+          setSelectedTicketId((current) => current || ticketResult.value[0]?.id || '');
         }
         if (routeResult.status === 'fulfilled') {
           setRoutes(routeResult.value);
@@ -48,6 +50,7 @@ export function MyCardPage() {
   }, []);
 
   async function handleQr(ticketId: string) {
+    setSelectedTicketId(ticketId);
     setQr(null);
     setError('');
     setIsQrLoading(true);
@@ -58,6 +61,13 @@ export function MyCardPage() {
     } finally {
       setIsQrLoading(false);
     }
+  }
+
+  async function handleSelectedTicketQr() {
+    if (!selectedTicketId) {
+      return;
+    }
+    await handleQr(selectedTicketId);
   }
 
   function formatRoute(routeId?: string) {
@@ -90,6 +100,36 @@ export function MyCardPage() {
           <dt>Ngày phát hành</dt><dd>{formatDate(primaryCard?.issuedAt ?? primaryCard?.activatedAt ?? primaryCard?.linkedAt)}</dd>
           <dt>Trạng thái</dt><dd className={primaryCard?.status === 'ACTIVE' ? 'success' : 'warning'}>{formatStatus(primaryCard?.status)}</dd>
         </dl>
+      </Card>
+
+      <Card title="Yêu cầu QR vé" className="wide">
+        {!isLoading && tickets.length === 0 && <p>Chưa có vé để tạo mã QR.</p>}
+        {tickets.length > 0 && (
+          <div className="form-grid compact-grid">
+            <label>
+              Vé
+              <select value={selectedTicketId} onChange={(event) => setSelectedTicketId(event.target.value)}>
+                {tickets.map((ticket) => (
+                  <option key={ticket.id} value={ticket.id}>
+                    {formatTicketType(ticket.type)} - {formatMode(ticket.mode)} - {formatDate(ticket.validUntil)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Thao tác
+              <button className="primary-button" disabled={isQrLoading || !selectedTicketId} onClick={handleSelectedTicketQr}>
+                {isQrLoading ? 'Đang tải mã QR...' : 'Yêu cầu QR'}
+              </button>
+            </label>
+          </div>
+        )}
+        {qr && (
+          <div className="qr-panel">
+            <b>{qr.ticketId}</b>
+            <code>{qr.qrCode}</code>
+          </div>
+        )}
       </Card>
 
       <Card title="Vé và gói tháng" className="wide">
@@ -126,12 +166,6 @@ export function MyCardPage() {
             </tbody>
           </table>
         </div>
-        {qr && (
-          <div className="qr-panel">
-            <b>{qr.ticketId}</b>
-            <code>{qr.qrCode}</code>
-          </div>
-        )}
       </Card>
     </div>
   );
