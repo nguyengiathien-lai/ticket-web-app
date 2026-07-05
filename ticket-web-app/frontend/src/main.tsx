@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom';
 import { registerSW } from 'virtual:pwa-register';
 import { App } from './App';
 import './styles/global.css';
+import './styles/admin.css';
 import './styles/routes.css';
 
 registerSW({ immediate: true });

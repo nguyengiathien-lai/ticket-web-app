@@ -1,0 +1,68 @@
+.table-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.secondary-button,
+.warning-button,
+.danger-button {
+  border: 0;
+  border-radius: 10px;
+  padding: 9px 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.secondary-button.fit,
+.warning-button.fit,
+.danger-button.fit {
+  width: auto;
+}
+
+.secondary-button {
+  background: #e8f1ff;
+  color: #0f62fe;
+}
+
+.warning-button {
+  background: #fff7ed;
+  color: #d97706;
+}
+
+.danger-button {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.secondary-button:disabled,
+.warning-button:disabled,
+.danger-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.confirm-notification {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+  margin-bottom: 16px;
+  padding: 14px;
+  border: 1px solid #fecaca;
+  border-radius: 14px;
+  background: #fff7f7;
+}
+
+.confirm-notification p {
+  margin: 4px 0 0;
+  color: #365376;
+}
+
+@media (max-width: 640px) {
+  .confirm-notification {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

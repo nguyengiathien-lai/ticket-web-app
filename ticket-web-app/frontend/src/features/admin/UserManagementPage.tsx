@@ -1,22 +1,165 @@
+import { useEffect, useMemo, useState } from 'react';
 import { Card } from '../../components/Card';
+import type { AccountResponse } from '../../services/authApi';
+import {
+  activateAdminAccount,
+  deactivateAdminAccount,
+  deleteAdminAccount,
+  getAdminAccounts
+} from '../../services/adminUserApi';
 
 export function UserManagementPage() {
-  const users = ['Nguyễn Văn A', 'Trần Thị B', 'Lê Văn C'];
+  const [accounts, setAccounts] = useState<AccountResponse[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
+  const [pendingDelete, setPendingDelete] = useState<AccountResponse | null>(null);
+  const [busyAccountId, setBusyAccountId] = useState('');
+
+  useEffect(() => {
+    loadAccounts();
+  }, []);
+
+  const sortedAccounts = useMemo(() => {
+    return [...accounts].sort((first, second) => {
+      return (second.createdAt || '').localeCompare(first.createdAt || '');
+    });
+  }, [accounts]);
+
+  async function loadAccounts() {
+    setLoading(true);
+    setError('');
+
+    try {
+      setAccounts(await getAdminAccounts());
+    } catch (exception) {
+      setError(toMessage(exception, 'Không thể tải danh sách người dùng.'));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function toggleAccountStatus(account: AccountResponse) {
+    setBusyAccountId(account.id);
+    setError('');
+    setMessage('');
+
+    try {
+      const updatedAccount = account.isActive
+        ? await deactivateAdminAccount(account.id)
+        : await activateAdminAccount(account.id);
+
+      setAccounts((current) => current.map((item) => item.id === updatedAccount.id ? updatedAccount : item));
+      setMessage(account.isActive ? 'Đã khóa tài khoản.' : 'Đã kích hoạt tài khoản.');
+    } catch (exception) {
+      setError(toMessage(exception, 'Không thể cập nhật trạng thái tài khoản.'));
+    } finally {
+      setBusyAccountId('');
+    }
+  }
+
+  async function confirmDeleteAccount() {
+    if (!pendingDelete) {
+      return;
+    }
+
+    setBusyAccountId(pendingDelete.id);
+    setError('');
+    setMessage('');
+
+    try {
+      await deleteAdminAccount(pendingDelete.id);
+      setAccounts((current) => current.filter((account) => account.id !== pendingDelete.id));
+      setMessage('Đã xóa tài khoản.');
+      setPendingDelete(null);
+    } catch (exception) {
+      setError(toMessage(exception, 'Không thể xóa tài khoản.'));
+    } finally {
+      setBusyAccountId('');
+    }
+  }
 
   return (
     <Card title="Quản lý người dùng">
-      <button className="primary-button fit">+ Thêm mới</button>
+      {message && <p className="success" role="status">{message}</p>}
+      {error && <p className="danger" role="alert">{error}</p>}
+      {pendingDelete && (
+        <div className="confirm-notification" role="alertdialog" aria-labelledby="delete-account-title">
+          <div>
+            <strong id="delete-account-title">Xác nhận xóa tài khoản</strong>
+            <p>Bạn có chắc muốn xóa tài khoản {displayName(pendingDelete)} không?</p>
+          </div>
+          <div className="table-actions">
+            <button
+              className="secondary-button fit"
+              type="button"
+              onClick={() => setPendingDelete(null)}
+              disabled={busyAccountId === pendingDelete.id}
+            >
+              Hủy
+            </button>
+            <button
+              className="danger-button fit"
+              type="button"
+              onClick={confirmDeleteAccount}
+              disabled={busyAccountId === pendingDelete.id}
+            >
+              Xóa
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="table-wrap">
         <table>
-          <thead><tr><th>Họ tên</th><th>Địa chỉ email</th><th>SĐT</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
+          <thead>
+            <tr>
+              <th>Họ tên</th>
+              <th>Địa chỉ email</th>
+              <th>SĐT</th>
+              <th>Trạng thái</th>
+              <th>Thao tác</th>
+            </tr>
+          </thead>
           <tbody>
-            {users.map((user, index) => (
-              <tr key={user}>
-                <td>{user}</td>
-                <td>user{index + 1}@gmail.com</td>
-                <td>09012345{index + 6}7</td>
-                <td className={index === 2 ? 'danger' : 'success'}>{index === 2 ? 'Khóa' : 'Hoạt động'}</td>
-                <td>Sửa / Xóa</td>
+            {loading && (
+              <tr>
+                <td colSpan={5}>Đang tải danh sách người dùng...</td>
+              </tr>
+            )}
+            {!loading && sortedAccounts.length === 0 && (
+              <tr>
+                <td colSpan={5}>Chưa có người dùng nào.</td>
+              </tr>
+            )}
+            {!loading && sortedAccounts.map((account) => (
+              <tr key={account.id}>
+                <td>{displayName(account)}</td>
+                <td>{account.email}</td>
+                <td>{account.phoneNumber || 'Chưa cập nhật'}</td>
+                <td className={account.isActive ? 'success' : 'danger'}>
+                  {account.isActive ? 'Hoạt động' : 'Khóa'}
+                </td>
+                <td>
+                  <div className="table-actions">
+                    <button
+                      className={account.isActive ? 'warning-button fit' : 'secondary-button fit'}
+                      type="button"
+                      onClick={() => toggleAccountStatus(account)}
+                      disabled={busyAccountId === account.id}
+                    >
+                      {account.isActive ? 'Khóa' : 'Kích hoạt'}
+                    </button>
+                    <button
+                      className="danger-button fit"
+                      type="button"
+                      onClick={() => setPendingDelete(account)}
+                      disabled={busyAccountId === account.id}
+                    >
+                      Xóa
+                    </button>
+                  </div>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -24,4 +167,12 @@ export function UserManagementPage() {
       </div>
     </Card>
   );
+}
+
+function displayName(account: AccountResponse) {
+  return account.fullName || account.email;
+}
+
+function toMessage(exception: unknown, fallback: string) {
+  return exception instanceof Error ? exception.message : fallback;
 }
