@@ -16,7 +16,6 @@ import { NotificationsPage } from './features/passenger/NotificationsPage';
 import { AdminDashboardPage } from './features/admin/AdminDashboardPage';
 import { UserManagementPage } from './features/admin/UserManagementPage';
 import { LoginHistoryPage } from './features/admin/LoginHistoryPage';
-import { ReportsPage } from './features/admin/ReportsPage';
 import { SettingsPage } from './features/admin/SettingsPage';
 
 export function App() {
@@ -44,7 +43,7 @@ export function App() {
           <Route path="/admin" element={<AdminDashboardPage />} />
           <Route path="/admin/users" element={<UserManagementPage />} />
           <Route path="/admin/login-history" element={<LoginHistoryPage />} />
-          <Route path="/admin/reports" element={<ReportsPage />} />
+          <Route path="/admin/reports" element={<Navigate to="/admin" replace />} />
           <Route path="/admin/settings" element={<SettingsPage />} />
         </Route>
       </Route>

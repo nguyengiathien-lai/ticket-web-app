@@ -1,5 +1,6 @@
 import { ChangeEvent, FormEvent, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useToast } from '../../components/ToastProvider';
 import { resendEmailOtp, verifyEmailOtp } from '../../services/authApi';
 
 export function OtpPage() {
@@ -15,6 +16,7 @@ export function OtpPage() {
   const [message, setMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isResending, setIsResending] = useState(false);
+  const toast = useToast();
 
   function handleDigitChange(index: number, event: ChangeEvent<HTMLInputElement>) {
     const value = event.target.value.replace(/\D/g, '').slice(-1);
@@ -35,19 +37,24 @@ export function OtpPage() {
 
     const code = digits.join('');
     if (code.length !== 6) {
-      setError('Vui lòng nhập đủ mã xác thực gồm 6 chữ số.');
+      const reason = 'Vui lòng nhập đủ mã xác thực gồm 6 chữ số.';
+      setError(reason);
+      toast.error(reason);
       return;
     }
 
     setIsSubmitting(true);
     try {
       await verifyEmailOtp(email.trim(), code);
+      toast.success('Xác thực email thành công.');
       navigate('/login', {
         replace: true,
         state: { message: 'Xác thực email thành công. Bạn có thể đăng nhập ngay.' }
       });
     } catch (exception) {
-      setError(exception instanceof Error ? exception.message : 'Không thể xác thực email. Vui lòng thử lại.');
+      const reason = exception instanceof Error ? exception.message : 'Không thể xác thực email. Vui lòng thử lại.';
+      setError(reason);
+      toast.error(reason);
     } finally {
       setIsSubmitting(false);
     }
@@ -60,8 +67,11 @@ export function OtpPage() {
     try {
       await resendEmailOtp(email.trim());
       setMessage('Mã xác thực mới đã được gửi.');
+      toast.success('Mã xác thực mới đã được gửi.');
     } catch (exception) {
-      setError(exception instanceof Error ? exception.message : 'Không thể gửi lại mã xác thực.');
+      const reason = exception instanceof Error ? exception.message : 'Không thể gửi lại mã xác thực.';
+      setError(reason);
+      toast.error(reason);
     } finally {
       setIsResending(false);
     }
@@ -74,14 +84,7 @@ export function OtpPage() {
         <p>Nhập mã OTP gồm 6 chữ số đã gửi đến email của bạn.</p>
         <label>
           Địa chỉ email
-          <input
-            type="email"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            disabled={isSubmitting}
-            required
-            autoComplete="email"
-          />
+          <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} disabled={isSubmitting} required autoComplete="email" />
         </label>
         <div className="otp-row">
           {digits.map((digit, index) => (
@@ -102,18 +105,13 @@ export function OtpPage() {
         {message && <p className="success" role="status">{message}</p>}
         {error && <p className="danger" role="alert">{error}</p>}
         <div className="otp-actions" style={{ display: 'grid', gap: '14px', marginTop: '18px' }}>
-        <button className="primary-button" disabled={isSubmitting}>
-          {isSubmitting ? 'Đang xác thực...' : 'Xác thực'}
-        </button>
-        <button
-          type="button"
-          className="primary-button secondary-button"
-          onClick={handleResend}
-          disabled={isSubmitting || isResending || !email.trim()}
-        >
-          {isResending ? 'Đang gửi...' : 'Gửi lại mã'}
-        </button>
-        <Link to="/login">Quay lại đăng nhập</Link>
+          <button className="primary-button" disabled={isSubmitting}>
+            {isSubmitting ? 'Đang xác thực...' : 'Xác thực'}
+          </button>
+          <button type="button" className="primary-button secondary-button" onClick={handleResend} disabled={isSubmitting || isResending || !email.trim()}>
+            {isResending ? 'Đang gửi...' : 'Gửi lại mã'}
+          </button>
+          <Link to="/login">Quay lại đăng nhập</Link>
         </div>
       </form>
     </div>

@@ -7,7 +7,6 @@ import {
   History,
   Home,
   LogOut,
-  Map,
   Settings,
   Shield,
   Ticket,
@@ -31,7 +30,6 @@ const adminLinks = [
   { to: '/admin', label: 'Tổng quan', icon: ChartNoAxesColumn },
   { to: '/admin/users', label: 'Người dùng', icon: Users },
   { to: '/admin/login-history', label: 'Lịch sử đăng nhập', icon: Shield },
-  { to: '/admin/reports', label: 'Báo cáo', icon: Map },
   { to: '/admin/settings', label: 'Cài đặt', icon: Settings }
 ];
 
@@ -53,7 +51,7 @@ export function Sidebar({ role }: SidebarProps) {
       <div className="brand"><Bus size={28}/><span>TransitPass</span></div>
       <div className="hero-copy">
         <h1>{role === 'admin' ? 'Bảng quản trị TransitPass' : 'Cổng hành khách TransitPass'}</h1>
-        <p>{role === 'admin' ? 'Vận hành - Báo cáo - Kiểm soát' : 'Tiện lợi - Nhanh chóng - An toàn'}</p>
+        <p>{role === 'admin' ? 'Vận hành - Kiểm soát' : 'Tiện lợi - Nhanh chóng - An toàn'}</p>
       </div>
       <div className="city-art"><div className="train"/><div className="bus"/></div>
       <nav>

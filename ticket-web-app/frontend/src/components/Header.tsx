@@ -30,7 +30,7 @@ export function Header({ title, subtitle, account, role, onMenuClick }: HeaderPr
       <div className="topbar-actions">
         <label className="search-box">
           <Search size={18}/>
-          <input placeholder={role === 'admin' ? 'Tìm người dùng, báo cáo...' : 'Tìm tuyến, vé, giao dịch...'} />
+          <input placeholder={role === 'admin' ? 'Tìm người dùng...' : 'Tìm tuyến, vé, giao dịch...'} />
         </label>
         <button className="icon-button"><Bell size={20}/></button>
         <div className="user-chip"><div className="avatar">{initials(account)}</div><span>{displayName(account)}</span></div>

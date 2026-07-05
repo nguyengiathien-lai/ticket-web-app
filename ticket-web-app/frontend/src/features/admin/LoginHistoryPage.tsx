@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Card } from '../../components/Card';
+import { useToast } from '../../components/ToastProvider';
 import {
   getAdminLoginHistory,
   type AdminLoginHistoryItem
@@ -9,6 +10,7 @@ export function LoginHistoryPage() {
   const [items, setItems] = useState<AdminLoginHistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const toast = useToast();
 
   useEffect(() => {
     let active = true;
@@ -23,6 +25,7 @@ export function LoginHistoryPage() {
       .catch((exception: Error) => {
         if (active) {
           setError(exception.message);
+          toast.error(exception.message);
         }
       })
       .finally(() => {
@@ -34,7 +37,7 @@ export function LoginHistoryPage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [toast]);
 
   return (
     <Card title="Lịch sử đăng nhập">

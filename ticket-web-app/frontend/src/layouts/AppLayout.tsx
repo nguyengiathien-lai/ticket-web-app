@@ -16,7 +16,6 @@ const titles: Record<string, string> = {
   '/admin': 'Bảng điều khiển quản trị',
   '/admin/users': 'Quản lý người dùng',
   '/admin/login-history': 'Lịch sử đăng nhập',
-  '/admin/reports': 'Báo cáo',
   '/admin/settings': 'Cài đặt hệ thống'
 };
 
@@ -38,7 +37,7 @@ export function AppLayout({ role }: AppLayoutProps) {
         <Header
           title={titles[location.pathname] ?? 'TransitPass'}
           subtitle={role === 'admin'
-            ? 'Quản lý vận hành, người dùng, báo cáo và cài đặt hệ thống'
+            ? 'Quản lý vận hành, người dùng và cài đặt hệ thống'
             : 'Quản lý thẻ, vé, lịch sử di chuyển và thanh toán'}
           account={account}
           role={role}

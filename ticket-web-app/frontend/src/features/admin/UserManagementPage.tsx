@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Card } from '../../components/Card';
+import { useToast } from '../../components/ToastProvider';
 import { getStoredAccount, type AccountResponse } from '../../services/authApi';
 import {
   activateAdminAccount,
@@ -16,6 +17,7 @@ export function UserManagementPage() {
   const [pendingDelete, setPendingDelete] = useState<AccountResponse | null>(null);
   const [busyAccountId, setBusyAccountId] = useState('');
   const currentAccount = getStoredAccount();
+  const toast = useToast();
 
   useEffect(() => {
     loadAccounts();
@@ -34,7 +36,9 @@ export function UserManagementPage() {
     try {
       setAccounts(await getAdminAccounts());
     } catch (exception) {
-      setError(toMessage(exception, 'Không thể tải danh sách người dùng.'));
+      const reason = toMessage(exception, 'Không thể tải danh sách người dùng.');
+      setError(reason);
+      toast.error(reason);
     } finally {
       setLoading(false);
     }
@@ -49,11 +53,15 @@ export function UserManagementPage() {
       const updatedAccount = account.isActive
         ? await deactivateAdminAccount(account.id)
         : await activateAdminAccount(account.id);
+      const notice = account.isActive ? 'Đã khóa tài khoản.' : 'Đã kích hoạt tài khoản.';
 
       setAccounts((current) => current.map((item) => item.id === updatedAccount.id ? updatedAccount : item));
-      setMessage(account.isActive ? 'Đã khóa tài khoản.' : 'Đã kích hoạt tài khoản.');
+      setMessage(notice);
+      toast.success(notice);
     } catch (exception) {
-      setError(toMessage(exception, 'Không thể cập nhật trạng thái tài khoản.'));
+      const reason = toMessage(exception, 'Không thể cập nhật trạng thái tài khoản.');
+      setError(reason);
+      toast.error(reason);
     } finally {
       setBusyAccountId('');
     }
@@ -72,9 +80,12 @@ export function UserManagementPage() {
       await deleteAdminAccount(pendingDelete.id);
       setAccounts((current) => current.filter((account) => account.id !== pendingDelete.id));
       setMessage('Đã xóa tài khoản.');
+      toast.success('Đã xóa tài khoản.');
       setPendingDelete(null);
     } catch (exception) {
-      setError(toMessage(exception, 'Không thể xóa tài khoản.'));
+      const reason = toMessage(exception, 'Không thể xóa tài khoản.');
+      setError(reason);
+      toast.error(reason);
     } finally {
       setBusyAccountId('');
     }

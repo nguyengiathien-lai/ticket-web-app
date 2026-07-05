@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Card } from '../../components/Card';
+import { useToast } from '../../components/ToastProvider';
 import { getAdminDashboardSummary, type AdminDashboardSummary } from '../../services/adminApi';
 
 export function AdminDashboardPage() {
   const [summary, setSummary] = useState<AdminDashboardSummary | null>(null);
   const [error, setError] = useState('');
+  const toast = useToast();
 
   useEffect(() => {
     let active = true;
@@ -20,13 +22,14 @@ export function AdminDashboardPage() {
       .catch((exception: Error) => {
         if (active) {
           setError(exception.message);
+          toast.error(exception.message);
         }
       });
 
     return () => {
       active = false;
     };
-  }, []);
+  }, [toast]);
 
   const metrics = useMemo(() => [
     {

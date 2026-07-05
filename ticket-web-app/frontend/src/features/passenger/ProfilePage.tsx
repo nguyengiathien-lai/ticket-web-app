@@ -1,5 +1,6 @@
 import { FormEvent, useMemo, useState } from 'react';
 import { Card } from '../../components/Card';
+import { useToast } from '../../components/ToastProvider';
 import { getStoredAccount, updateProfile } from '../../services/authApi';
 
 export function ProfilePage() {
@@ -13,6 +14,7 @@ export function ProfilePage() {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const toast = useToast();
 
   const initials = useMemo(() => {
     const source = fullName.trim() || account?.email || 'U';
@@ -29,7 +31,9 @@ export function ProfilePage() {
     setError('');
 
     if (!account) {
-      setError('Bạn cần đăng nhập trước khi cập nhật hồ sơ.');
+      const reason = 'Bạn cần đăng nhập trước khi cập nhật hồ sơ.';
+      setError(reason);
+      toast.error(reason);
       return;
     }
 
@@ -50,8 +54,11 @@ export function ProfilePage() {
       setAddress(updated.address ?? '');
       setPersonalId(updated.personalId ?? '');
       setMessage('Cập nhật hồ sơ thành công.');
+      toast.success('Cập nhật hồ sơ thành công.');
     } catch (exception) {
-      setError(exception instanceof Error ? exception.message : 'Không thể cập nhật hồ sơ. Vui lòng thử lại.');
+      const reason = exception instanceof Error ? exception.message : 'Không thể cập nhật hồ sơ. Vui lòng thử lại.';
+      setError(reason);
+      toast.error(reason);
     } finally {
       setIsSubmitting(false);
     }
@@ -68,30 +75,12 @@ export function ProfilePage() {
           </div>
         </div>
         <div className="form-grid">
-          <label>
-            Họ và tên
-            <input value={fullName} onChange={(event) => setFullName(event.target.value)} disabled={isSubmitting} />
-          </label>
-          <label>
-            Số điện thoại
-            <input value={phoneNumber} onChange={(event) => setPhoneNumber(event.target.value)} disabled={isSubmitting} />
-          </label>
-          <label>
-            Ngày sinh
-            <input type="date" value={dateOfBirth} onChange={(event) => setDateOfBirth(event.target.value)} disabled={isSubmitting} />
-          </label>
-          <label>
-            Giới tính
-            <input value={gender} onChange={(event) => setGender(event.target.value)} disabled={isSubmitting} />
-          </label>
-          <label>
-            Địa chỉ
-            <input value={address} onChange={(event) => setAddress(event.target.value)} disabled={isSubmitting} />
-          </label>
-          <label>
-            Số giấy tờ cá nhân
-            <input value={personalId} onChange={(event) => setPersonalId(event.target.value)} disabled={isSubmitting} />
-          </label>
+          <label>Họ và tên<input value={fullName} onChange={(event) => setFullName(event.target.value)} disabled={isSubmitting} /></label>
+          <label>Số điện thoại<input value={phoneNumber} onChange={(event) => setPhoneNumber(event.target.value)} disabled={isSubmitting} /></label>
+          <label>Ngày sinh<input type="date" value={dateOfBirth} onChange={(event) => setDateOfBirth(event.target.value)} disabled={isSubmitting} /></label>
+          <label>Giới tính<input value={gender} onChange={(event) => setGender(event.target.value)} disabled={isSubmitting} /></label>
+          <label>Địa chỉ<input value={address} onChange={(event) => setAddress(event.target.value)} disabled={isSubmitting} /></label>
+          <label>Số giấy tờ cá nhân<input value={personalId} onChange={(event) => setPersonalId(event.target.value)} disabled={isSubmitting} /></label>
         </div>
         {message && <p className="success" role="status">{message}</p>}
         {error && <p className="danger" role="alert">{error}</p>}

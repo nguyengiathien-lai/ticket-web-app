@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Bus } from 'lucide-react';
+import { useToast } from '../../components/ToastProvider';
 import { getStoredAccount, isSessionValid, login, nextRouteFor, storeSession } from '../../services/authApi';
 
 export function LoginPage() {
@@ -12,6 +13,7 @@ export function LoginPage() {
   const [error, setError] = useState('');
   const [message, setMessage] = useState(state?.message ?? '');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const toast = useToast();
 
   useEffect(() => {
     const account = getStoredAccount();
@@ -19,6 +21,12 @@ export function LoginPage() {
       navigate(nextRouteFor(account), { replace: true });
     }
   }, [navigate]);
+
+  useEffect(() => {
+    if (message) {
+      toast.success(message);
+    }
+  }, [message, toast]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -29,9 +37,12 @@ export function LoginPage() {
     try {
       const session = await login(email.trim(), password);
       storeSession(session);
+      toast.success('Đăng nhập thành công.');
       navigate(state?.from ?? nextRouteFor(session.account), { replace: true });
     } catch (exception) {
-      setError(exception instanceof Error ? exception.message : 'Không thể đăng nhập. Vui lòng thử lại.');
+      const reason = exception instanceof Error ? exception.message : 'Không thể đăng nhập. Vui lòng thử lại.';
+      setError(reason);
+      toast.error(reason);
     } finally {
       setIsSubmitting(false);
     }
