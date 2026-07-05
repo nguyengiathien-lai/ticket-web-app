@@ -59,10 +59,18 @@ export async function login(email: string, password: string): Promise<LoginRespo
 
   const payload = await response.json().catch(() => null) as ApiResponse<LoginResponse> | null;
   if (!response.ok || !payload?.success || !payload.data) {
-    throw new Error(payload?.message || 'Không thể đăng nhập. Vui lòng kiểm tra thông tin đăng nhập.');
+    throw new Error(toVietnameseLoginError(payload?.message));
   }
 
   return payload.data;
+}
+
+function toVietnameseLoginError(message?: string) {
+  if (message === 'Invalid credentials or account is not ready for login') {
+    return 'Thông tin đăng nhập không đúng hoặc tài khoản chưa sẵn sàng để đăng nhập.';
+  }
+
+  return message || 'Không thể đăng nhập. Vui lòng kiểm tra thông tin đăng nhập.';
 }
 
 export async function registerAccount(request: RegisterRequest): Promise<AccountResponse> {

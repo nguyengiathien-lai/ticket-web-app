@@ -7,6 +7,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
+import java.time.LocalDateTime;
 
 @Repository
 public interface AccountRepository extends JpaRepository<Account, String> {
@@ -34,6 +35,8 @@ public interface AccountRepository extends JpaRepository<Account, String> {
 
     @Query("SELECT COUNT(a) FROM Account a WHERE a.isEmailVerified = false")
     long countUnverifiedAccounts();
+
+    long countByCreatedAtBetween(LocalDateTime start, LocalDateTime end);
 
     @Query("SELECT a FROM Account a WHERE a.mustChangePassword = true")
     java.util.List<Account> findAccountsRequiringPasswordChange();

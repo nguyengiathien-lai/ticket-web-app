@@ -66,7 +66,7 @@ public class AuthController {
         if (account.isEmpty()) {
             return ResponseEntity
                     .status(HttpStatus.UNAUTHORIZED)
-                    .body(ApiResponse.error("Invalid credentials or account is not ready for login"));
+                    .body(ApiResponse.error("Thông tin đăng nhập không đúng hoặc tài khoản chưa sẵn sàng để đăng nhập"));
         }
 
         Account authenticatedAccount = account.get();
