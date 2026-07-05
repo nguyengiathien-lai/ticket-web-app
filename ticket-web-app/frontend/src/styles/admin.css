@@ -60,6 +60,11 @@
   color: #365376;
 }
 
+.muted-text {
+  color: #64748b;
+  font-weight: 700;
+}
+
 @media (max-width: 640px) {
   .confirm-notification {
     align-items: stretch;

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Card } from '../../components/Card';
-import type { AccountResponse } from '../../services/authApi';
+import { getStoredAccount, type AccountResponse } from '../../services/authApi';
 import {
   activateAdminAccount,
   deactivateAdminAccount,
@@ -15,6 +15,7 @@ export function UserManagementPage() {
   const [error, setError] = useState('');
   const [pendingDelete, setPendingDelete] = useState<AccountResponse | null>(null);
   const [busyAccountId, setBusyAccountId] = useState('');
+  const currentAccount = getStoredAccount();
 
   useEffect(() => {
     loadAccounts();
@@ -141,24 +142,28 @@ export function UserManagementPage() {
                   {account.isActive ? 'Hoạt động' : 'Khóa'}
                 </td>
                 <td>
-                  <div className="table-actions">
-                    <button
-                      className={account.isActive ? 'warning-button fit' : 'secondary-button fit'}
-                      type="button"
-                      onClick={() => toggleAccountStatus(account)}
-                      disabled={busyAccountId === account.id}
-                    >
-                      {account.isActive ? 'Khóa' : 'Kích hoạt'}
-                    </button>
-                    <button
-                      className="danger-button fit"
-                      type="button"
-                      onClick={() => setPendingDelete(account)}
-                      disabled={busyAccountId === account.id}
-                    >
-                      Xóa
-                    </button>
-                  </div>
+                  {currentAccount?.id === account.id ? (
+                    <span className="muted-text">Tài khoản hiện tại</span>
+                  ) : (
+                    <div className="table-actions">
+                      <button
+                        className={account.isActive ? 'warning-button fit' : 'secondary-button fit'}
+                        type="button"
+                        onClick={() => toggleAccountStatus(account)}
+                        disabled={busyAccountId === account.id}
+                      >
+                        {account.isActive ? 'Khóa' : 'Kích hoạt'}
+                      </button>
+                      <button
+                        className="danger-button fit"
+                        type="button"
+                        onClick={() => setPendingDelete(account)}
+                        disabled={busyAccountId === account.id}
+                      >
+                        Xóa
+                      </button>
+                    </div>
+                  )}
                 </td>
               </tr>
             ))}
