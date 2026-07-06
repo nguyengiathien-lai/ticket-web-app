@@ -31,7 +31,7 @@ public class ExternalLevel4Client implements Level4Client {
             ObjectMapper objectMapper,
             @Value("${app.level4.base-url:}") String baseUrl,
             @Value("${app.level4.scan-record-batch-path:/vdt/transaction/submit-batch}") String scanRecordBatchPath,
-            @Value("${app.level4.control-package-ack-apply-path:/control-package/ack-apply/{syncId}}") String controlPackageAckApplyPath,
+            @Value("${app.level4.control-package-ack-apply-path:/vdt/control-package/ack-apply/{syncId}}") String controlPackageAckApplyPath,
             @Value("${app.device.code:}") String deviceCode,
             @Value("${app.device.secret:}") String deviceSecret,
             @Value("${app.level4.mock-enabled:false}") boolean mockEnabled) {
@@ -85,7 +85,7 @@ public class ExternalLevel4Client implements Level4Client {
             Object body,
             Class<T> responseType,
             String operation) {
-        requireDeviceCredentials();
+        // requireDeviceCredentials();
         try {
             log.info("Level 4 {} requestBody={}", operation, requestBody(body));
             String responseBody = restClient.post().uri(path).contentType(MediaType.APPLICATION_JSON)

@@ -54,7 +54,7 @@ app:
   level4:
     base-url: ${LEVEL4_BASE_URL:http://localhost:8083}
     scan-record-batch-path: ${LEVEL4_SCAN_RECORD_BATCH_PATH:${LEVEL4_SCAN_RECORD_PATH:/vdt/transaction/submit-batch}}
-    control-package-ack-apply-path: ${LEVEL4_CONTROL_PACKAGE_ACK_APPLY_PATH:/control-package/ack-apply/{syncId}}
+    control-package-ack-apply-path: ${LEVEL4_CONTROL_PACKAGE_ACK_APPLY_PATH:/vdt/control-package/ack-apply/{syncId}}
     scan-record-batch-size: ${LEVEL4_SCAN_RECORD_BATCH_SIZE:100}
     scan-record-flush-delay-ms: ${LEVEL4_SCAN_RECORD_FLUSH_DELAY_MS:30000}
     sent-event-retention: ${LEVEL4_SENT_EVENT_RETENTION:7d}
