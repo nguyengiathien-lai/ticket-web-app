@@ -150,7 +150,7 @@ public class PurchaseService {
                 .userId(request.getUserId())
                 .mode(firstText(request.getMode(), inferMode(request.getPackageId()), "METRO"))
                 .scope(request.getScope())
-                .routeId(requireText(request.getRouteId(), "routeId is required for monthly pass tickets"))
+                .routeId(requireText(request.getRouteId(), null))
                 .passengerType(firstText(request.getPassengerType(), "ADULT"))
                 .validFrom(firstValue(request.getValidFrom(), LocalDate.now()))
                 .durationType(firstText(request.getDurationType()))
