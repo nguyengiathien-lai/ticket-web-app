@@ -63,7 +63,7 @@ export function BuyCardPage() {
     setIsSubmitting(true);
     try {
       const issuance = await issueMonthlyPassCard({
-        mode: transportMode,
+        mode: "METRO",
         scope,
         routeId,
         passengerType,
@@ -95,12 +95,12 @@ export function BuyCardPage() {
           <button className={supportsMetro ? 'active' : ''} onClick={() => setSupportsMetro((value) => !value)}><TrainFront />Metro</button>
         </div>
 
-        <label>
+        {/* <label>
           Vé gói gắn với thẻ
           <select value={selectedPackageId} onChange={(event) => setSelectedPackageId(event.target.value)} disabled={isLoading || packages.length === 0}>
             {packages.map((farePackage) => <option key={farePackage.id} value={farePackage.id}>{farePackage.name}</option>)}
           </select>
-        </label>
+        </label> */}
 
         <div className="form-grid compact-grid">
           <label>Tuyến<select value={routeId} onChange={(event) => setRouteId(event.target.value)}>{routes.map((route) => <option key={route.id} value={route.id}>{route.code} - {route.name}</option>)}</select></label>

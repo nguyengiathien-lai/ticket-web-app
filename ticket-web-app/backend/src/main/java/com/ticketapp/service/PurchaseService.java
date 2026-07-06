@@ -304,15 +304,18 @@ public class PurchaseService {
                 ? new CardPurchaseRequest.TicketDetails()
                 : request.getTicket();
 
+        boolean metroPass = request.getCard() != null && request.getCard().getSupportsMetro() != null && request.getCard().getSupportsMetro();
+        
         card.setUserId(firstText(card.getUserId(), userId));
         ticket.setUserId(firstText(ticket.getUserId(), userId));
         ticket.setMode(firstText(ticket.getMode(), "METRO"));
-        ticket.setScope(firstText(ticket.getScope(), "SINGLE_ROUTE"));
-        ticket.setRouteId(requireText(ticket.getRouteId(), "routeId is required for monthly pass tickets"));
-        ticket.setPassengerType(firstText(ticket.getPassengerType(), "ADULT"));
+        ticket.setScope(metroPass ? null : firstText(ticket.getScope(), "SINGLE_ROUTE"));
+        ticket.setRouteId(metroPass ? null : requireText(ticket.getRouteId(), "routeId is required for BUS monthly pass tickets"));
+        ticket.setPassengerType(firstText(ticket.getPassengerType(), "NO"));
         ticket.setValidFrom(firstValue(ticket.getValidFrom(), LocalDate.now()));
         ticket.setDurationType(firstText(ticket.getDurationType(), "MONTHLY"));
-        ticket.setDurationMonths(firstValue(ticket.getDurationMonths(), 1));
+        ticket.setDurationMonths(firstValue(ticket.getDurationMonths(), null));
+
 
         normalized.setCard(card);
         normalized.setTicket(ticket);
