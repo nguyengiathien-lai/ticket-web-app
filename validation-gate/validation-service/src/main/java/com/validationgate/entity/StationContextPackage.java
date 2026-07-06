@@ -1,10 +1,7 @@
 package com.validationgate.entity;
 
 import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
 import jakarta.persistence.Lob;
-import jakarta.persistence.Table;
-import jakarta.persistence.UniqueConstraint;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -15,9 +12,6 @@ import java.time.LocalDateTime;
 @Getter
 @Setter
 @NoArgsConstructor
-@Entity
-@Table(name = "station_context_package",
-        uniqueConstraints = @UniqueConstraint(name = "uk_station_context_station", columnNames = "station_code"))
 public class StationContextPackage extends BaseEntity {
 
     @Column(name = "package_id", nullable = false, length = 100)

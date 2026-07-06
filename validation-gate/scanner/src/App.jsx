@@ -1,7 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 import { validateTicket } from "./api/gateApi";
 import ScannerView from "./components/ScannerView";
-import TestQrGenerator from "./components/TestQrGenerator";
 import ValidationResult from "./components/ValidationResult";
 
 const DEVICE_CODE = import.meta.env.VITE_DEVICE_CODE ?? "gate-device-1";
@@ -71,8 +70,6 @@ export default function App() {
         </div>
 
         <ValidationResult loading={loading} result={result} />
-
-        <TestQrGenerator />
 
         <section className="history-panel" aria-label="Recent scans">
           <h2>Recent scans</h2>

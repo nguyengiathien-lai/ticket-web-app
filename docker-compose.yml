@@ -74,6 +74,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy
       rabbitmq:
         condition: service_healthy
     environment:
@@ -85,6 +87,8 @@ services:
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_PORT: 5672
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
       DEVICE_CODE: ${DEVICE_CODE:-gate-device-1}
       DEVICE_SECRET: ${DEVICE_SECRET:-}
       DEVICE_STATION_CODE: ${DEVICE_STATION_CODE:-station-1}

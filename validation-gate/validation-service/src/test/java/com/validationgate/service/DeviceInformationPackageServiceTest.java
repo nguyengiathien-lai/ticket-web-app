@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.validationgate.config.DeviceProperties;
 import com.validationgate.dto.DeviceInformationPackageMessage;
 import com.validationgate.entity.DeviceConfigPackage;
+import com.validationgate.entity.MediaAccessCardStatusRule;
 import com.validationgate.entity.MediaAccessRulesPackage;
 import com.validationgate.entity.StationContextPackage;
 import com.validationgate.repository.DeviceConfigPackageRepository;
@@ -136,5 +137,61 @@ class DeviceInformationPackageServiceTest {
         assertThatThrownBy(() -> service.storePackage(message))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Package station code does not match this gate device");
+    }
+
+    @Test
+    void overwritesExistingCardStatusRulesForSameStation() throws Exception {
+        DeviceConfigPackageRepository deviceConfigRepository = mock(DeviceConfigPackageRepository.class);
+        StationContextPackageRepository stationContextRepository = mock(StationContextPackageRepository.class);
+        MediaAccessRulesPackageRepository mediaAccessRulesRepository = mock(MediaAccessRulesPackageRepository.class);
+        MediaAccessRulesPackage existingRules = existingMediaRulesPackage();
+        when(deviceConfigRepository.findByStationCode("station-1")).thenReturn(Optional.of(new DeviceConfigPackage()));
+        when(stationContextRepository.findByStationCode("station-1")).thenReturn(Optional.of(new StationContextPackage()));
+        when(mediaAccessRulesRepository.findByStationCode("station-1")).thenReturn(Optional.of(existingRules));
+        DeviceInformationPackageService service = new DeviceInformationPackageService(
+                new DeviceProperties("device-1", "station-1"),
+                objectMapper,
+                deviceConfigRepository,
+                stationContextRepository,
+                mediaAccessRulesRepository);
+        DeviceInformationPackageMessage message = new DeviceInformationPackageMessage(
+                1003L,
+                "2026-06-26T00:00:00Z",
+                objectMapper.readTree("{}"),
+                objectMapper.readTree("{\"stationCode\":\"station-1\"}"),
+                objectMapper.readTree("""
+                        {
+                          "cardStatusRules": [
+                            {
+                              "cardId": "uuid-1",
+                              "status": "ACTIVE",
+                              "statusReason": "RESTORED"
+                            }
+                          ]
+                        }
+                        """));
+
+        service.storePackage(message);
+
+        assertThat(existingRules.getCardStatusRules()).hasSize(1);
+        assertThat(existingRules.getCardStatusRules().get(0).getCardId()).isEqualTo("uuid-1");
+        assertThat(existingRules.getCardStatusRules().get(0).getStatus()).isEqualTo("ACTIVE");
+        assertThat(existingRules.getCardStatusRules().get(0).getStatusReason()).isEqualTo("RESTORED");
+        verify(mediaAccessRulesRepository).save(existingRules);
+    }
+
+    private MediaAccessRulesPackage existingMediaRulesPackage() {
+        MediaAccessRulesPackage packageEntity = new MediaAccessRulesPackage();
+        packageEntity.setPackageId("old-package");
+        packageEntity.setDeviceCode("device-1");
+        packageEntity.setStationCode("station-1");
+        packageEntity.setPayloadJson("{}");
+
+        MediaAccessCardStatusRule rule = new MediaAccessCardStatusRule();
+        rule.setCardId("uuid-1");
+        rule.setStatus("BLACKLISTED");
+        rule.setStatusReason("LOST_CARD");
+        packageEntity.replaceCardStatusRules(java.util.List.of(rule));
+        return packageEntity;
     }
 }

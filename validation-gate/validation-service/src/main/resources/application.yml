@@ -10,6 +10,15 @@ spring:
     username: ${VALIDATION_DATASOURCE_USERNAME:${SPRING_DATASOURCE_USERNAME:postgres}}
     password: ${VALIDATION_DB_PASSWORD:${DB_PASSWORD:}}
 
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      database: ${REDIS_DATABASE:0}
+      repositories:
+        enabled: false
+
   jpa:
     hibernate:
       ddl-auto: update
@@ -53,3 +62,7 @@ app:
     qr-verification-key: ${LEVEL4_QR_VERIFICATION_KEY:}
     max-clock-drift-seconds: ${LEVEL4_QR_MAX_CLOCK_DRIFT_SECONDS:60}
     mock-enabled: ${LEVEL4_MOCK_ENABLED:false}
+  example-package:
+    enabled: ${VALIDATION_EXAMPLE_PACKAGE_ENABLED:true}
+  cache:
+    validation-package-ttl: ${VALIDATION_PACKAGE_CACHE_TTL:12h}

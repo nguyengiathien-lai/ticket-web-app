@@ -9,12 +9,14 @@ import com.validationgate.repository.DeviceConfigPackageRepository;
 import com.validationgate.repository.MediaAccessRulesPackageRepository;
 import com.validationgate.repository.StationContextPackageRepository;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 
 @Component
+@ConditionalOnProperty(name = "app.example-package.enabled", havingValue = "true", matchIfMissing = true)
 public class ExamplePackageDataInitializer implements CommandLineRunner {
 
     private static final String PACKAGE_ID = "example-package-v1";

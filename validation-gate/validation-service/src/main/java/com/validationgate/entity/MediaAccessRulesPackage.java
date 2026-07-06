@@ -2,25 +2,21 @@ package com.validationgate.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.CascadeType;
-import jakarta.persistence.Entity;
 import jakarta.persistence.Lob;
 import jakarta.persistence.OneToMany;
-import jakarta.persistence.Table;
-import jakarta.persistence.UniqueConstraint;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.time.LocalDateTime;
 
 @Getter
 @Setter
 @NoArgsConstructor
-@Entity
-@Table(name = "media_access_rules_package",
-        uniqueConstraints = @UniqueConstraint(name = "uk_media_rules_station", columnNames = "station_code"))
 public class MediaAccessRulesPackage extends BaseEntity {
 
     @Column(name = "package_id", nullable = false, length = 100)
@@ -46,10 +42,27 @@ public class MediaAccessRulesPackage extends BaseEntity {
     private List<MediaAccessCardStatusRule> cardStatusRules = new ArrayList<>();
 
     public void replaceCardStatusRules(List<MediaAccessCardStatusRule> rules) {
-        cardStatusRules.clear();
+        Map<String, MediaAccessCardStatusRule> existingByCardId = new LinkedHashMap<>();
+        cardStatusRules.forEach(rule -> existingByCardId.put(rule.getCardId(), rule));
+
+        Map<String, MediaAccessCardStatusRule> replacementByCardId = new LinkedHashMap<>();
         rules.forEach(rule -> {
-            rule.setPackageEntity(this);
-            cardStatusRules.add(rule);
+            MediaAccessCardStatusRule target = existingByCardId.getOrDefault(
+                    rule.getCardId(),
+                    new MediaAccessCardStatusRule());
+            target.setPackageEntity(this);
+            target.setCardId(rule.getCardId());
+            target.setStatus(rule.getStatus());
+            target.setStatusReason(rule.getStatusReason());
+            target.setRuleUpdatedAt(rule.getRuleUpdatedAt());
+            replacementByCardId.put(rule.getCardId(), target);
+        });
+
+        cardStatusRules.removeIf(rule -> !replacementByCardId.containsKey(rule.getCardId()));
+        replacementByCardId.values().forEach(rule -> {
+            if (!cardStatusRules.contains(rule)) {
+                cardStatusRules.add(rule);
+            }
         });
     }
 }

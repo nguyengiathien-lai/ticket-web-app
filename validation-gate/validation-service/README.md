@@ -38,6 +38,7 @@ Default URL: `http://localhost:8081/api`
 - `DEVICE_STATION_CODE` - station subscription key, defaults to `station-1`
 - `RABBITMQ_HOST`, `RABBITMQ_PORT`, `RABBITMQ_USERNAME`, `RABBITMQ_PASSWORD`
 - `DEVICE_PACKAGE_EXCHANGE` - topic exchange for Level 4 packages, defaults to `level4.device.packages`
+- `VALIDATION_EXAMPLE_PACKAGE_ENABLED` - set to `false` when consuming real Level 4 device packages
 - `LEVEL4_BASE_URL`
 - `LEVEL4_SCAN_RECORD_BATCH_PATH` - defaults to `/scan-record/batch`
 - `LEVEL4_MOCK_ENABLED` - defaults to `true`

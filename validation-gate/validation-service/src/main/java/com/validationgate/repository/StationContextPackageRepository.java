@@ -1,12 +1,11 @@
 package com.validationgate.repository;
 
 import com.validationgate.entity.StationContextPackage;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
 
-@Repository
-public interface StationContextPackageRepository extends JpaRepository<StationContextPackage, Long> {
+public interface StationContextPackageRepository {
     Optional<StationContextPackage> findByStationCode(String stationCode);
+
+    StationContextPackage save(StationContextPackage packageEntity);
 }
