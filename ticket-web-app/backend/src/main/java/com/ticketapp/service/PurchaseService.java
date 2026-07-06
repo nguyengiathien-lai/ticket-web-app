@@ -78,7 +78,7 @@ public class PurchaseService {
 
         ExternalTicketResponse externalTicket = purchaseExternalTicket(request);
         TicketResponse ticket = ticketService.cacheExternalTicket(ticketRequest, externalTicket);
-        QrCodeResponse qrCode = level4Client.generateQrCode(new QrCodeRequest(ticket.getExternalTicketId()));
+        // QrCodeResponse qrCode = level4Client.generateQrCode(new QrCodeRequest(ticket.getExternalTicketId()));
         BigDecimal totalAmount = firstValue(ticket.getFare(), farePackage == null ? null : farePackage.getPrice(), BigDecimal.ZERO);
         String currency = firstText(ticket.getCurrency(), farePackage == null ? null : farePackage.getCurrency(), "VND");
         String itemCode = firstText(ticket.getTicketTypeCode(), request.getPackageId(), request.getTicketType(), "TICKET");
