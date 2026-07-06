@@ -103,7 +103,7 @@ public class PurchaseService {
                 .totalPrice(order.getTotalAmount())
                 .currency(order.getCurrency())
                 .status(firstText(ticket.getStatus(), "confirmed"))
-                .qrCode(qrCode.getQrCode())
+                .qrCode(null)
                 .confirmationNumber(order.getOrderCode())
                 .paymentId(payment.getExternalPaymentId())
                 .paymentStatus(payment.getStatus())
