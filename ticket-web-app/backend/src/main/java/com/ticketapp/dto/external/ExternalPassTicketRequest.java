@@ -13,7 +13,9 @@ public class ExternalPassTicketRequest {
 
     private String userId;
     private String mode;
+    @JsonInclude(JsonInclude.Include.ALWAYS)
     private String scope;
+    @JsonInclude(JsonInclude.Include.ALWAYS)
     private String routeId;
     private String cardId;
     private String passengerType;

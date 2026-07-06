@@ -59,6 +59,12 @@ public class DeviceInformationPackageService {
         upsertMediaAccessRules(packageId, deviceCode, stationCode, message.mediaAccessRules(), receivedAt);
     }
 
+    public Long getSyncId() {
+        return this.deviceConfigRepository.findByStationCode(deviceProperties.stationCode())
+                .map(DeviceConfigPackage::getSyncId)
+                .orElse(null)   ;
+    }
+
     private void requirePackageForThisStation(DeviceInformationPackageMessage message) {
         if (message == null) {
             throw new IllegalArgumentException("Device information package is required");
@@ -90,6 +96,7 @@ public class DeviceInformationPackageService {
         entity.setQrMaxTtlSeconds(integer(payload, "qrMaxTtlSeconds"));
         entity.setMaxClockDriftSeconds(integer(payload, "maxClockDriftSeconds"));
         entity.setHeartbeatIntervalSeconds(integer(payload, "heartbeatIntervalSeconds"));
+        entity.setSyncId(Long.valueOf(integer(payload, "syncId")));
         entity.setPayloadJson(toJson(payload));
         entity.setReceivedAt(receivedAt);
         deviceConfigRepository.save(entity);

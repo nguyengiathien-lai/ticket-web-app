@@ -54,7 +54,7 @@ public class DeviceInformationPackageListener {
         }
 
         try {
-            level4Client.ackControlPackageApply(packageMessage.syncId(), "APPLIED", null);
+            level4Client.ackControlPackageApply(packageService.getSyncId(), "APPLIED", null);
         } catch (RuntimeException exception) {
             log.error("Could not ack applied device information package; syncId={}", packageMessage.syncId(), exception);
             throw exception;

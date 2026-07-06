@@ -49,6 +49,9 @@ public class DeviceConfigPackage extends BaseEntity {
     @Column(name = "heartbeat_interval_seconds")
     private Integer heartbeatIntervalSeconds;
 
+    @Column(name = "sync_id")
+    private Long syncId;
+
     @Lob
     @Column(name = "payload_json", nullable = false)
     private String payloadJson;

@@ -146,11 +146,13 @@ public class PurchaseService {
 
         log.info("Purchasing monthly pass ticket for user: {}, route: {}",
                 request.getUserId(), request.getRouteId());
+        String mode = firstText(request.getMode(), inferMode(request.getPackageId()), "METRO");
+        boolean metroPass = "METRO".equalsIgnoreCase(mode);
         return level5Client.purchasePassTicket(ExternalPassTicketRequest.builder()
                 .userId(request.getUserId())
-                .mode(firstText(request.getMode(), inferMode(request.getPackageId()), "METRO"))
-                .scope(request.getScope())
-                .routeId(requireText(request.getRouteId(), null))
+                .mode(mode)
+                .scope(metroPass ? null : request.getScope())
+                .routeId(metroPass ? null : requireText(request.getRouteId(), null))
                 .passengerType(firstText(request.getPassengerType(), "ADULT"))
                 .validFrom(firstValue(request.getValidFrom(), LocalDate.now()))
                 .durationType(firstText(request.getDurationType()))
