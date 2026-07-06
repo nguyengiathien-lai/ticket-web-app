@@ -153,8 +153,8 @@ public class PurchaseService {
                 .routeId(requireText(request.getRouteId(), "routeId is required for monthly pass tickets"))
                 .passengerType(firstText(request.getPassengerType(), "ADULT"))
                 .validFrom(firstValue(request.getValidFrom(), LocalDate.now()))
-                .durationType(firstText(request.getDurationType(), "MONTHLY"))
-                .durationMonths(firstValue(request.getDurationMonths(), 1))
+                .durationType(firstText(request.getDurationType()))
+                .durationMonths(firstValue(request.getDurationMonths(), null))
                 .build());
     }
 
