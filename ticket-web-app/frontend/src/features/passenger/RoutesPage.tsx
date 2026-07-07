@@ -34,6 +34,13 @@ export function RoutesPage() {
     return stations.filter((station) => [station.code, station.name, station.routeId ?? ''].some((value) => value.toLowerCase().includes(query)));
   }, [stations, query]);
 
+  const routeMap = useMemo(() => {
+    return routes.reduce<Record<string, TransitRoute>>((map, route) => {
+      map[route.id] = route;
+      return map;
+    }, {});
+  }, [routes]);
+
   return (
     <Card title="Tuyến và nhà ga">
       <div className="tabs">
@@ -55,14 +62,17 @@ export function RoutesPage() {
               <em className={route.status === 'Đang hoạt động' ? 'success route-status' : 'warning route-status'}>{route.status}</em>
             </div>
           ))
-          : filteredStations.map((station) => (
-            <div className="route-item transit-row" key={station.id}>
-              <b className="route-code">{station.code}</b>
-              <span className="route-name">{station.name}</span>
-              {/* <small className="route-mode">{station.routeId || 'Chưa gắn tuyến'}</small>  */}
-              <em className="route-status">{station.sequence ? `Điểm dừng ${station.sequence}` : 'Nhà ga'}</em>
-            </div>
-          ))}
+          : filteredStations.map((station) => {
+            const route = station.routeId ? routeMap[station.routeId] : undefined;
+            return (
+              <div className="route-item transit-row" key={station.id}>
+                <b className="route-code">{station.code}</b>
+                <span className="route-name">{station.name}</span>
+                <small className="route-mode">{route ? `${route.code} - ${route.name}` : 'Chưa gắn tuyến'}</small>
+                <em className="route-status">{station.sequence ? `Điểm dừng ${station.sequence}` : 'Nhà ga'}</em>
+              </div>
+            );
+          })}
       </div>
     </Card>
   );
