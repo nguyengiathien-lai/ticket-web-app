@@ -166,7 +166,7 @@ export function BuyTicketPage() {
 
         {mode === 'single' ? (
           <div className="form-grid compact-grid">
-            <label>Tuyến<select value={routeId} onChange={(event) => setRouteId(event.target.value)}>{routesForMode.map((route) => <option key={route.id} value={route.id}>{route.code} - {route.name}</option>)}</select></label>
+            <label style={{ gridColumn: '1 / -1' }}>Tuyến<select value={routeId} onChange={(event) => setRouteId(event.target.value)}>{routesForMode.map((route) => <option key={route.id} value={route.id}>{route.code} - {route.name}</option>)}</select></label>
             <label>Ga đi<select value={fromStationId} onChange={(event) => setFromStationId(event.target.value)}>{stations.filter((station) => station.routeId === routeId).map((station) => <option key={station.id} value={station.id}>{station.name}</option>)}</select></label>
             <label>Ga đến<select value={toStationId} onChange={(event) => setToStationId(event.target.value)}>{stations.filter((station) => station.routeId === routeId && station.id !== fromStationId).map((station) => <option key={station.id} value={station.id}>{station.name}</option>)}</select></label>
           </div>
