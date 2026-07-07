@@ -59,7 +59,7 @@ export function RoutesPage() {
             <div className="route-item transit-row" key={station.id}>
               <b className="route-code">{station.code}</b>
               <span className="route-name">{station.name}</span>
-              <small className="route-mode">{station.routeId || 'Chưa gắn tuyến'}</small>
+              {/* <small className="route-mode">{station.routeId || 'Chưa gắn tuyến'}</small>  */}
               <em className="route-status">{station.sequence ? `Điểm dừng ${station.sequence}` : 'Nhà ga'}</em>
             </div>
           ))}
