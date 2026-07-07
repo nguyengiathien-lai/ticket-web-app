@@ -64,7 +64,7 @@ export default function App() {
 
       <aside className="gate-panel">
         <div className="gate-status">
-          <span>Active scanner</span>
+          <span>Đang hoạt động</span>
           <strong>{gateLabel}</strong>
           <em>{scannerContext.eventType.replace("_", " ")}</em>
         </div>
@@ -72,9 +72,9 @@ export default function App() {
         <ValidationResult loading={loading} result={result} />
 
         <section className="history-panel" aria-label="Recent scans">
-          <h2>Recent scans</h2>
+          <h2>Lượt quét gần đây</h2>
           {history.length === 0 ? (
-            <p>No scans yet</p>
+            <p>Chưa có lượt quét nào</p>
           ) : (
             <ol>
               {history.map((item, index) => (

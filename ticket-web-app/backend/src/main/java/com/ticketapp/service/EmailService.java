@@ -47,26 +47,26 @@ public class EmailService {
     public void sendEmailVerificationOtp(String to, String fullName, String code) {
         sendPlainTextEmail(
                 to,
-                "Verify your Ticket App account",
+                "Xác nhận địa chỉ email của bạn",
                 """
-                    Hi %s,
+                    Xin chào %s,
 
-                    Your Ticket App verification code is: %s
+                    Mã xác nhận Ticket App của bạn là: %s
 
-                    This code expires in 15 minutes. If you did not create this account, ignore this email.
+                    Mã này sẽ hết hạn sau 2 phút. Nếu bạn không tạo tài khoản này, vui lòng bỏ qua email này.
                     """.formatted(fullName, code));
     }
 
     public void sendAccountRegistrationConfirmed(String to, String fullName) {
         sendPlainTextEmail(
                 to,
-                "Your Ticket App account is confirmed",
+                "XÁC NHẬN ĐĂNG KÝ TÀI KHOẢN",
                 """
-                        Hi %s,
+                        Xin chào %s,
 
-                        Your Ticket App account registration is complete and your email address has been verified.
+                        Đăng ký tài khoản Ticket App của bạn đã hoàn tất và địa chỉ email của bạn đã được xác minh.
 
-                        You can now sign in and start using your account.
+                        Bạn hiện có thể đăng nhập vào ứng dụng Ticket App để bắt đầu khám phá các chuyến đi và trải nghiệm tuyệt vời!
                         """.formatted(fullName));
     }
 
@@ -81,19 +81,22 @@ public class EmailService {
             LocalDateTime purchasedAt) {
         sendPlainTextEmail(
                 to,
-                "Your ticket purchase is confirmed",
+                "XÁC NHẬN MUA VÉ",
                 """
-                        Hi %s,
+                        Xin chào %s,
 
-                        Your ticket purchase is confirmed.
+                        Đăng ký mua vé của bạn đã được xác nhận.
 
                         Confirmation number: %s
-                        Ticket ID: %s
-                        Package: %s
-                        Total: %s %s
-                        Purchased at: %s
+                        Mã vé: %s
+                        Gói vé: %s
+                        Tổng tiền: %s %s
+                        Ngày mua: %s
 
-                        Your QR code is available in your Ticket App account.
+                        Mã QR của bạn có sẵn trong tài khoản Ticket App của bạn. 
+                        Lưu ý: Mã QR chỉ có hiệu lực 30s. Nếu mã hết hạn, vui lòng yêu cầu mã QR mới trong ứng dụng Ticket App.
+
+                        Chúc bạn có những chuyến đi vui vẻ và trải nghiệm tuyệt vời với Ticket App!
                         """.formatted(
                         fullName,
                         confirmationNumber,
@@ -116,20 +119,21 @@ public class EmailService {
             String currency) {
         sendPlainTextEmail(
                 to,
-                "Your card purchase is confirmed",
+                "XÁC NHẬN MUA THẺ VẬT LÝ",
                 """
-                        Hi %s,
+                        Xin chào %s,
 
-                        Your physical card purchase is confirmed.
+                        Đăng ký mua thẻ vật lý của bạn đã được xác nhận. 
 
-                        Order ID: %s
-                        Card ID: %s
-                        Package: %s
-                        Delivery address: %s
-                        Estimated delivery: %s
-                        Total: %s %s
+                        Mã thẻ: %s
+                        Gói thẻ: %s
+                        Địa chỉ giao hàng: %s
+                        Ngày giao dự kiến: %s
+                        Tổng tiền thanh toán: %s %s
 
-                        We will keep your card status updated in your Ticket App account.
+                        Hiện bạn đã có thể sử dụng gói vé trong thẻ thông qua ứng dụng Ticket App. Thẻ vật lý sẽ được giao đến địa chỉ của bạn trong thời gian sớm nhất.
+
+                        Chúc bạn có những chuyến đi vui vẻ và trải nghiệm tuyệt vời với Ticket App!
                         """.formatted(
                         fullName,
                         orderId,

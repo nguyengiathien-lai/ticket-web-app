@@ -149,7 +149,7 @@ export default function ScannerView({
 
       <section className="scanner-context" aria-label="Scanner context">
         <label>
-          <span>Device code</span>
+          <span>Mã thiết bị</span>
           <input
             value={scannerContext.deviceCode}
             onChange={event => updateScannerContext("deviceCode", event.target.value)}
@@ -158,7 +158,7 @@ export default function ScannerView({
         </label>
 
         <label>
-          <span>Station code</span>
+          <span>Mã trạm</span>
           <input
             value={scannerContext.stationCode}
             onChange={event => updateScannerContext("stationCode", event.target.value)}
@@ -194,7 +194,7 @@ export default function ScannerView({
 
       {lastPayload && (
         <div className="decoded-payload">
-          <span>Decoded QR</span>
+          <span>Mã QR</span>
           <code>{lastPayload}</code>
         </div>
       )}
@@ -204,11 +204,11 @@ export default function ScannerView({
         <input
           value={manualCode}
           onChange={event => setManualCode(event.target.value)}
-          placeholder="Manual ticket code"
+          placeholder="Nhập mã vé"
           disabled={disabled}
         />
         <button type="submit" disabled={disabled || !manualCode.trim()}>
-          Check
+          Kiểm tra
         </button>
       </form>
     </section>

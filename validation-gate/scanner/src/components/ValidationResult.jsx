@@ -9,37 +9,37 @@ import {
 
 const resultView = {
   SENT: {
-    label: "Event sent",
+    label: "Hợp lệ",
     className: "valid",
     icon: CheckCircle2
   },
   DELIVERY_FAILED: {
-    label: "Delivery failed",
+    label: "Gửi thất bại",
     className: "warning",
     icon: AlertTriangle
   },
   USED: {
-    label: "Already used",
+    label: "Đã sử dụng",
     className: "denied",
     icon: XCircle
   },
   EXPIRED: {
-    label: "Expired",
+    label: "Hết hạn",
     className: "warning",
     icon: Clock3
   },
   CANCELLED: {
-    label: "Cancelled",
+    label: "Đã hủy",
     className: "denied",
     icon: Ban
   },
   INVALID: {
-    label: "Invalid ticket",
+    label: "Không hợp lệ",
     className: "denied",
     icon: XCircle
   },
   ERROR: {
-    label: "Scanner error",
+    label: "Lỗi máy quét",
     className: "warning",
     icon: AlertTriangle
   }
@@ -50,8 +50,8 @@ export default function ValidationResult({ loading, result }) {
     return (
       <section className="result-panel waiting">
         <LoaderCircle className="spin" size={42} aria-hidden="true" />
-        <h1>Validating</h1>
-        <p>Checking ticket with the gate service</p>
+        <h1>Đang kiểm tra...</h1>
+        <p>Soát vé tại thiết bị</p>
       </section>
     );
   }
@@ -60,8 +60,8 @@ export default function ValidationResult({ loading, result }) {
     return (
       <section className="result-panel idle">
         <CheckCircle2 size={42} aria-hidden="true" />
-        <h1>Ready</h1>
-        <p>Scan a QR code or enter a ticket code</p>
+        <h1>Sẵn sàng</h1>
+        <p>Quét mã QR hoặc nhập mã vé</p>
       </section>
     );
   }
@@ -77,19 +77,19 @@ export default function ValidationResult({ loading, result }) {
 
       <dl className="result-meta">
         <div>
-          <dt>Ticket</dt>
+          <dt>Mã vé</dt>
           <dd>{result.ticketId}</dd>
         </div>
         <div>
-          <dt>Device</dt>
+          <dt>Mã thiết bị</dt>
           <dd>{result.deviceCode}</dd>
         </div>
         <div>
-          <dt>Station</dt>
+          <dt>Mã trạm</dt>
           <dd>{result.stationCode}</dd>
         </div>
         <div>
-          <dt>Tap</dt>
+          <dt>Loại thao tác</dt>
           <dd>{result.eventType?.replace("_", " ")}</dd>
         </div>
       </dl>
