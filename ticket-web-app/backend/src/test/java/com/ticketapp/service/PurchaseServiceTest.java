@@ -167,6 +167,7 @@ class PurchaseServiceTest {
                 String fullName,
                 String confirmationNumber,
                 String ticketId,
+                String packageId,
                 BigDecimal totalPrice,
                 String currency,
                 LocalDateTime purchasedAt) {

@@ -1,0 +1,14 @@
+{
+  "userId": "1220a0d0-0159-4a8e-9964-10be996146b5",
+  "paymentMethod": "CARD",
+  "ticketType": "PASS",
+  "fromStationId": null,
+  "toStationId": null,
+  "mode": "BUS",
+  "scope": "MULTI-ROUTE",
+  "routeId": null,
+  "passengerType": "STUDENT",
+  "validFrom": "2026-07-07",
+  "durationType": "MONTHLY",
+  "durationMonths": 3
+}

@@ -2,9 +2,9 @@ package com.ticketapp.controller;
 
 import com.ticketapp.dto.ApiResponse;
 import com.ticketapp.dto.fare.FarePackageResponse;
-// import com.ticketapp.dto.purchase.TicketPurchaseRequest;
-import com.ticketapp.dto.purchase.PassTicketPurchaseRequest;
-import com.ticketapp.dto.purchase.SingleTripTicketPurchaseRequest;
+import com.ticketapp.dto.purchase.TicketPurchaseRequest;
+// import com.ticketapp.dto.purchase.PassTicketPurchaseRequest;
+// import com.ticketapp.dto.purchase.SingleTripTicketPurchaseRequest;
 import com.ticketapp.dto.purchase.TicketPurchaseResponse;
 import com.ticketapp.service.PurchaseService;
 import com.ticketapp.service.TicketService;

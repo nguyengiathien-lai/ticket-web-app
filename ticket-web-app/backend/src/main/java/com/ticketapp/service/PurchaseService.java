@@ -68,6 +68,7 @@ public class PurchaseService {
 
     @Transactional
     public TicketPurchaseResponse purchaseTicket(TicketPurchaseRequest request) {
+        log.info("Purchasing ticket for user: {}, type: {}", request.getUserId(), request.getTicketType());
         Account account = requirePurchasableAccount(request.getUserId());
         LocalDateTime now = LocalDateTime.now();
         // FarePackage farePackage = findFarePackage(request.getPackageId());
@@ -80,8 +81,8 @@ public class PurchaseService {
         TicketResponse ticket = ticketService.cacheExternalTicket(ticketRequest, externalTicket);
         // QrCodeResponse qrCode = level4Client.generateQrCode(new QrCodeRequest(ticket.getExternalTicketId()));
         BigDecimal totalAmount = firstValue(ticket.getFare(), BigDecimal.ZERO);
-        String currency = firstText(ticket.getCurrency(), farePackage == null ? null : farePackage.getCurrency(), "VND");
-        String itemCode = firstText(ticket.getTicketTypeCode(), request.getTicketType(), "TICKET");
+        String currency = firstText(ticket.getCurrency(), "VND");
+        String itemCode = firstText(ticket.getTicketTypeCode(), request.getTicketType());
         // String itemName = farePackage == null ? itemCode : farePackage.getName();
 
         Order order = createOrder(
@@ -97,7 +98,7 @@ public class PurchaseService {
                 .ticketId(ticket.getExternalTicketId())
                 .orderId(order.getExternalOrderId())
                 .userId(request.getUserId())
-                .packageId(itemCode)
+                // .packageId(itemCode)
                 .origin(ticket.getFromStationCode())
                 .destination(ticket.getToStationCode())
                 .totalPrice(order.getTotalAmount())
@@ -109,7 +110,7 @@ public class PurchaseService {
                 .paymentStatus(payment.getStatus())
                 .purchasedAt(now)
                 .build();
-        runAfterCommit(() -> sendTicketPurchaseConfirmation(account, response));
+        runAfterCommit(() -> sendTicketPurchaseConfirmation(account, itemCode, response));
 
         return response;
     }
@@ -140,25 +141,25 @@ public class PurchaseService {
                     .userId(request.getUserId())
                     .fromStationId(request.getFromStationId())
                     .toStationId(request.getToStationId())
-                    .mode(firstText(request.getMode(), inferMode(request.getPackageId()), "METRO"))
+                    .mode(firstText(request.getMode(), "METRO"))
                     .build());
         }
 
         log.info("Purchasing monthly pass ticket for user: {}, route: {}",
                 request.getUserId(), request.getRouteId());
-        String mode = firstText(request.getMode(), inferMode(request.getPackageId()), "METRO");
+        String mode = firstText(request.getMode(), "METRO");
         boolean metroPass = "METRO".equalsIgnoreCase(mode);
         String durationType = request.getDurationType();
         return level5Client.purchasePassTicket(ExternalPassTicketRequest.builder()
-                .userId(request.getUserId())
-                .mode(mode)
-                .scope(metroPass ? null : (durationType != "MONTHLY" ? null : request.getScope()))
-                .routeId(metroPass ? null : requireText(request.getRouteId(), null))
-                .passengerType(request.getPassengerType() == "NO" ? null : request.getPassengerType())
-                .validFrom(firstValue(request.getValidFrom(), LocalDate.now()))
-                .durationType(request.getDurationType())
-                .durationMonths(firstValue(request.getDurationMonths(), null))
-                .build());
+            .userId(request.getUserId())
+            .mode(mode)
+            .scope(metroPass ? null : request.getScope())
+            .routeId(metroPass ? null : ("SINGLE_ROUTE".equalsIgnoreCase(request.getScope()) ? requireText(request.getRouteId(), "routeId is required for BUS monthly pass tickets") : null))
+            .passengerType("NO".equalsIgnoreCase(request.getPassengerType()) ? null : request.getPassengerType())
+            .validFrom(firstValue(request.getValidFrom(), LocalDate.now()))
+            .durationType(request.getDurationType())
+            .durationMonths(firstValue(request.getDurationMonths(), null))
+            .build());
     }
 
     private boolean isSingleTrip(TicketPurchaseRequest request) {
@@ -234,7 +235,7 @@ public class PurchaseService {
                 currency,
                 "COMPLETED",
                 now,
-                List.of(createOrderItem("MONTHLY_PASS", "MONTHLY_PASS", "Monthly pass", 1, totalAmount)));
+                List.of(createOrderItem("TICKET", "MONTHLY_PASS", 1, totalAmount)));
         createCompletedPayment(order, userId, paymentMethod, now);
 
         CardPurchaseResponse response = CardPurchaseResponse.builder()
@@ -306,18 +307,15 @@ public class PurchaseService {
                 : request.getTicket();
 
         boolean metroPass = request.getCard() != null && request.getCard().getSupportsMetro() != null && request.getCard().getSupportsMetro();
-        
         card.setUserId(firstText(card.getUserId(), userId));
         ticket.setUserId(firstText(ticket.getUserId(), userId));
         ticket.setMode(firstText(ticket.getMode(), "METRO"));
         ticket.setScope(metroPass ? null : firstText(ticket.getScope(), "SINGLE_ROUTE"));
-        ticket.setRouteId(metroPass ? null : requireText(ticket.getRouteId(), "routeId is required for BUS monthly pass tickets"));
+        ticket.setRouteId(metroPass ? null : ("SINGLE_ROUTE".equalsIgnoreCase(ticket.getScope()) ? requireText(ticket.getRouteId(), "routeId is required for BUS monthly pass tickets") : null));
         ticket.setPassengerType(firstText(ticket.getPassengerType(), "NO"));
         ticket.setValidFrom(firstValue(ticket.getValidFrom(), LocalDate.now()));
         ticket.setDurationType(firstText(ticket.getDurationType(), "MONTHLY"));
         ticket.setDurationMonths(firstValue(ticket.getDurationMonths(), null));
-
-
         normalized.setCard(card);
         normalized.setTicket(ticket);
         return normalized;
@@ -370,14 +368,14 @@ public class PurchaseService {
                 .orElseThrow(() -> new IllegalArgumentException("Passenger account not found, inactive, or unverified"));
     }
 
-    private void sendTicketPurchaseConfirmation(Account account, TicketPurchaseResponse response) {
+    private void sendTicketPurchaseConfirmation(Account account, String ticketType, TicketPurchaseResponse response) {
         try {
             emailService.sendTicketPurchaseConfirmed(
                     account.getEmail(),
                     account.getFullName(),
                     response.getConfirmationNumber(),
                     response.getTicketId(),
-                    response.getPackageId(),
+                    ticketType,
                     response.getTotalPrice(),
                     response.getCurrency(),
                     response.getPurchasedAt());
