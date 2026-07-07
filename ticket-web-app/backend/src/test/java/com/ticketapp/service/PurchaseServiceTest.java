@@ -104,8 +104,8 @@ class PurchaseServiceTest {
         request.setValidFrom(LocalDate.of(2026, 7, 1));
         request.setDurationType("MONTHLY");
         request.setDurationMonths(1);
-
-        service.purchaseMonthlyPassTicket(request);
+        request.setTicketType("PASS");
+        service.purchaseTicket(request);
 
         ArgumentCaptor<ExternalPassTicketRequest> captor =
                 ArgumentCaptor.forClass(ExternalPassTicketRequest.class);
@@ -167,7 +167,6 @@ class PurchaseServiceTest {
                 String fullName,
                 String confirmationNumber,
                 String ticketId,
-                String packageId,
                 BigDecimal totalPrice,
                 String currency,
                 LocalDateTime purchasedAt) {
