@@ -70,19 +70,19 @@ public class PurchaseService {
     public TicketPurchaseResponse purchaseTicket(TicketPurchaseRequest request) {
         Account account = requirePurchasableAccount(request.getUserId());
         LocalDateTime now = LocalDateTime.now();
-        FarePackage farePackage = findFarePackage(request.getPackageId());
+        // FarePackage farePackage = findFarePackage(request.getPackageId());
 
         TicketRequest ticketRequest = new TicketRequest();
         ticketRequest.setPassengerAccountId(request.getUserId());
-        ticketRequest.setTicketTypeCode(firstText(request.getPackageId(), request.getTicketType()));
+        ticketRequest.setTicketTypeCode(request.getTicketType());
 
         ExternalTicketResponse externalTicket = purchaseExternalTicket(request);
         TicketResponse ticket = ticketService.cacheExternalTicket(ticketRequest, externalTicket);
         // QrCodeResponse qrCode = level4Client.generateQrCode(new QrCodeRequest(ticket.getExternalTicketId()));
-        BigDecimal totalAmount = firstValue(ticket.getFare(), farePackage == null ? null : farePackage.getPrice(), BigDecimal.ZERO);
+        BigDecimal totalAmount = firstValue(ticket.getFare(), BigDecimal.ZERO);
         String currency = firstText(ticket.getCurrency(), farePackage == null ? null : farePackage.getCurrency(), "VND");
-        String itemCode = firstText(ticket.getTicketTypeCode(), request.getPackageId(), request.getTicketType(), "TICKET");
-        String itemName = farePackage == null ? itemCode : farePackage.getName();
+        String itemCode = firstText(ticket.getTicketTypeCode(), request.getTicketType(), "TICKET");
+        // String itemName = farePackage == null ? itemCode : farePackage.getName();
 
         Order order = createOrder(
                 request.getUserId(),
@@ -90,7 +90,7 @@ public class PurchaseService {
                 currency,
                 "COMPLETED",
                 now,
-                List.of(createOrderItem("TICKET", itemCode, itemName, 1, totalAmount)));
+                List.of(createOrderItem("TICKET", itemCode, 1, totalAmount)));
         Payment payment = createCompletedPayment(order, request.getUserId(), firstText(request.getPaymentMethod(), "VNPAY"), now);
 
         TicketPurchaseResponse response = TicketPurchaseResponse.builder()
@@ -114,21 +114,21 @@ public class PurchaseService {
         return response;
     }
 
-    @Transactional
-    public TicketPurchaseResponse purchaseSingleTripTicket(TicketPurchaseRequest request) {
-        log.info("Purchasing single-trip ticket for user: {}, from: {}, to: {}",
-                request.getUserId(), request.getFromStationId(), request.getToStationId());
-        request.setTicketType("SINGLE_TRIP");
-        return purchaseTicket(request);
-    }
+    // @Transactional
+    // public TicketPurchaseResponse purchaseSingleTripTicket(TicketPurchaseRequest request) {
+    //     log.info("Purchasing single-trip ticket for user: {}, from: {}, to: {}",
+    //             request.getUserId(), request.getFromStationId(), request.getToStationId());
+    //     request.setTicketType("SINGLE_TRIP");
+    //     return purchaseTicket(request);
+    // }
 
-    @Transactional
-    public TicketPurchaseResponse purchaseMonthlyPassTicket(TicketPurchaseRequest request) {
-        log.info("Purchasing monthly pass ticket for user: {}, route: {}",
-                request.getUserId(), request.getRouteId());
-        request.setTicketType("MONTHLY_PASS");
-        return purchaseTicket(request);
-    }
+    // @Transactional
+    // public TicketPurchaseResponse purchaseMonthlyPassTicket(TicketPurchaseRequest request) {
+    //     log.info("Purchasing monthly pass ticket for user: {}, route: {}",
+    //             request.getUserId(), request.getRouteId());
+    //     request.setTicketType("MONTHLY_PASS");
+    //     return purchaseTicket(request);
+    // }
 
     private ExternalTicketResponse purchaseExternalTicket(TicketPurchaseRequest request) {
         if (isSingleTrip(request)) {
@@ -148,20 +148,21 @@ public class PurchaseService {
                 request.getUserId(), request.getRouteId());
         String mode = firstText(request.getMode(), inferMode(request.getPackageId()), "METRO");
         boolean metroPass = "METRO".equalsIgnoreCase(mode);
+        String durationType = request.getDurationType();
         return level5Client.purchasePassTicket(ExternalPassTicketRequest.builder()
                 .userId(request.getUserId())
                 .mode(mode)
-                .scope(metroPass ? null : request.getScope())
+                .scope(metroPass ? null : (durationType != "MONTHLY" ? null : request.getScope()))
                 .routeId(metroPass ? null : requireText(request.getRouteId(), null))
-                .passengerType(firstText(request.getPassengerType(), "ADULT"))
+                .passengerType(request.getPassengerType() == "NO" ? null : request.getPassengerType())
                 .validFrom(firstValue(request.getValidFrom(), LocalDate.now()))
-                .durationType(firstText(request.getDurationType()))
+                .durationType(request.getDurationType())
                 .durationMonths(firstValue(request.getDurationMonths(), null))
                 .build());
     }
 
     private boolean isSingleTrip(TicketPurchaseRequest request) {
-        String value = firstText(request.getTicketType(), request.getPackageId(), request.getDurationType(), "");
+        String value = firstText(request.getTicketType(), request.getDurationType(), "");
         String normalized = value.toLowerCase(Locale.ROOT);
         return normalized.contains("single") && !normalized.contains("month");
     }
@@ -181,18 +182,18 @@ public class PurchaseService {
         return null;
     }
 
-    private FarePackage findFarePackage(String code) {
-        if (code == null || code.isBlank()) {
-            return null;
-        }
+    // private FarePackage findFarePackage(String code) {
+    //     if (code == null || code.isBlank()) {
+    //         return null;
+    //     }
 
-        try {
-            return ticketService.requireActiveFarePackage(code);
-        } catch (RuntimeException exception) {
-            log.debug("No local fare package found for ticket purchase code: {}", code);
-            return null;
-        }
-    }
+    //     try {
+    //         return ticketService.requireActiveFarePackage(code);
+    //     } catch (RuntimeException exception) {
+    //         log.debug("No local fare package found for ticket purchase code: {}", code);
+    //         return null;
+    //     }
+    // }
 
     @Transactional
     public CardPurchaseResponse purchaseCard(CardPurchaseRequest request) {
@@ -445,12 +446,11 @@ public class PurchaseService {
         return orderRepository.save(order);
     }
 
-    private OrderItem createOrderItem(String itemType, String itemCode, String itemName, int quantity, BigDecimal price) {
+    private OrderItem createOrderItem(String itemType, String itemCode, int quantity, BigDecimal price) {
         return new OrderItem(
                 "item_" + shortToken(),
                 itemType,
                 itemCode,
-                itemName,
                 quantity,
                 price,
                 price.multiply(BigDecimal.valueOf(quantity)));

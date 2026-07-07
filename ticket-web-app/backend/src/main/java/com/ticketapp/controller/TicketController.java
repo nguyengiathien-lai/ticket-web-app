@@ -2,7 +2,9 @@ package com.ticketapp.controller;
 
 import com.ticketapp.dto.ApiResponse;
 import com.ticketapp.dto.fare.FarePackageResponse;
-import com.ticketapp.dto.purchase.TicketPurchaseRequest;
+// import com.ticketapp.dto.purchase.TicketPurchaseRequest;
+import com.ticketapp.dto.purchase.PassTicketPurchaseRequest;
+import com.ticketapp.dto.purchase.SingleTripTicketPurchaseRequest;
 import com.ticketapp.dto.purchase.TicketPurchaseResponse;
 import com.ticketapp.service.PurchaseService;
 import com.ticketapp.service.TicketService;
@@ -47,24 +49,24 @@ public class TicketController {
                 .body(ApiResponse.success(purchase, "Ticket purchased successfully"));
     }
 
-    @PostMapping("/single-trip")
-    public ResponseEntity<ApiResponse<TicketPurchaseResponse>> purchaseSingleTripTicket(
-            @Valid @RequestBody TicketPurchaseRequest request) {
-        TicketPurchaseResponse purchase = purchaseService.purchaseSingleTripTicket(request);
+    // @PostMapping("/single-trip")
+    // public ResponseEntity<ApiResponse<TicketPurchaseResponse>> purchaseSingleTripTicket(
+    //         @Valid @RequestBody SingleTripTicketPurchaseRequest request) {
+    //     TicketPurchaseResponse purchase = purchaseService.purchaseSingleTripTicket(request);
 
-        return ResponseEntity
-                .status(HttpStatus.CREATED)
-                .body(ApiResponse.success(purchase, "Single-trip ticket purchased successfully"));
-    }
+    //     return ResponseEntity
+    //             .status(HttpStatus.CREATED)
+    //             .body(ApiResponse.success(purchase, "Single-trip ticket purchased successfully"));
+    // }
 
-    @PostMapping("/pass")
-    public ResponseEntity<ApiResponse<TicketPurchaseResponse>> purchaseMonthlyPassTicket(
-            @Valid @RequestBody TicketPurchaseRequest request) {
-        TicketPurchaseResponse purchase = purchaseService.purchaseMonthlyPassTicket(request);
+    // @PostMapping("/pass")
+    // public ResponseEntity<ApiResponse<TicketPurchaseResponse>> purchaseMonthlyPassTicket(
+    //         @Valid @RequestBody PassTicketPurchaseRequest request) {
+    //     TicketPurchaseResponse purchase = purchaseService.purchaseMonthlyPassTicket(request);
 
-        return ResponseEntity
-                .status(HttpStatus.CREATED)
-                .body(ApiResponse.success(purchase, "Monthly pass purchased successfully"));
-    }
+    //     return ResponseEntity
+    //             .status(HttpStatus.CREATED)
+    //             .body(ApiResponse.success(purchase, "Monthly pass purchased successfully"));
+    // }
 
 }

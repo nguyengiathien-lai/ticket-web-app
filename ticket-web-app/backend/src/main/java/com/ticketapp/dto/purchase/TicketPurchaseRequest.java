@@ -14,8 +14,8 @@ public class TicketPurchaseRequest {
     @NotBlank
     private String userId;
 
-    @JsonAlias({"ticketType", "ticketTypeCode"})
-    private String packageId;
+    // @JsonAlias({"ticketType", "ticketTypeCode"})
+    // private String packageId;
 
     private String paymentMethod;
 

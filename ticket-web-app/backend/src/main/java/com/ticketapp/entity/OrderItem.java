@@ -25,9 +25,6 @@ public class OrderItem {
     @Column(name = "item_code", nullable = false, length = 100)
     private String itemCode;
 
-    @Column(name = "item_name", nullable = false, length = 120)
-    private String itemName;
-
     @Column(nullable = false)
     private Integer quantity;
 
