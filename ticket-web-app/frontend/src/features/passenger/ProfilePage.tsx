@@ -18,16 +18,20 @@ export function ProfilePage() {
   const location = useLocation();
   const state = location.state as { message?: string } | null;
   const account = getStoredAccount();
+  const profileComplete = isProfileComplete(account);
   const [fullName, setFullName] = useState(account?.fullName ?? '');
   const [phoneNumber, setPhoneNumber] = useState(account?.phoneNumber ?? '');
   const [dateOfBirth, setDateOfBirth] = useState(account?.dateOfBirth ?? '');
   const [gender, setGender] = useState(account?.gender ?? '');
   const [address, setAddress] = useState(account?.address ?? '');
   const [personalId, setPersonalId] = useState(account?.personalId ?? '');
+  const [isEditing, setIsEditing] = useState(!profileComplete);
   const [message, setMessage] = useState(state?.message ?? '');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const toast = useToast();
+
+  const formDisabled = isSubmitting || !isEditing;
 
   const initials = useMemo(() => {
     const source = fullName.trim() || account?.email || 'U';
@@ -38,8 +42,20 @@ export function ProfilePage() {
       .join('');
   }, [account?.email, fullName]);
 
+  function handleEditClick() {
+    setIsEditing(true);
+    setMessage('');
+    setError('');
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    if (!isEditing && profileComplete) {
+      handleEditClick();
+      return;
+    }
+
     setMessage('');
     setError('');
 
@@ -75,11 +91,12 @@ export function ProfilePage() {
       setPersonalId(updated.personalId ?? '');
       toast.success('Cập nhật hồ sơ thành công.');
 
-      if (isProfileComplete(updated)) {
+      if (!profileComplete && isProfileComplete(updated)) {
         navigate('/app', { replace: true });
         return;
       }
 
+      setIsEditing(false);
       setMessage('Cập nhật hồ sơ thành công.');
     } catch (exception) {
       const reason = exception instanceof Error ? exception.message : 'Không thể cập nhật hồ sơ. Vui lòng thử lại.';
@@ -100,23 +117,23 @@ export function ProfilePage() {
             <p>{account?.email}</p>
           </div>
         </div>
-        {!isProfileComplete(account) && (
+        {!profileComplete && (
           <p className="warning" role="status">
             Vui lòng cập nhật đầy đủ hồ sơ trước khi sử dụng các chức năng khác.
           </p>
         )}
         <div className="form-grid">
-          <label>Họ và tên<input value={fullName} onChange={(event) => setFullName(event.target.value)} disabled={isSubmitting} required /></label>
-          <label>Số điện thoại<input value={phoneNumber} onChange={(event) => setPhoneNumber(event.target.value)} disabled={isSubmitting} required /></label>
-          <label>Ngày sinh<input type="date" value={dateOfBirth} onChange={(event) => setDateOfBirth(event.target.value)} disabled={isSubmitting} required /></label>
-          <label>Giới tính<input value={gender} onChange={(event) => setGender(event.target.value)} disabled={isSubmitting} required /></label>
-          <label>Địa chỉ<input value={address} onChange={(event) => setAddress(event.target.value)} disabled={isSubmitting} required /></label>
-          <label>Số giấy tờ cá nhân<input value={personalId} onChange={(event) => setPersonalId(event.target.value)} disabled={isSubmitting} required /></label>
+          <label>Họ và tên<input value={fullName} onChange={(event) => setFullName(event.target.value)} disabled={formDisabled} required /></label>
+          <label>Số điện thoại<input value={phoneNumber} onChange={(event) => setPhoneNumber(event.target.value)} disabled={formDisabled} required /></label>
+          <label>Ngày sinh<input type="date" value={dateOfBirth} onChange={(event) => setDateOfBirth(event.target.value)} disabled={formDisabled} required /></label>
+          <label>Giới tính<input value={gender} onChange={(event) => setGender(event.target.value)} disabled={formDisabled} required /></label>
+          <label>Địa chỉ<input value={address} onChange={(event) => setAddress(event.target.value)} disabled={formDisabled} required /></label>
+          <label>Số giấy tờ cá nhân<input value={personalId} onChange={(event) => setPersonalId(event.target.value)} disabled={formDisabled} required /></label>
         </div>
         {message && <p className="success" role="status">{message}</p>}
         {error && <p className="danger" role="alert">{error}</p>}
         <button className="primary-button fit" disabled={isSubmitting}>
-          {isSubmitting ? 'Đang cập nhật...' : 'Cập nhật hồ sơ'}
+          {isSubmitting ? 'Đang cập nhật...' : (isEditing ? 'Lưu hồ sơ' : 'Cập nhật hồ sơ')}
         </button>
       </form>
     </Card>
