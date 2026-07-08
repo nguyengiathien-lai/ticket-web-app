@@ -1,9 +1,22 @@
 import { FormEvent, useMemo, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Card } from '../../components/Card';
 import { useToast } from '../../components/ToastProvider';
-import { getStoredAccount, updateProfile } from '../../services/authApi';
+import { getStoredAccount, isProfileComplete, updateProfile } from '../../services/authApi';
+
+interface RequiredProfileInput {
+  fullName: string;
+  phoneNumber: string;
+  dateOfBirth: string;
+  gender: string;
+  address: string;
+  personalId: string;
+}
 
 export function ProfilePage() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const state = location.state as { message?: string } | null;
   const account = getStoredAccount();
   const [fullName, setFullName] = useState(account?.fullName ?? '');
   const [phoneNumber, setPhoneNumber] = useState(account?.phoneNumber ?? '');
@@ -11,7 +24,7 @@ export function ProfilePage() {
   const [gender, setGender] = useState(account?.gender ?? '');
   const [address, setAddress] = useState(account?.address ?? '');
   const [personalId, setPersonalId] = useState(account?.personalId ?? '');
-  const [message, setMessage] = useState('');
+  const [message, setMessage] = useState(state?.message ?? '');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const toast = useToast();
@@ -37,15 +50,22 @@ export function ProfilePage() {
       return;
     }
 
+    if (!isRequiredProfileInputComplete({ fullName, phoneNumber, dateOfBirth, gender, address, personalId })) {
+      const reason = 'Vui lòng cập nhật đầy đủ thông tin hồ sơ trước khi sử dụng ứng dụng.';
+      setError(reason);
+      toast.error(reason);
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const updated = await updateProfile(account.id, {
-        fullName,
-        phoneNumber,
-        personalId,
-        address,
-        dateOfBirth: dateOfBirth || null,
-        gender
+        fullName: fullName.trim(),
+        phoneNumber: phoneNumber.trim(),
+        personalId: personalId.trim(),
+        address: address.trim(),
+        dateOfBirth,
+        gender: gender.trim()
       });
       setFullName(updated.fullName ?? '');
       setPhoneNumber(updated.phoneNumber ?? '');
@@ -53,8 +73,14 @@ export function ProfilePage() {
       setGender(updated.gender ?? '');
       setAddress(updated.address ?? '');
       setPersonalId(updated.personalId ?? '');
-      setMessage('Cập nhật hồ sơ thành công.');
       toast.success('Cập nhật hồ sơ thành công.');
+
+      if (isProfileComplete(updated)) {
+        navigate('/app', { replace: true });
+        return;
+      }
+
+      setMessage('Cập nhật hồ sơ thành công.');
     } catch (exception) {
       const reason = exception instanceof Error ? exception.message : 'Không thể cập nhật hồ sơ. Vui lòng thử lại.';
       setError(reason);
@@ -74,13 +100,18 @@ export function ProfilePage() {
             <p>{account?.email}</p>
           </div>
         </div>
+        {!isProfileComplete(account) && (
+          <p className="warning" role="status">
+            Vui lòng cập nhật đầy đủ hồ sơ trước khi sử dụng các chức năng khác.
+          </p>
+        )}
         <div className="form-grid">
-          <label>Họ và tên<input value={fullName} onChange={(event) => setFullName(event.target.value)} disabled={isSubmitting} /></label>
-          <label>Số điện thoại<input value={phoneNumber} onChange={(event) => setPhoneNumber(event.target.value)} disabled={isSubmitting} /></label>
-          <label>Ngày sinh<input type="date" value={dateOfBirth} onChange={(event) => setDateOfBirth(event.target.value)} disabled={isSubmitting} /></label>
-          <label>Giới tính<input value={gender} onChange={(event) => setGender(event.target.value)} disabled={isSubmitting} /></label>
-          <label>Địa chỉ<input value={address} onChange={(event) => setAddress(event.target.value)} disabled={isSubmitting} /></label>
-          <label>Số giấy tờ cá nhân<input value={personalId} onChange={(event) => setPersonalId(event.target.value)} disabled={isSubmitting} /></label>
+          <label>Họ và tên<input value={fullName} onChange={(event) => setFullName(event.target.value)} disabled={isSubmitting} required /></label>
+          <label>Số điện thoại<input value={phoneNumber} onChange={(event) => setPhoneNumber(event.target.value)} disabled={isSubmitting} required /></label>
+          <label>Ngày sinh<input type="date" value={dateOfBirth} onChange={(event) => setDateOfBirth(event.target.value)} disabled={isSubmitting} required /></label>
+          <label>Giới tính<input value={gender} onChange={(event) => setGender(event.target.value)} disabled={isSubmitting} required /></label>
+          <label>Địa chỉ<input value={address} onChange={(event) => setAddress(event.target.value)} disabled={isSubmitting} required /></label>
+          <label>Số giấy tờ cá nhân<input value={personalId} onChange={(event) => setPersonalId(event.target.value)} disabled={isSubmitting} required /></label>
         </div>
         {message && <p className="success" role="status">{message}</p>}
         {error && <p className="danger" role="alert">{error}</p>}
@@ -90,4 +121,15 @@ export function ProfilePage() {
       </form>
     </Card>
   );
+}
+
+function isRequiredProfileInputComplete(input: RequiredProfileInput) {
+  return [
+    input.fullName,
+    input.phoneNumber,
+    input.dateOfBirth,
+    input.gender,
+    input.address,
+    input.personalId
+  ].every((value) => value.trim().length > 0);
 }

@@ -1,5 +1,5 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
-import { getStoredAccount, isAdmin, isSessionValid, nextRouteFor } from '../services/authApi';
+import { getStoredAccount, isAdmin, isProfileComplete, isSessionValid, nextRouteFor } from '../services/authApi';
 
 interface ProtectedRouteProps {
   role: 'admin' | 'passenger';
@@ -20,6 +20,10 @@ export function ProtectedRoute({ role }: ProtectedRouteProps) {
 
   if (role === 'passenger' && accountIsAdmin) {
     return <Navigate to={nextRouteFor(account)} replace />;
+  }
+
+  if (role === 'passenger' && !isProfileComplete(account) && location.pathname !== '/app/profile') {
+    return <Navigate to="/app/profile" replace state={{ message: 'Vui lòng cập nhật đầy đủ hồ sơ trước khi sử dụng ứng dụng.' }} />;
   }
 
   return <Outlet />;

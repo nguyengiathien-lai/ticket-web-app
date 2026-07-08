@@ -187,6 +187,25 @@ export function isAdmin(account: AccountResponse | null) {
   return Boolean(account?.roles.includes('APP_ADMIN'));
 }
 
+export function isProfileComplete(account: AccountResponse | null) {
+  if (!account || isAdmin(account)) {
+    return true;
+  }
+
+  return [
+    account.fullName,
+    account.phoneNumber,
+    account.dateOfBirth,
+    account.gender,
+    account.address,
+    account.personalId
+  ].every((value) => Boolean(value?.trim()));
+}
+
 export function nextRouteFor(account: AccountResponse) {
-  return isAdmin(account) ? '/admin' : '/app';
+  if (isAdmin(account)) {
+    return '/admin';
+  }
+
+  return isProfileComplete(account) ? '/app' : '/app/profile';
 }

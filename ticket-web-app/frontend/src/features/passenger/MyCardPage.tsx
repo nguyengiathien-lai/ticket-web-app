@@ -140,7 +140,7 @@ export function MyCardPage() {
       <Card title="Thông tin thẻ">
         <dl className="info-list">
           <dt>Chủ thẻ</dt><dd>{account?.fullName || account?.email || 'Hành khách'}</dd>
-          <dt>Số thẻ</dt><dd>{cards.length}</dd>
+          <dt>Số thẻ</dt><dd>{currentCard?.cardUid || currentCard?.id}</dd>
           <dt>Loại thẻ</dt><dd>{formatCardType(currentCard?.type)}</dd>
           <dt>Ngày phát hành</dt><dd>{formatDate(currentCard?.issuedAt ?? currentCard?.activatedAt ?? currentCard?.linkedAt)}</dd>
           <dt>Trạng thái</dt><dd className={currentCard?.status === 'ACTIVE' ? 'success' : 'warning'}>{formatStatus(currentCard?.status)}</dd>
@@ -237,8 +237,9 @@ function formatDate(value?: string) {
   if (!value) return 'Chưa có';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short' }).format(date);
+  return new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'short' }).format(date);
 }
+
 
 function formatStatus(value?: string) {
   if (!value) return 'Chưa rõ';
