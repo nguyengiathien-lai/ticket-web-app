@@ -172,15 +172,17 @@ export function BuyTicketPage() {
           </div>
         ) : (
           <div className="form-grid compact-grid">
-            <label>Tuyến<select value={routeId} onChange={(event) => setRouteId(event.target.value)}>{routesForMode.map((route) => <option key={route.id} value={route.id}>{route.code} - {route.name}</option>)}</select></label>
             {transportMode !== 'METRO' && (
               <label>Phạm vi<select value={scope} onChange={(event) => setScope(event.target.value)}><option value="SINGLE_ROUTE">Một tuyến</option><option value="MULTI_ROUTE">Liên tuyến</option></select></label>
             )}
             {transportMode == 'METRO' && (
               <label>Phạm vi<select value={scope} onChange={(event) => setScope(event.target.value)}><option value="SINGLE_ROUTE">Một tuyến</option></select></label>
             )}
+            {scope == "SINGLE_ROUTE" && (
+              <label>Tuyến<select value={routeId} onChange={(event) => setRouteId(event.target.value)}>{routesForMode.map((route) => <option key={route.id} value={route.id}>{route.code} - {route.name}</option>)}</select></label>
+            )}
             <label>Loại gói<select value={durationType} onChange={(event) => setDurationType(event.target.value as PassDurationType)}>{(Object.keys(passDurationLabels) as PassDurationType[]).map((key) => <option key={key} value={key}>{passDurationLabels[key]}</option>)}</select></label>
-            <label>Loại hành khách<select value={passengerType} onChange={(event) => setPassengerType(event.target.value)}><option value="NO">Không có</option><option value="STUDENT">Sinh viên</option><option value="PRIORITY">Người cao tuổi</option></select></label>
+            <label>Loại hành khách<select value={passengerType} onChange={(event) => setPassengerType(event.target.value)}><option value="NO">Không có</option><option value="STUDENT">Sinh viên</option><option value="PRIORITY">Ưu tiên</option></select></label>
             <label>Hiệu lực từ<input type="date" value={validFrom} onChange={(event) => setValidFrom(event.target.value)} /></label>
             {durationType === 'MONTHLY' && <label>Số tháng<input type="number" min="1" value={durationMonths} onChange={(event) => setDurationMonths(Number(event.target.value) || 1)} /></label>}
             {durationType !== 'MONTHLY' && <label>Thời hạn<input value={durationType === 'DAILY' ? '1 ngày' : '1 tuần'} readOnly /></label>}
