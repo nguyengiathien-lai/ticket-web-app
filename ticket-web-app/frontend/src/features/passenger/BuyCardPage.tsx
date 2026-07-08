@@ -23,6 +23,7 @@ export function BuyCardPage() {
   const [validFrom, setValidFrom] = useState(today);
   const [durationType, setDurationType] = useState('MONTHLY');
   const [durationMonths, setDurationMonths] = useState(1);
+  const [generatedCardUid, setGeneratedCardUid] = useState(() => generateCardUid());
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState('');
@@ -42,7 +43,6 @@ export function BuyCardPage() {
   const routesForMode = routes.filter((route) => sameRouteMode(route, transportMode));
   const isBusMultiRoute = transportMode === 'BUS' && scope === 'MULTI_ROUTE';
   const requiresRoute = !isBusMultiRoute;
-  const generatedCardUid = useMemo(() => generateCardUid(), []);
   const selectedPackage = useMemo(
     () => packages.find((farePackage) =>
       samePackageMode(farePackage.mode, transportMode)
@@ -91,6 +91,7 @@ export function BuyCardPage() {
         supportsBus: transportMode === 'BUS'
       });
       setMessage(`Đã phát hành thẻ ${issuance.card?.cardUid ?? issuance.card?.id ?? ''} với vé ${issuance.ticket?.ticketId ?? ''}.`);
+      setGeneratedCardUid(generateCardUid());
     } catch (exception) {
       setError(exception instanceof Error ? exception.message : 'Không thể phát hành thẻ.');
     } finally {
@@ -152,7 +153,7 @@ function generateCardUid() {
     .join('')
     .slice(0, 4)
     .padEnd(2, 'X');
-  const seed = `${displayName}|${account?.id ?? ''}|${account?.email ?? ''}`;
+  const seed = `${displayName}|${account?.id ?? ''}|${account?.email ?? ''}|${Date.now()}|${Math.random()}`;
   return `CARD-${initials}-${hashToBase36(seed).slice(0, 6)}`.toUpperCase();
 }
 
