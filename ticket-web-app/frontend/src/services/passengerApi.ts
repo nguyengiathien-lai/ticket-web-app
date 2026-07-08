@@ -172,12 +172,18 @@ export interface SingleTripPurchaseInput {
 export interface PassPurchaseInput {
   mode: string;
   scope?: string;
-  routeId: string;
+  routeId?: string;
   passengerType: string;
   validFrom: string;
   durationType: string;
   durationMonths?: number;
   paymentMethod?: string;
+}
+
+export interface CardPurchaseInput extends PassPurchaseInput {
+  cardUid?: string;
+  supportsMetro: boolean;
+  supportsBus: boolean;
 }
 
 export async function getTicketPackages(): Promise<TicketPackage[]> {
@@ -235,7 +241,7 @@ export async function getPassengerTrips(accountId = getRequiredAccountId()): Pro
 }
 
 export async function purchaseSingleTripTicket(input: SingleTripPurchaseInput): Promise<unknown> {
-  return apiPost('/tickets/single-trip', {
+  return apiPost('/tickets/purchase', {
     userId: getRequiredAccountId(),
     ticketType: 'SINGLE_TRIP',
     mode: input.mode,
@@ -245,13 +251,16 @@ export async function purchaseSingleTripTicket(input: SingleTripPurchaseInput): 
   });
 }
 
-export async function purchaseMonthlyPassTicket(input: PassPurchaseInput): Promise<unknown> {
-  return apiPost('/tickets/pass', {
+export async function purchasePassTicket(input: PassPurchaseInput): Promise<unknown> {
+  const isMetro = input.mode.toUpperCase() === 'METRO';
+  const isSingleRoute = input.scope?.toUpperCase() === 'SINGLE_ROUTE';
+
+  return apiPost('/tickets/purchase', {
     userId: getRequiredAccountId(),
-    ticketType: 'MONTHLY_PASS',
+    ticketType: 'PASS',
     mode: input.mode,
-    scope: input.mode == 'METRO'? null : input.scope,
-    routeId: input.mode == 'METRO'? null : input.routeId,
+    scope: isMetro ? null : input.scope,
+    routeId: isMetro ? null : (isSingleRoute ? input.routeId : null),
     passengerType: input.passengerType,
     validFrom: input.validFrom,
     durationType: input.durationType,
@@ -260,13 +269,12 @@ export async function purchaseMonthlyPassTicket(input: PassPurchaseInput): Promi
   });
 }
 
-export async function issueMonthlyPassCard(input: PassPurchaseInput & {
-  cardUid?: string;
-  supportsMetro: boolean;
-  supportsBus: boolean;
-}): Promise<CardIssuanceResponse> {
+export async function issueMonthlyPassCard(input: CardPurchaseInput): Promise<CardIssuanceResponse> {
   const userId = getRequiredAccountId();
-  return apiPost('/issuance/cards', {
+  const isMetro = input.mode.toUpperCase() === 'METRO';
+  const isSingleRoute = input.scope?.toUpperCase() === 'SINGLE_ROUTE';
+
+  return apiPost('/cards/purchase', {
     card: {
       cardUid: input.cardUid || undefined,
       userId,
@@ -276,8 +284,8 @@ export async function issueMonthlyPassCard(input: PassPurchaseInput & {
     ticket: {
       userId,
       mode: input.mode,
-      scope: input.scope,
-      routeId: input.routeId,
+      scope: isMetro ? null : input.scope,
+      routeId: isMetro ? null : (isSingleRoute ? input.routeId : null),
       passengerType: input.passengerType,
       validFrom: input.validFrom,
       durationType: input.durationType,

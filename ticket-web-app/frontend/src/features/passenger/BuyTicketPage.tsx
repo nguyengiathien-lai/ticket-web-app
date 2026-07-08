@@ -5,7 +5,7 @@ import {
   getTicketPackages,
   getTransitRoutes,
   getTransitStations,
-  purchaseMonthlyPassTicket,
+  purchasePassTicket,
   purchaseSingleTripTicket
 } from '../../services/passengerApi';
 import type { TicketPackage, TransitRoute, TransitStation } from '../../types';
@@ -119,7 +119,7 @@ export function BuyTicketPage() {
         await purchaseSingleTripTicket({ mode: transportMode, fromStationId, toStationId, paymentMethod: method });
         setMessage('Mua vé lượt thành công.');
       } else {
-        await purchaseMonthlyPassTicket(passInput(method));
+        await purchasePassTicket(passInput(method));
         setMessage('Mua vé gói thành công.');
       }
       setIsPaymentOpen(false);

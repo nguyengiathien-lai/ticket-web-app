@@ -46,6 +46,8 @@ export function BuyCardPage() {
     () => packages.find((farePackage) => farePackage.id === selectedPackageId),
     [packages, selectedPackageId]
   );
+  const cardMode = supportsBus && !supportsMetro ? 'BUS' : 'METRO';
+  const requiresRoute = cardMode === 'BUS' && scope === 'SINGLE_ROUTE';
   const total = selectedPackage?.price ?? 0;
 
   useEffect(() => {
@@ -63,9 +65,9 @@ export function BuyCardPage() {
     setIsSubmitting(true);
     try {
       const issuance = await issueMonthlyPassCard({
-        mode: "METRO",
+        mode: cardMode,
         scope,
-        routeId,
+        routeId: requiresRoute ? routeId : undefined,
         passengerType,
         validFrom,
         durationType,
@@ -113,7 +115,7 @@ export function BuyCardPage() {
         </div>
 
         <div className="total"><span>Tổng tiền</span><b>{currency(total)}</b></div>
-        <button className="primary-button" disabled={isLoading || isSubmitting || !routeId || packages.length === 0 || (!supportsBus && !supportsMetro)} onClick={handleSubmit}>
+        <button className="primary-button" disabled={isLoading || isSubmitting || (requiresRoute && !routeId) || packages.length === 0 || (!supportsBus && !supportsMetro)} onClick={handleSubmit}>
           {isSubmitting ? 'Đang phát hành...' : 'Phát hành thẻ'}
         </button>
       </Card>
