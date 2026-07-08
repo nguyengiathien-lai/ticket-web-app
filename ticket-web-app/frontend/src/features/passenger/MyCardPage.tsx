@@ -23,10 +23,11 @@ export function MyCardPage() {
   const [qr, setQr] = useState<TicketQr | null>(null);
   const [qrImageUrl, setQrImageUrl] = useState('');
   const [selectedTicketId, setSelectedTicketId] = useState('');
+  const [selectedCardIndex, setSelectedCardIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isQrLoading, setIsQrLoading] = useState(false);
   const [error, setError] = useState('');
-  const primaryCard = cards[0];
+  const currentCard = cards[selectedCardIndex];
 
   const routeNames = useMemo(() => new Map(routes.map((route) => [route.id, `${route.code} - ${route.name}`])), [routes]);
 
@@ -66,6 +67,12 @@ export function MyCardPage() {
       .catch(() => setQrImageUrl(''));
   }, [qr]);
 
+  useEffect(() => {
+    if (selectedCardIndex >= cards.length) {
+      setSelectedCardIndex(Math.max(cards.length - 1, 0));
+    }
+  }, [cards.length, selectedCardIndex]);
+
   async function handleQr(ticketId: string) {
     setSelectedTicketId(ticketId);
     setQr(null);
@@ -87,6 +94,14 @@ export function MyCardPage() {
     await handleQr(selectedTicketId);
   }
 
+  function handlePreviousCard() {
+    setSelectedCardIndex((current) => (current === 0 ? cards.length - 1 : current - 1));
+  }
+
+  function handleNextCard() {
+    setSelectedCardIndex((current) => (current + 1) % cards.length);
+  }
+
   function formatRoute(routeId?: string) {
     if (!routeId) return 'Chưa có';
     return routeNames.get(routeId) ?? routeId;
@@ -97,14 +112,27 @@ export function MyCardPage() {
       <Card title="Thẻ của tôi">
         {isLoading && <p>Đang tải thẻ...</p>}
         {error && <p className="danger" role="alert">{error}</p>}
-        {!isLoading && !error && !primaryCard && <p>Chưa có thẻ.</p>}
-        {primaryCard && (
-          <div className="transit-card">
-            <p>THẺ CỦA TÔI</p>
-            <h3>{primaryCard.maskedCardNumber || primaryCard.cardUid || primaryCard.id}</h3>
-            <span>Trạng thái</span>
-            <strong>{formatStatus(primaryCard.status)}</strong>
-            <small>{formatCardType(primaryCard.type)}</small>
+        {!isLoading && !error && !currentCard && <p>Chưa có thẻ.</p>}
+        {currentCard && (
+          <div style={{ display: 'grid', gridTemplateColumns: '44px 1fr 44px', gap: 12, alignItems: 'center' }}>
+            <button className="icon-button inline-icon" disabled={cards.length <= 1} onClick={handlePreviousCard} aria-label="Thẻ trước" title="Thẻ trước">
+              &lt;
+            </button>
+            <div className="transit-card">
+              <p>THẺ CỦA TÔI</p>
+              <h3>{currentCard.maskedCardNumber || currentCard.cardUid || currentCard.id}</h3>
+              <span>Trạng thái</span>
+              <strong>{formatStatus(currentCard.status)}</strong>
+              <small>{formatCardType(currentCard.type)}</small>
+            </div>
+            <button className="icon-button inline-icon" disabled={cards.length <= 1} onClick={handleNextCard} aria-label="Thẻ tiếp theo" title="Thẻ tiếp theo">
+              &gt;
+            </button>
+            {cards.length > 1 && (
+              <small style={{ gridColumn: '1 / -1', textAlign: 'center', color: 'var(--muted)', fontWeight: 700 }}>
+                {selectedCardIndex + 1} / {cards.length}
+              </small>
+            )}
           </div>
         )}
       </Card>
@@ -113,9 +141,9 @@ export function MyCardPage() {
         <dl className="info-list">
           <dt>Chủ thẻ</dt><dd>{account?.fullName || account?.email || 'Hành khách'}</dd>
           <dt>Số thẻ</dt><dd>{cards.length}</dd>
-          <dt>Loại thẻ</dt><dd>{formatCardType(primaryCard?.type)}</dd>
-          <dt>Ngày phát hành</dt><dd>{formatDate(primaryCard?.issuedAt ?? primaryCard?.activatedAt ?? primaryCard?.linkedAt)}</dd>
-          <dt>Trạng thái</dt><dd className={primaryCard?.status === 'ACTIVE' ? 'success' : 'warning'}>{formatStatus(primaryCard?.status)}</dd>
+          <dt>Loại thẻ</dt><dd>{formatCardType(currentCard?.type)}</dd>
+          <dt>Ngày phát hành</dt><dd>{formatDate(currentCard?.issuedAt ?? currentCard?.activatedAt ?? currentCard?.linkedAt)}</dd>
+          <dt>Trạng thái</dt><dd className={currentCard?.status === 'ACTIVE' ? 'success' : 'warning'}>{formatStatus(currentCard?.status)}</dd>
         </dl>
       </Card>
 
