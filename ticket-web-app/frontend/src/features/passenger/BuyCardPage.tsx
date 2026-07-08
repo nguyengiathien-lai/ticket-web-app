@@ -6,6 +6,7 @@ import {
   getTransitRoutes,
   issueMonthlyPassCard
 } from '../../services/passengerApi';
+import { getStoredAccount } from '../../services/authApi';
 import type { TicketPackage, TransitRoute } from '../../types';
 import { currency } from '../../utils/format';
 
@@ -22,7 +23,6 @@ export function BuyCardPage() {
   const [validFrom, setValidFrom] = useState(today);
   const [durationType, setDurationType] = useState('MONTHLY');
   const [durationMonths, setDurationMonths] = useState(1);
-  const [cardUid, setCardUid] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState('');
@@ -42,6 +42,7 @@ export function BuyCardPage() {
   const routesForMode = routes.filter((route) => sameRouteMode(route, transportMode));
   const isBusMultiRoute = transportMode === 'BUS' && scope === 'MULTI_ROUTE';
   const requiresRoute = !isBusMultiRoute;
+  const generatedCardUid = useMemo(() => generateCardUid(), []);
   const selectedPackage = useMemo(
     () => packages.find((farePackage) =>
       samePackageMode(farePackage.mode, transportMode)
@@ -85,7 +86,7 @@ export function BuyCardPage() {
         validFrom,
         durationType,
         durationMonths,
-        cardUid: cardUid.trim(),
+        cardUid: generatedCardUid,
         supportsMetro: transportMode === 'METRO',
         supportsBus: transportMode === 'BUS'
       });
@@ -119,7 +120,6 @@ export function BuyCardPage() {
           <label>Hiệu lực từ<input type="date" value={validFrom} onChange={(event) => setValidFrom(event.target.value)} /></label>
           <label>Loại thời hạn<select value={durationType} onChange={(event) => setDurationType(event.target.value)}><option value="MONTHLY">Theo tháng</option><option value="DAILY">Theo ngày</option></select></label>
           <label>Số tháng<input type="number" min="1" value={durationMonths} onChange={(event) => setDurationMonths(Number(event.target.value) || 1)} /></label>
-          <label>UID thẻ<input value={cardUid} onChange={(event) => setCardUid(event.target.value)} placeholder="UID thẻ vật lý, có thể bỏ trống" /></label>
         </div>
 
         <div className="total"><span>Tổng tiền</span><b>{currency(total)}</b></div>
@@ -131,7 +131,7 @@ export function BuyCardPage() {
       <Card title="Thông tin thẻ">
         <div className="transit-card">
           <p>THẺ VÉ THÁNG</p>
-          <h3>{cardUid || 'UID tự động'}</h3>
+          <h3>{generatedCardUid}</h3>
           <span>Gói vé đã chọn</span>
           <strong>{selectedPackage?.name ?? 'Chưa chọn gói vé'}</strong>
           <small>{transportMode === 'METRO' ? 'Metro' : 'Xe buýt'}</small>
@@ -140,6 +140,38 @@ export function BuyCardPage() {
       </Card>
     </div>
   );
+}
+
+function generateCardUid() {
+  const account = getStoredAccount();
+  const displayName = account?.fullName || account?.email?.split('@')[0] || 'USER';
+  const initials = toAscii(displayName)
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((part) => part[0])
+    .join('')
+    .slice(0, 4)
+    .padEnd(2, 'X');
+  const seed = `${displayName}|${account?.id ?? ''}|${account?.email ?? ''}`;
+  return `CARD-${initials}-${hashToBase36(seed).slice(0, 6)}`.toUpperCase();
+}
+
+function toAscii(value: string) {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D')
+    .replace(/[^a-zA-Z0-9\s]/g, ' ')
+    .trim();
+}
+
+function hashToBase36(value: string) {
+  let hash = 5381;
+  for (let index = 0; index < value.length; index += 1) {
+    hash = ((hash << 5) + hash + value.charCodeAt(index)) >>> 0;
+  }
+  return hash.toString(36).padStart(6, '0');
 }
 
 function sameRouteMode(route: TransitRoute, selectedMode: TransportMode) {
