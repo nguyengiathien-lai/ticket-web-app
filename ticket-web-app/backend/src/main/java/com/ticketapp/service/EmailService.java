@@ -93,7 +93,7 @@ public class EmailService {
                         Tổng tiền: %s %s
                         Ngày mua: %s
 
-                        Mã QR của bạn có sẵn trong tài khoản Ticket App của bạn. 
+                        Mã QR của vé có sẵn trong tài khoản Ticket App của bạn. 
                         Lưu ý: Mã QR chỉ có hiệu lực 30s. Nếu mã hết hạn, vui lòng yêu cầu mã QR mới trong ứng dụng Ticket App.
 
                         Chúc bạn có những chuyến đi vui vẻ và trải nghiệm tuyệt vời với Ticket App!
