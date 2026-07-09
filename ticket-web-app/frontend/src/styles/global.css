@@ -19,3 +19,7 @@ body{background:linear-gradient(135deg,#eaf3ff 0%,#f8fbff 46%,#ffffff 100%);colo
 @media (max-width:1050px){.main-content{padding:18px}.topbar{border-radius:20px}.sidebar{box-shadow:18px 0 52px rgba(15,45,98,.16)}}
 
 @media (max-width:640px){.main-content{padding:14px}.topbar{padding:14px}.topbar h2{font-size:22px}.card{border-radius:20px;padding:18px}.hero-card h2{font-size:25px}.table-wrap{border-radius:14px}.route-item,.action-button,.mini-package,.package-option{border-radius:15px}}
+
+.hero-card{background-image:linear-gradient(90deg,rgba(8,24,68,.76) 0%,rgba(15,58,140,.5) 48%,rgba(15,98,254,.16) 100%),url('/images/login-metro-city.png');background-size:cover;background-position:center right;text-shadow:0 10px 28px rgba(2,6,23,.42)}.hero-card:after{display:none}
+
+@media (max-width:640px){.hero-card{background-position:center}}
