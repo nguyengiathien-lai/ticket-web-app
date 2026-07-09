@@ -53,14 +53,14 @@ export function LoginPage() {
       <div className="auth-panel intro-panel">
         <div className="intro-overlay">
           <div className="brand large auth-hero-brand"><Bus size={34}/> TransitPass</div>
-          <div className="metro-pill"><TrainFront size={18}/> Metro City Line</div>
+          {/* <div className="metro-pill"><TrainFront size={18}/> Metro City Line</div> */}
           <h1>Di chuyển thông minh<br/>Kết nối mọi hành trình</h1>
-          <p>Ứng dụng mua vé và thẻ giao thông công cộng cho hành khách và quản trị viên.</p>
+          {/* <p>Ứng dụng mua vé và thẻ giao thông công cộng cho hành khách và quản trị viên.</p>
           <div className="auth-feature-row" aria-label="TransitPass highlights">
             <span><Ticket size={18}/> Vé điện tử</span>
             <span><MapPinned size={18}/> Tuyến metro</span>
             <span><ShieldCheck size={18}/> Bảo mật</span>
-          </div>
+          </div> */}
         </div>
       </div>
       <form className="auth-card" onSubmit={handleSubmit}>
