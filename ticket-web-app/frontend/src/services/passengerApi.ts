@@ -261,7 +261,7 @@ export async function purchasePassTicket(input: PassPurchaseInput): Promise<unkn
     mode: input.mode,
     scope: isMetro ? null : input.scope,
     routeId: isMetro ? null : (isSingleRoute ? input.routeId : null),
-    passengerType: input.passengerType,
+    passengerType: input.passengerType === 'NO' ? null : input.passengerType,
     validFrom: input.validFrom,
     durationType: input.durationType,
     ...(input.durationMonths == null ? {} : { durationMonths: input.durationMonths }),
@@ -286,7 +286,7 @@ export async function issueMonthlyPassCard(input: CardPurchaseInput): Promise<Ca
       mode: input.mode,
       scope: isMetro ? null : input.scope,
       routeId: isMetro ? null : (isSingleRoute ? input.routeId : null),
-      passengerType: input.passengerType,
+      passengerType: input.passengerType === 'NO' ? null : input.passengerType,
       validFrom: input.validFrom,
       durationType: input.durationType,
       durationMonths: input.durationMonths
