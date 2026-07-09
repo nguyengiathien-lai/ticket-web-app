@@ -48,6 +48,7 @@ export interface TransitStation {
   name: string;
   routeId?: string;
   sequence?: number;
+  kmMarker?: number;
 }
 
 export interface AdminMetric {

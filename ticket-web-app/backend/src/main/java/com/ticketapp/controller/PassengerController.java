@@ -10,8 +10,10 @@ import com.ticketapp.dto.external.ExternalFarePriceResponse;
 import com.ticketapp.dto.external.ExternalPassengerRouteResponse;
 import com.ticketapp.dto.external.ExternalPassengerStationResponse;
 import com.ticketapp.dto.external.ExternalTravelHistoryResponse;
+import com.ticketapp.dto.fare.SingleTripFareQuoteResponse;
 import com.ticketapp.dto.ticket.TicketResponse;
 import com.ticketapp.service.CardService;
+import com.ticketapp.service.SingleTripFareQuoteService;
 import com.ticketapp.service.TicketService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Value;
@@ -19,6 +21,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,6 +42,7 @@ public class PassengerController {
     private final Duration passengerCacheTtl;
     private final CardService cardService;
     private final TicketService ticketService;
+    private final SingleTripFareQuoteService singleTripFareQuoteService;
 
     public PassengerController(
             Level5Client level5Client,
@@ -46,13 +50,15 @@ public class PassengerController {
             ObjectMapper objectMapper,
             @Value("${app.cache.passenger-data-ttl-seconds:86400}") int passengerCacheTtlSeconds,
             CardService cardService,
-            TicketService ticketService) {
+            TicketService ticketService,
+            SingleTripFareQuoteService singleTripFareQuoteService) {
         this.level5Client = level5Client;
         this.redisTemplate = redisTemplate;
         this.objectMapper = objectMapper;
         this.passengerCacheTtl = Duration.ofSeconds(passengerCacheTtlSeconds);
         this.cardService = cardService;
         this.ticketService = ticketService;
+        this.singleTripFareQuoteService = singleTripFareQuoteService;
     }
 
     @GetMapping("/passengers/stations")
@@ -104,12 +110,26 @@ public class PassengerController {
 
     @GetMapping("/passengers/fare/prices")
     public ResponseEntity<ApiResponse<List<ExternalFarePriceResponse>>> getFarePrices() {
+        List<ExternalFarePriceResponse> farePrices = cachedList(
+                "passenger:fare:prices",
+                ExternalFarePriceResponse.class,
+                level5Client::getFarePrices);
+        try {
+            singleTripFareQuoteService.refreshQuotes(farePrices);
+        } catch (RuntimeException exception) {
+            log.warn("Could not refresh single-trip fare quote cache", exception);
+        }
+        return ResponseEntity.ok(ApiResponse.success(farePrices, "Fare prices retrieved successfully"));
+    }
+
+    @GetMapping("/passengers/fare/single-trip/quote")
+    public ResponseEntity<ApiResponse<SingleTripFareQuoteResponse>> getSingleTripFareQuote(
+            @RequestParam String mode,
+            @RequestParam String fromStationId,
+            @RequestParam String toStationId) {
         return ResponseEntity.ok(ApiResponse.success(
-                cachedList(
-                        "passenger:fare:prices",
-                        ExternalFarePriceResponse.class,
-                        level5Client::getFarePrices),
-                "Fare prices retrieved successfully"));
+                singleTripFareQuoteService.getQuote(mode, fromStationId, toStationId),
+                "Single-trip fare quote retrieved successfully"));
     }
 
     @GetMapping("/passengers/fare/discounts")

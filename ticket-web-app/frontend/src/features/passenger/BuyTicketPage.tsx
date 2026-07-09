@@ -5,6 +5,7 @@ import { PurchaseSuccessModal } from '../../components/PurchaseSuccessModal';
 import {
   calculateDiscountedPrice,
   getFareDiscounts,
+  getSingleTripFareQuote,
   getTicketPackages,
   getTransitRoutes,
   getTransitStations,
@@ -12,7 +13,7 @@ import {
   purchaseSingleTripTicket
 } from '../../services/passengerApi';
 import type { TicketPurchaseResponse } from '../../services/passengerApi';
-import type { FareDiscount } from '../../services/passengerApi';
+import type { FareDiscount, SingleTripFareQuote } from '../../services/passengerApi';
 import type { TicketPackage, TransitRoute, TransitStation } from '../../types';
 import { currency } from '../../utils/format';
 
@@ -41,6 +42,7 @@ const paymentMethods: Array<{ value: PaymentMethod; label: string; helper: strin
 export function BuyTicketPage() {
   const today = new Date().toISOString().slice(0, 10);
   const [packages, setPackages] = useState<TicketPackage[]>([]);
+  const [singleTripFareQuote, setSingleTripFareQuote] = useState<SingleTripFareQuote | null>(null);
   const [discounts, setDiscounts] = useState<FareDiscount[]>([]);
   const [routes, setRoutes] = useState<TransitRoute[]>([]);
   const [stations, setStations] = useState<TransitStation[]>([]);
@@ -93,7 +95,10 @@ export function BuyTicketPage() {
       && sameDurationValue(farePackage, durationType, durationMonths)
     );
   }, [durationMonths, durationType, mode, passPackages, scope, singlePackages, transportMode]);
-  const originalTotal = selectedPackage?.price ?? 0;
+  const singleTripFare = normalizeSingleTripFareQuote(singleTripFareQuote, selectedPackage?.price);
+  const originalTotal = mode === 'single'
+    ? singleTripFare.price
+    : selectedPackage?.price ?? 0;
   const total = mode === 'pass'
     ? calculateDiscountedPrice(originalTotal, passengerType, discounts, validFrom)
     : originalTotal;
@@ -108,6 +113,30 @@ export function BuyTicketPage() {
       setRouteId(routesForMode[0].id);
     }
   }, [mode, routeId, routesForMode]);
+
+  useEffect(() => {
+    if (mode !== 'single' || !fromStationId || !toStationId) {
+      setSingleTripFareQuote(null);
+      return;
+    }
+
+    let active = true;
+    getSingleTripFareQuote(transportMode, fromStationId, toStationId)
+      .then((quote) => {
+        if (active) {
+          setSingleTripFareQuote(quote);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setSingleTripFareQuote(null);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [fromStationId, mode, toStationId, transportMode]);
 
   function handleModeChange(nextMode: PurchaseMode) {
     setMode(nextMode);
@@ -204,12 +233,19 @@ export function BuyTicketPage() {
         )}
 
         <div className="total">
-          <span>Tổng tiền</span>
+          <span>{mode === 'single' ? 'Giá vé tạm tính' : 'Tổng tiền'}</span>
           <span>
             {hasDiscount && <del style={{ marginRight: 10, color: 'var(--muted)' }}>{currency(originalTotal)}</del>}
             <b>{currency(total)}</b>
           </span>
         </div>
+        {mode === 'single' && (
+          <p className="muted-text" style={{ marginTop: -6 }}>
+            {singleTripFare.distanceKm != null
+              ? `Khoảng cách ${singleTripFare.distanceKm.toFixed(1)} km, tính theo biểu giá ${currency(singleTripFare.baseFare)} + ${currency(singleTripFare.ratePerKm)}/km.`
+              : 'Chọn ga đi và ga đến để hệ thống tính giá vé lượt theo khoảng cách.'}
+          </p>
+        )}
         <button className="primary-button" disabled={isLoading || isSubmitting || !selectedPackage || (mode !== 'single' && !routeId) || (mode === 'single' && (!fromStationId || !toStationId))} onClick={handlePaymentStart}>
           Thanh toán
         </button>
@@ -220,6 +256,11 @@ export function BuyTicketPage() {
               <b>Thanh toán giả lập</b>
               <strong>{currency(total)}</strong>
             </div>
+            {mode === 'single' && singleTripFare.distanceKm != null && (
+              <small style={{ color: 'var(--muted)' }}>
+                Vé lượt {singleTripFare.distanceKm.toFixed(1)} km, giá đã áp dụng min/max của biểu giá.
+              </small>
+            )}
             <div className="transport-options" style={{ gridTemplateColumns: 'repeat(2, 1fr)', marginBottom: 0 }}>
               {paymentMethods.map((method) => {
                 const Icon = method.icon;
@@ -300,6 +341,25 @@ function formatPurchaseTime(value?: string) {
   if (!value) return undefined;
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? value : date.toLocaleString('vi-VN');
+}
+
+function normalizeSingleTripFareQuote(quote: SingleTripFareQuote | null, fallbackPrice = 0) {
+  return {
+    price: toNumber(quote?.price, fallbackPrice),
+    distanceKm: toOptionalNumber(quote?.distanceKm),
+    baseFare: toNumber(quote?.baseFare),
+    ratePerKm: toNumber(quote?.ratePerKm)
+  };
+}
+
+function toNumber(value: number | string | undefined, fallback = 0) {
+  const numberValue = Number(value ?? fallback);
+  return Number.isFinite(numberValue) ? numberValue : fallback;
+}
+
+function toOptionalNumber(value: number | string | undefined) {
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) ? numberValue : undefined;
 }
 
 function stationName(stations: TransitStation[], stationReference: string) {

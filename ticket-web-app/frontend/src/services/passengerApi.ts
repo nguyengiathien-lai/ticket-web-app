@@ -92,6 +92,29 @@ export interface FareDiscount {
   effectiveTo?: string;
 }
 
+export interface FarePrice {
+  mode: string;
+  singleTrip?: {
+    baseFare: number;
+    ratePerKm: number;
+    minPrice: number;
+    maxPrice: number;
+  };
+}
+
+export interface SingleTripFareQuote {
+  mode: string;
+  fromStationId: string;
+  toStationId: string;
+  distanceKm?: number | string;
+  baseFare?: number | string;
+  ratePerKm?: number | string;
+  minPrice?: number | string;
+  maxPrice?: number | string;
+  price: number | string;
+  currency?: string;
+}
+
 export interface PurchaseNotification {
   orderId: string;
   orderCode: string;
@@ -129,6 +152,7 @@ interface ExternalFarePriceResponse {
   mode?: string;
   singleTrip?: {
     baseFare?: number | string;
+    ratePerKm?: number | string;
     minPrice?: number | string;
     maxPrice?: number | string;
   };
@@ -152,6 +176,7 @@ interface PassengerStationResponse {
   routeId?: string;
   code?: string;
   name?: string;
+  kmMarker?: number | string;
   sequence?: number;
 }
 
@@ -233,6 +258,30 @@ export async function getTicketPackages(): Promise<TicketPackage[]> {
   return farePrices.flatMap(mapFarePrice);
 }
 
+export async function getFarePrices(): Promise<FarePrice[]> {
+  const farePrices = await apiGet<ExternalFarePriceResponse[]>('/passengers/fare/prices');
+  return farePrices.map((farePrice) => ({
+    mode: farePrice.mode ?? 'TRANSIT',
+    singleTrip: farePrice.singleTrip
+      ? {
+          baseFare: toNumber(farePrice.singleTrip.baseFare),
+          ratePerKm: toNumber(farePrice.singleTrip.ratePerKm),
+          minPrice: toNumber(farePrice.singleTrip.minPrice),
+          maxPrice: toNumber(farePrice.singleTrip.maxPrice)
+        }
+      : undefined
+  }));
+}
+
+export async function getSingleTripFareQuote(
+  mode: string,
+  fromStationId: string,
+  toStationId: string
+): Promise<SingleTripFareQuote> {
+  const params = new URLSearchParams({ mode, fromStationId, toStationId });
+  return apiGet<SingleTripFareQuote>(`/passengers/fare/single-trip/quote?${params.toString()}`);
+}
+
 export async function getFareDiscounts(): Promise<FareDiscount[]> {
   const discounts = await apiGet<ExternalFareDiscountResponse[]>('/passengers/fare/discounts');
   return discounts
@@ -289,6 +338,7 @@ export async function getTransitStations(): Promise<TransitStation[]> {
     code: station.code ?? station.id ?? 'Chưa có',
     name: station.name ?? station.code ?? 'Nhà ga chưa đặt tên',
     routeId: station.routeId,
+    kmMarker: toOptionalNumber(station.kmMarker),
     sequence: station.sequence
   }));
 }
@@ -578,6 +628,11 @@ function monthsToDays(months?: number) {
 function toNumber(value?: number | string) {
   const numberValue = Number(value ?? 0);
   return Number.isFinite(numberValue) ? numberValue : 0;
+}
+
+function toOptionalNumber(value?: number | string) {
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) ? numberValue : undefined;
 }
 
 function formatDateTime(value?: string) {
