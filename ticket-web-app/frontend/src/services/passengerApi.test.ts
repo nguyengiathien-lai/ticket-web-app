@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  getPassengerCards, getPassengerTickets, getPassengerTrips, getTicketPackages,
+  calculateDiscountedPrice, getFareDiscounts, getPassengerCards, getPassengerTickets, getPassengerTrips, getTicketPackages,
   getTicketQr, getTransitRoutes, getTransitStations, issueMonthlyPassCard,
   purchasePassTicket, purchaseSingleTripTicket
 } from './passengerApi';
@@ -27,6 +27,30 @@ describe('passengerApi', () => {
     ok([]);
     await getTicketPackages();
     expect(fetchMock.mock.calls[0][0]).toContain('/passengers/fare/prices');
+  });
+  it('loads and maps fare discounts', async () => {
+    ok([{ passengerType: 'STUDENT', discountType: 'PERCENTAGE', discountValue: '25' }]);
+    await expect(getFareDiscounts()).resolves.toEqual([expect.objectContaining({
+      passengerType: 'STUDENT', discountType: 'PERCENTAGE', discountValue: 25
+    })]);
+    expect(fetchMock.mock.calls[0][0]).toContain('/passengers/fare/discounts');
+  });
+  it('calculates active percentage and fixed discounts', () => {
+    expect(calculateDiscountedPrice(200000, 'STUDENT', [{
+      passengerType: 'STUDENT', discountType: 'PERCENTAGE', discountValue: 25,
+      effectiveFrom: '2026-01-01', effectiveTo: '2026-12-31'
+    }], '2026-07-09')).toBe(150000);
+    expect(calculateDiscountedPrice(200000, 'PRIORITY', [{
+      passengerType: 'PRIORITY', discountType: 'FIXED_AMOUNT', discountValue: 30000
+    }], '2026-07-09')).toBe(170000);
+  });
+  it('does not apply an expired or unrelated discount', () => {
+    const rules = [{
+      passengerType: 'STUDENT', discountType: 'PERCENTAGE', discountValue: 25,
+      effectiveTo: '2025-12-31'
+    }];
+    expect(calculateDiscountedPrice(200000, 'STUDENT', rules, '2026-07-09')).toBe(200000);
+    expect(calculateDiscountedPrice(200000, 'NO', rules, '2025-07-09')).toBe(200000);
   });
   it('maps single-trip fare price', async () => {
     ok([{ mode: 'METRO', singleTrip: { baseFare: '12000' } }]);

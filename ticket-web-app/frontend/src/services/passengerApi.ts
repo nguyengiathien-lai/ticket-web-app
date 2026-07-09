@@ -70,6 +70,22 @@ export interface CardIssuanceResponse {
   };
 }
 
+export interface FareDiscount {
+  passengerType: string;
+  discountType: string;
+  discountValue: number;
+  effectiveFrom?: string;
+  effectiveTo?: string;
+}
+
+interface ExternalFareDiscountResponse {
+  passengerType?: string;
+  discountType?: string;
+  discountValue?: number | string;
+  effectiveFrom?: string;
+  effectiveTo?: string;
+}
+
 interface FarePackageResponse {
   code?: string;
   packageId?: string;
@@ -189,6 +205,44 @@ export interface CardPurchaseInput extends PassPurchaseInput {
 export async function getTicketPackages(): Promise<TicketPackage[]> {
   const farePrices = await apiGet<ExternalFarePriceResponse[]>('/passengers/fare/prices');
   return farePrices.flatMap(mapFarePrice);
+}
+
+export async function getFareDiscounts(): Promise<FareDiscount[]> {
+  const discounts = await apiGet<ExternalFareDiscountResponse[]>('/passengers/fare/discounts');
+  return discounts
+    .filter((discount) => discount.passengerType && discount.discountType)
+    .map((discount) => ({
+      passengerType: discount.passengerType!,
+      discountType: discount.discountType!,
+      discountValue: toNumber(discount.discountValue),
+      effectiveFrom: discount.effectiveFrom,
+      effectiveTo: discount.effectiveTo
+    }));
+}
+
+export function calculateDiscountedPrice(
+  originalPrice: number,
+  passengerType: string,
+  discounts: FareDiscount[],
+  effectiveDate: string
+) {
+  if (!passengerType || passengerType === 'NO') return originalPrice;
+
+  const rule = discounts.find((discount) =>
+    discount.passengerType.toUpperCase() === passengerType.toUpperCase()
+    && (!discount.effectiveFrom || discount.effectiveFrom <= effectiveDate)
+    && (!discount.effectiveTo || discount.effectiveTo >= effectiveDate)
+  );
+  if (!rule) return originalPrice;
+
+  const type = rule.discountType.toUpperCase();
+  const reduction = type.includes('PERCENT')
+    ? originalPrice * rule.discountValue / 100
+    : type.includes('FIXED') || type.includes('AMOUNT')
+      ? rule.discountValue
+      : 0;
+
+  return Math.max(0, Math.round(originalPrice - reduction));
 }
 
 export async function getTransitRoutes(): Promise<TransitRoute[]> {

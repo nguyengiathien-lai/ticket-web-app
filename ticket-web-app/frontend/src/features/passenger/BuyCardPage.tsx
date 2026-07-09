@@ -2,10 +2,13 @@ import { useEffect, useMemo, useState } from 'react';
 import { Bus, CreditCard, TrainFront } from 'lucide-react';
 import { Card } from '../../components/Card';
 import {
+  calculateDiscountedPrice,
+  getFareDiscounts,
   getTicketPackages,
   getTransitRoutes,
   issueMonthlyPassCard
 } from '../../services/passengerApi';
+import type { FareDiscount } from '../../services/passengerApi';
 import { getStoredAccount } from '../../services/authApi';
 import type { TicketPackage, TransitRoute } from '../../types';
 import { currency } from '../../utils/format';
@@ -15,6 +18,7 @@ type TransportMode = 'BUS' | 'METRO';
 export function BuyCardPage() {
   const today = new Date().toISOString().slice(0, 10);
   const [packages, setPackages] = useState<TicketPackage[]>([]);
+  const [discounts, setDiscounts] = useState<FareDiscount[]>([]);
   const [routes, setRoutes] = useState<TransitRoute[]>([]);
   const [transportMode, setTransportMode] = useState<TransportMode>('METRO');
   const [routeId, setRouteId] = useState('');
@@ -30,9 +34,10 @@ export function BuyCardPage() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    Promise.all([getTicketPackages(), getTransitRoutes()])
-      .then(([farePackages, routeList]) => {
+    Promise.all([getTicketPackages(), getTransitRoutes(), getFareDiscounts()])
+      .then(([farePackages, routeList, fareDiscounts]) => {
         setPackages(farePackages.filter((farePackage) => farePackage.type !== 'single' && farePackage.mode !== 'TRAIN'));
+        setDiscounts(fareDiscounts);
         setRoutes(routeList);
         setRouteId(routeList.find((route) => sameRouteMode(route, transportMode))?.id ?? '');
       })
@@ -52,7 +57,9 @@ export function BuyCardPage() {
     ) ?? packages.find((farePackage) => samePackageMode(farePackage.mode, transportMode)),
     [durationMonths, durationType, packages, scope, transportMode]
   );
-  const total = selectedPackage?.price ?? 0;
+  const originalTotal = selectedPackage?.price ?? 0;
+  const total = calculateDiscountedPrice(originalTotal, passengerType, discounts, validFrom);
+  const hasDiscount = total < originalTotal;
 
   useEffect(() => {
     if (transportMode === 'METRO' && scope !== 'SINGLE_ROUTE') {
@@ -123,7 +130,13 @@ export function BuyCardPage() {
           <label>Số tháng<input type="number" min="1" value={durationMonths} onChange={(event) => setDurationMonths(Number(event.target.value) || 1)} /></label>
         </div>
 
-        <div className="total"><span>Tổng tiền</span><b>{currency(total)}</b></div>
+        <div className="total">
+          <span>Tổng tiền</span>
+          <span>
+            {hasDiscount && <del style={{ marginRight: 10, color: 'var(--muted)' }}>{currency(originalTotal)}</del>}
+            <b>{currency(total)}</b>
+          </span>
+        </div>
         <button className="primary-button" disabled={isLoading || isSubmitting || (requiresRoute && !routeId) || packages.length === 0} onClick={handleSubmit}>
           {isSubmitting ? 'Đang phát hành...' : 'Phát hành thẻ'}
         </button>

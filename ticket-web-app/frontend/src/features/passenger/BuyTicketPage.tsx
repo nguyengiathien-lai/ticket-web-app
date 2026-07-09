@@ -2,12 +2,15 @@ import { useEffect, useMemo, useState } from 'react';
 import { Bus, CreditCard, Landmark, TrainFront, Wallet } from 'lucide-react';
 import { Card } from '../../components/Card';
 import {
+  calculateDiscountedPrice,
+  getFareDiscounts,
   getTicketPackages,
   getTransitRoutes,
   getTransitStations,
   purchasePassTicket,
   purchaseSingleTripTicket
 } from '../../services/passengerApi';
+import type { FareDiscount } from '../../services/passengerApi';
 import type { TicketPackage, TransitRoute, TransitStation } from '../../types';
 import { currency } from '../../utils/format';
 
@@ -36,6 +39,7 @@ const paymentMethods: Array<{ value: PaymentMethod; label: string; helper: strin
 export function BuyTicketPage() {
   const today = new Date().toISOString().slice(0, 10);
   const [packages, setPackages] = useState<TicketPackage[]>([]);
+  const [discounts, setDiscounts] = useState<FareDiscount[]>([]);
   const [routes, setRoutes] = useState<TransitRoute[]>([]);
   const [stations, setStations] = useState<TransitStation[]>([]);
   const [mode, setMode] = useState<PurchaseMode>('single');
@@ -56,9 +60,10 @@ export function BuyTicketPage() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    Promise.all([getTicketPackages(), getTransitRoutes(), getTransitStations()])
-      .then(([farePackages, routeList, stationList]) => {
+    Promise.all([getTicketPackages(), getTransitRoutes(), getTransitStations(), getFareDiscounts()])
+      .then(([farePackages, routeList, stationList, fareDiscounts]) => {
         setPackages(farePackages);
+        setDiscounts(fareDiscounts);
         setRoutes(routeList);
         setStations(stationList);
         setRouteId(routeList.find((route) => sameRouteMode(route, transportMode))?.id ?? routeList[0]?.id ?? '');
@@ -85,7 +90,11 @@ export function BuyTicketPage() {
       && sameDurationValue(farePackage, durationType, durationMonths)
     );
   }, [durationMonths, durationType, mode, passPackages, scope, singlePackages, transportMode]);
-  const total = selectedPackage?.price ?? 0;
+  const originalTotal = selectedPackage?.price ?? 0;
+  const total = mode === 'pass'
+    ? calculateDiscountedPrice(originalTotal, passengerType, discounts, validFrom)
+    : originalTotal;
+  const hasDiscount = total < originalTotal;
 
   useEffect(() => {
     if (mode !== 'pass' || routesForMode.length === 0) {
@@ -184,12 +193,18 @@ export function BuyTicketPage() {
             <label>Loại gói<select value={durationType} onChange={(event) => setDurationType(event.target.value as PassDurationType)}>{(Object.keys(passDurationLabels) as PassDurationType[]).map((key) => <option key={key} value={key}>{passDurationLabels[key]}</option>)}</select></label>
             <label>Loại hành khách<select value={passengerType} onChange={(event) => setPassengerType(event.target.value)}><option value="NO">Không có</option><option value="STUDENT">Sinh viên</option><option value="PRIORITY">Ưu tiên</option></select></label>
             <label>Hiệu lực từ<input type="date" value={validFrom} onChange={(event) => setValidFrom(event.target.value)} /></label>
-            {durationType === 'MONTHLY' && <label>Số tháng<input type="number" min="1" value={durationMonths} onChange={(event) => setDurationMonths(Number(event.target.value) || 1)} /></label>}
+            {durationType === 'MONTHLY' && <label>Số tháng<input type="number" min="1" max="12"value={durationMonths} onChange={(event) => setDurationMonths(Number(event.target.value) || 1)} /></label>}
             {durationType !== 'MONTHLY' && <label>Thời hạn<input value={durationType === 'DAILY' ? '1 ngày' : '1 tuần'} readOnly /></label>}
           </div>
         )}
 
-        <div className="total"><span>Tổng tiền</span><b>{currency(total)}</b></div>
+        <div className="total">
+          <span>Tổng tiền</span>
+          <span>
+            {hasDiscount && <del style={{ marginRight: 10, color: 'var(--muted)' }}>{currency(originalTotal)}</del>}
+            <b>{currency(total)}</b>
+          </span>
+        </div>
         <button className="primary-button" disabled={isLoading || isSubmitting || !selectedPackage || (mode !== 'single' && !routeId) || (mode === 'single' && (!fromStationId || !toStationId))} onClick={handlePaymentStart}>
           Thanh toán
         </button>
@@ -224,7 +239,10 @@ export function BuyTicketPage() {
           {selectedPackage ? (
             <div className="package-option selected" style={{ gridTemplateColumns: '1fr auto' }}>
               <span><b>{selectedPackage.name}</b><small>{selectedPackage.description}</small></span>
-              <b>{currency(selectedPackage.price)}</b>
+              <span>
+                {hasDiscount && <del style={{ display: 'block', color: 'var(--muted)' }}>{currency(originalTotal)}</del>}
+                <b>{currency(total)}</b>
+              </span>
             </div>
           ) : (
             !isLoading && <p>Chưa có gói vé phù hợp với lựa chọn hiện tại.</p>
