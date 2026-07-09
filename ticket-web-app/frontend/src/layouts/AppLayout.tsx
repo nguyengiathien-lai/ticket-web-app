@@ -37,8 +37,8 @@ export function AppLayout({ role }: AppLayoutProps) {
         <Header
           title={titles[location.pathname] ?? 'TransitPass'}
           subtitle={role === 'admin'
-            ? 'Quản lý vận hành, người dùng và cài đặt hệ thống'
-            : 'Quản lý thẻ, vé, lịch sử di chuyển và thanh toán'}
+            ? 'Quản lý người dùng và cài đặt hệ thống'
+            : 'Di chuyển thông minh - Kết nối mọi hành trình'}
           account={account}
           role={role}
           onMenuClick={() => setOpen(true)}

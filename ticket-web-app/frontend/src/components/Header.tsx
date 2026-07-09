@@ -30,10 +30,6 @@ export function Header({ title, subtitle, account, role, onMenuClick }: HeaderPr
       <button className="icon-button mobile-only" onClick={onMenuClick}><Menu size={22}/></button>
       <div><h2>{title}</h2>{subtitle && <p>{subtitle}</p>}</div>
       <div className="topbar-actions">
-        <label className="search-box">
-          <Search size={18}/>
-          <input placeholder={role === 'admin' ? 'Tìm người dùng...' : 'Tìm tuyến, vé, giao dịch...'} />
-        </label>
         <button
           className="icon-button"
           type="button"
