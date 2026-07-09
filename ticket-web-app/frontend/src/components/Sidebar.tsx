@@ -19,7 +19,7 @@ const passengerLinks = [
   { to: '/app', label: 'Trang chủ', icon: Home },
   { to: '/app/buy-ticket', label: 'Mua vé', icon: Ticket },
   { to: '/app/buy-card', label: 'Mua thẻ', icon: CreditCard },
-  { to: '/app/my-card', label: 'Thẻ của tôi', icon: CreditCard },
+  { to: '/app/my-card', label: 'Thẻ vé của tôi', icon: CreditCard },
   { to: '/app/history', label: 'Lịch sử di chuyển', icon: History },
   { to: '/app/routes', label: 'Tuyến đường', icon: Bus },
   { to: '/app/notifications', label: 'Thông báo', icon: Bell },

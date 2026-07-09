@@ -26,10 +26,15 @@ export interface TicketPackage {
 
 export interface TravelHistory {
   id: string;
+  ticketId?: string;
   time: string;
   vehicle: string;
   route: string;
   station: string;
+  tapInStation?: string;
+  tapOutStation?: string;
+  tapInTime?: string;
+  tapOutTime?: string;
   status: string;
   amount: number;
 }

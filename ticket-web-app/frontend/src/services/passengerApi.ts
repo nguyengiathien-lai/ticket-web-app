@@ -29,6 +29,7 @@ export interface PassengerTicket {
   scope?: string;
   routeId?: string;
   cardId?: string;
+  cardUid?: string;
   status?: string;
   fare: number;
   validFrom?: string;
@@ -182,6 +183,9 @@ interface PassengerStationResponse {
 
 interface TravelHistoryResponse {
   externalTripId?: string;
+  ticketExternalId?: string;
+  ticketId?: string;
+  externalTicketId?: string;
   checkinStationCode?: string;
   checkinStationName?: string;
   checkoutStationCode?: string;
@@ -214,6 +218,7 @@ interface TicketResponse {
   type?: string;
   physicalCardExternalId?: string;
   cardId?: string;
+  cardUid?: string;
   status?: string;
   mode?: string;
   scope?: string;
@@ -361,10 +366,15 @@ export async function getPassengerTrips(accountId = getRequiredAccountId()): Pro
   const trips = await apiGet<TravelHistoryResponse[]>(`/passengers/${accountId}/trips`, true);
   return trips.map((trip, index) => ({
     id: trip.externalTripId ?? String(index),
+    ticketId: trip.ticketExternalId ?? trip.externalTicketId ?? trip.ticketId,
     time: formatDateTime(trip.checkoutTime ?? trip.checkinTime),
     vehicle: mapVehicle(trip.transportType ?? trip.mode),
     route: trip.routeCode ?? 'Chưa có',
     station: trip.checkoutStationName ?? trip.checkoutStationCode ?? trip.checkinStationName ?? trip.checkinStationCode ?? 'Chưa có',
+    tapInStation: trip.checkinStationName ?? trip.checkinStationCode,
+    tapOutStation: trip.checkoutStationName ?? trip.checkoutStationCode,
+    tapInTime: trip.checkinTime,
+    tapOutTime: trip.checkoutTime,
     status: 'Thành công',
     amount: toNumber(trip.fareAmount)
   }));
@@ -559,6 +569,7 @@ function mapTicket(ticket: TicketResponse, index: number): PassengerTicket {
     scope: ticket.scope,
     routeId: ticket.routeId,
     cardId: ticket.physicalCardExternalId ?? ticket.cardId,
+    cardUid: ticket.cardUid,
     status: ticket.status,
     fare: toNumber(ticket.fare ?? ticket.price),
     validFrom: ticket.validFrom,

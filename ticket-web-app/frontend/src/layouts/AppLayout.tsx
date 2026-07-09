@@ -8,7 +8,7 @@ const titles: Record<string, string> = {
   '/app': 'Bảng điều khiển của hành khách',
   '/app/buy-ticket': 'Mua vé',
   '/app/buy-card': 'Mua thẻ',
-  '/app/my-card': 'Thẻ của tôi',
+  '/app/my-card': 'Thẻ vé của tôi',
   '/app/history': 'Lịch sử di chuyển',
   '/app/routes': 'Tuyến và nhà ga',
   '/app/notifications': 'Thông báo',

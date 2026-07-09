@@ -30,6 +30,10 @@ export function MyCardPage() {
   const currentCard = cards[selectedCardIndex];
 
   const routeNames = useMemo(() => new Map(routes.map((route) => [route.id, `${route.code} - ${route.name}`])), [routes]);
+  const cardUidByCardId = useMemo(
+    () => new Map(cards.map((card) => [card.id, card.cardUid ?? card.id])),
+    [cards]
+  );
 
   useEffect(() => {
     Promise.allSettled([getPassengerCards(), getPassengerTickets(), getTransitRoutes()])
@@ -107,9 +111,15 @@ export function MyCardPage() {
     return routeNames.get(routeId) ?? routeId;
   }
 
+  function formatLinkedCard(ticket: PassengerTicket) {
+    if (ticket.cardUid) return ticket.cardUid;
+    if (!ticket.cardId) return 'Chưa có';
+    return cardUidByCardId.get(ticket.cardId) ?? ticket.cardId;
+  }
+
   return (
     <div className="two-column">
-      <Card title="Thẻ của tôi">
+      <Card title="Thẻ vé của tôi">
         {isLoading && <p>Đang tải thẻ...</p>}
         {error && <p className="danger" role="alert">{error}</p>}
         {!isLoading && !error && !currentCard && <p>Chưa có thẻ.</p>}
@@ -137,7 +147,7 @@ export function MyCardPage() {
         )}
       </Card>
 
-      <Card title="Thông tin thẻ">
+      <Card title="Thông tin thẻ vé">
         <dl className="info-list">
           <dt>Chủ thẻ</dt><dd>{account?.fullName || account?.email || 'Hành khách'}</dd>
           <dt>Số thẻ</dt><dd>{currentCard?.cardUid || currentCard?.id}</dd>
@@ -194,7 +204,7 @@ export function MyCardPage() {
         )}
       </Card>
 
-      <Card title="Vé và gói tháng" className="wide">
+      <Card title="Lịch sử vé đã mua" className="wide">
         {!isLoading && tickets.length === 0 && <p>Chưa có vé.</p>}
         <div className="table-wrap">
           <table>
@@ -204,6 +214,7 @@ export function MyCardPage() {
                 <th>Loại</th>
                 <th>Phương tiện</th>
                 <th>Tuyến di chuyển</th>
+                <th>Card UID</th>
                 <th>Ngày mua</th>
                 <th>Trạng thái</th>
                 <th>Hiệu lực đến</th>
@@ -218,6 +229,7 @@ export function MyCardPage() {
                   <td>{formatTicketType(ticket.type)}</td>
                   <td>{formatMode(ticket.mode)}</td>
                   <td>{formatRoute(ticket.routeId)}</td>
+                  <td>{formatLinkedCard(ticket)}</td>
                   <td>{formatDate(ticket.purchasedAt)}</td>
                   <td className={ticket.status === 'ACTIVE' ? 'success' : 'warning'}>{formatStatus(ticket.status)}</td>
                   <td>{formatDate(ticket.validUntil)}</td>
