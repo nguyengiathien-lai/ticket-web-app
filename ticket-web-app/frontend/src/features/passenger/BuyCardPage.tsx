@@ -167,6 +167,11 @@ export function BuyCardPage() {
             { label: 'Mã vé', value: successfulIssuance.ticket?.ticketId },
             { label: 'Gói vé', value: selectedPackage?.name },
             { label: 'Phương tiện', value: transportMode === 'METRO' ? 'Metro' : 'Xe buýt' },
+            { label: 'Phạm vi', value: scope === 'MULTI_ROUTE' ? 'Liên tuyến' : undefined },
+            {
+              label: 'Tuyến',
+              value: scope === 'SINGLE_ROUTE' ? routeName(routes, routeId) : undefined
+            },
             { label: 'Giá vé', value: currency(Number(successfulIssuance.ticket?.price ?? total)) },
             { label: 'Hiệu lực từ', value: successfulIssuance.ticket?.validFrom ?? validFrom },
             { label: 'Hiệu lực đến', value: successfulIssuance.ticket?.validTo },
@@ -216,6 +221,11 @@ function sameRouteMode(route: TransitRoute, selectedMode: TransportMode) {
     return normalizedRouteType.includes('metro');
   }
   return normalizedRouteType.includes('buýt') || normalizedRouteType.includes('bus') || normalizedRouteType.includes('buÃ½t');
+}
+
+function routeName(routes: TransitRoute[], selectedRouteId: string) {
+  const route = routes.find((item) => item.id === selectedRouteId || item.code === selectedRouteId);
+  return route?.name ?? route?.code ?? selectedRouteId;
 }
 
 function samePackageMode(packageMode: string | undefined, selectedMode: TransportMode) {

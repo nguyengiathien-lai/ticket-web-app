@@ -263,8 +263,28 @@ export function BuyTicketPage() {
             { label: 'Mã vé', value: successfulPurchase.ticketId },
             { label: 'Loại vé', value: mode === 'single' ? 'Vé lượt' : selectedPackage?.name },
             { label: 'Mã xác nhận', value: successfulPurchase.confirmationNumber },
-            { label: 'Ga đi', value: successfulPurchase.origin },
-            { label: 'Ga đến', value: successfulPurchase.destination },
+            {
+              label: 'Phạm vi',
+              value: mode === 'pass' && scope === 'MULTI_ROUTE' ? 'Liên tuyến' : undefined
+            },
+            {
+              label: 'Tuyến',
+              value: mode === 'pass' && scope === 'SINGLE_ROUTE'
+                ? routeName(routes, routeId)
+                : undefined
+            },
+            {
+              label: 'Ga đi',
+              value: mode === 'single'
+                ? stationName(stations, successfulPurchase.origin ?? fromStationId)
+                : undefined
+            },
+            {
+              label: 'Ga đến',
+              value: mode === 'single'
+                ? stationName(stations, successfulPurchase.destination ?? toStationId)
+                : undefined
+            },
             { label: 'Tổng tiền', value: currency(Number(successfulPurchase.totalPrice ?? total)) },
             { label: 'Phương thức thanh toán', value: paymentMethod },
             { label: 'Trạng thái', value: successfulPurchase.paymentStatus ?? successfulPurchase.status },
@@ -280,6 +300,18 @@ function formatPurchaseTime(value?: string) {
   if (!value) return undefined;
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? value : date.toLocaleString('vi-VN');
+}
+
+function stationName(stations: TransitStation[], stationReference: string) {
+  const station = stations.find((item) =>
+    item.id === stationReference || item.code === stationReference
+  );
+  return station?.name ?? stationReference;
+}
+
+function routeName(routes: TransitRoute[], selectedRouteId: string) {
+  const route = routes.find((item) => item.id === selectedRouteId || item.code === selectedRouteId);
+  return route?.name ?? route?.code ?? selectedRouteId;
 }
 
 function sameMode(packageMode: string | undefined, selectedMode: string) {
