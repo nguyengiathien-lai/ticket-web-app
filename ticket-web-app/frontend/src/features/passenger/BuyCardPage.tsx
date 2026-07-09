@@ -156,7 +156,7 @@ export function BuyCardPage() {
           </span>
         </div>
         <button className="primary-button" disabled={isLoading || isSubmitting || !shippingAddress.trim() || (requiresRoute && !routeId) || packages.length === 0} onClick={handleSubmit}>
-          {isSubmitting ? 'Đang phát hành...' : 'Phát hành thẻ'}
+          {isSubmitting ? 'Đang xử lí...' : 'Mua thẻ'}
         </button>
       </Card>
 

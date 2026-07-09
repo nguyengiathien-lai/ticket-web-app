@@ -125,9 +125,8 @@ public class EmailService {
 
                         Đăng ký mua thẻ vật lý của bạn đã được xác nhận. 
 
-                        Mã đơn hàng: %s
+                        Mã đặt hàng: %s
                         Mã thẻ: %s
-                        Gói thẻ: %s
                         Địa chỉ giao hàng: %s
                         Ngày giao dự kiến: %s
                         Tổng tiền thanh toán: %s %s
@@ -139,7 +138,6 @@ public class EmailService {
                         fullName,
                         orderId,
                         cardId,
-                        packageId,
                         deliveryAddress,
                         estimatedDelivery,
                         totalPrice,

@@ -45,7 +45,7 @@ public class AccountService {
     public Account registerAccount(String email, String password, String firstName, String lastName) {
         // Validate email is unique
         if (accountRepository.existsByEmail(email)) {
-            throw new IllegalArgumentException("Email already registered");
+            throw new IllegalArgumentException("Email đã được đăng ký. Vui lòng sử dụng email khác.");
         }
 
         Account account = new Account();
@@ -159,7 +159,7 @@ public class AccountService {
 
         // Verify old password
         if (!passwordEncoder.matches(oldPassword, account.getPassword())) {
-            throw new IllegalArgumentException("Old password is incorrect");
+            throw new IllegalArgumentException("Mât khẩu cũ không đúng. Vui lòng thử lại.");
         }
 
         // Update password
