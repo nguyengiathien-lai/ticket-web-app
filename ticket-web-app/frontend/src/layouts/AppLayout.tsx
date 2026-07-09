@@ -5,7 +5,7 @@ import { Header } from '../components/Header';
 import { getStoredAccount } from '../services/authApi';
 
 const titles: Record<string, string> = {
-  '/app': 'Bảng điều khiển hành khách',
+  '/app': 'Bảng điều khiển của hành khách',
   '/app/buy-ticket': 'Mua vé',
   '/app/buy-card': 'Mua thẻ',
   '/app/my-card': 'Thẻ của tôi',

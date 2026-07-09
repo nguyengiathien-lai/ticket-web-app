@@ -10,3 +10,8 @@ logging:
     org.springframework.web: DEBUG
     org.hibernate.SQL: DEBUG
     org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+
+app:
+  seed:
+    demo-accounts:
+      enabled: ${APP_SEED_DEMO_ACCOUNTS_ENABLED:true}

@@ -107,3 +107,7 @@ app:
     base-url: ${LEVEL4_BASE_URL:}
     qr-code-path: ${LEVEL4_QR_CODE_PATH:/vdt/generate-dynamic-qr}
     mock-enabled: ${LEVEL4_MOCK_ENABLED:true}
+  seed:
+    demo-accounts:
+      enabled: ${APP_SEED_DEMO_ACCOUNTS_ENABLED:false}
+      password: ${APP_SEED_DEMO_ACCOUNTS_PASSWORD:12345678}
