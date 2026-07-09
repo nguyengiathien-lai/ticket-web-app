@@ -92,6 +92,17 @@ export interface FareDiscount {
   effectiveTo?: string;
 }
 
+export interface PurchaseNotification {
+  orderId: string;
+  orderCode: string;
+  category: 'TICKET_PURCHASE' | 'CARD_PURCHASE';
+  itemCode?: string;
+  totalAmount: number;
+  currency?: string;
+  status: string;
+  orderedAt: string;
+}
+
 interface ExternalFareDiscountResponse {
   passengerType?: string;
   discountType?: string;
@@ -306,6 +317,16 @@ export async function getPassengerTrips(accountId = getRequiredAccountId()): Pro
     station: trip.checkoutStationName ?? trip.checkoutStationCode ?? trip.checkinStationName ?? trip.checkinStationCode ?? 'Chưa có',
     status: 'Thành công',
     amount: toNumber(trip.fareAmount)
+  }));
+}
+
+export async function getPurchaseNotifications(): Promise<PurchaseNotification[]> {
+  const notifications = await apiGet<Array<Omit<PurchaseNotification, 'totalAmount'> & {
+    totalAmount?: number | string;
+  }>>('/notifications', true);
+  return notifications.map((notification) => ({
+    ...notification,
+    totalAmount: toNumber(notification.totalAmount)
   }));
 }
 

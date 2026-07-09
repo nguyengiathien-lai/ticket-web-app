@@ -235,7 +235,9 @@ public class PurchaseService {
                 currency,
                 "COMPLETED",
                 now,
-                List.of(createOrderItem("TICKET", "MONTHLY_PASS", 1, totalAmount)));
+                List.of(
+                        createOrderItem("PHYSICAL_CARD", savedCard.getCardUid(), 1, BigDecimal.ZERO),
+                        createOrderItem("TICKET", "MONTHLY_PASS", 1, totalAmount)));
         createCompletedPayment(order, userId, paymentMethod, now);
 
         CardPurchaseResponse response = CardPurchaseResponse.builder()

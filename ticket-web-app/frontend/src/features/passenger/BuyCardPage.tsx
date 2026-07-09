@@ -145,9 +145,6 @@ export function BuyCardPage() {
               rows={3}
               required
             />
-            <small style={{ color: 'var(--muted)', fontWeight: 500 }}>
-              Thông tin minh họa, chưa được gửi sang hệ thống giao vận.
-            </small>
           </label>
         </div>
 

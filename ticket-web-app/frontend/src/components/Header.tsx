@@ -1,4 +1,5 @@
 import { Bell, Menu, Search } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import type { AccountResponse } from '../services/authApi';
 
 interface HeaderProps {
@@ -23,6 +24,7 @@ function initials(account: AccountResponse | null) {
 }
 
 export function Header({ title, subtitle, account, role, onMenuClick }: HeaderProps) {
+  const navigate = useNavigate();
   return (
     <header className="topbar">
       <button className="icon-button mobile-only" onClick={onMenuClick}><Menu size={22}/></button>
@@ -32,7 +34,15 @@ export function Header({ title, subtitle, account, role, onMenuClick }: HeaderPr
           <Search size={18}/>
           <input placeholder={role === 'admin' ? 'Tìm người dùng...' : 'Tìm tuyến, vé, giao dịch...'} />
         </label>
-        <button className="icon-button"><Bell size={20}/></button>
+        <button
+          className="icon-button"
+          type="button"
+          aria-label="Mở thông báo"
+          title="Thông báo"
+          onClick={() => navigate(role === 'passenger' ? '/app/notifications' : '/admin')}
+        >
+          <Bell size={20}/>
+        </button>
         <div className="user-chip"><div className="avatar">{initials(account)}</div><span>{displayName(account)}</span></div>
       </div>
     </header>
