@@ -37,7 +37,7 @@ public class FarePackageService {
             StringRedisTemplate redisTemplate,
             ObjectMapper objectMapper,
             Level5Client level5Client,
-            @Value("${app.cache.catalog-refresh-ttl-seconds:600}") int catalogRefreshTtlSeconds) {
+            @Value("${app.cache.catalog-refresh-ttl-seconds:${app.cache.catalog-data-ttl-seconds:86400}}") int catalogRefreshTtlSeconds) {
         this.redisTemplate = redisTemplate;
         this.objectMapper = objectMapper;
         this.level5Client = level5Client;
@@ -164,13 +164,10 @@ public class FarePackageService {
     private void cacheFarePackage(FarePackage farePackage) {
         String key = farePackageKey(farePackage.getCode());
         String json = writeJson(farePackage, key);
-        Duration ttl = ttlUntil(farePackage.getExpiresAt());
-        if (ttl == null) {
-            redisTemplate.opsForValue().set(key, json);
-        } else {
-            redisTemplate.opsForValue().set(key, json, ttl);
-        }
+        Duration ttl = effectiveTtl(farePackage.getExpiresAt(), catalogRefreshTtl);
+        redisTemplate.opsForValue().set(key, json, ttl);
         redisTemplate.opsForSet().add(FARE_PACKAGES_KEY, farePackage.getCode());
+        redisTemplate.expire(FARE_PACKAGES_KEY, catalogRefreshTtl);
     }
 
     private Optional<FarePackage> readFarePackage(String key) {
@@ -200,6 +197,14 @@ public class FarePackageService {
         long expiresAtEpoch = expiresAt.atZone(ZoneId.systemDefault()).toEpochSecond();
         long nowEpoch = LocalDateTime.now().atZone(ZoneId.systemDefault()).toEpochSecond();
         return Duration.ofSeconds(Math.max(expiresAtEpoch - nowEpoch, 1));
+    }
+
+    private Duration effectiveTtl(LocalDateTime expiresAt, Duration defaultTtl) {
+        Duration expiryTtl = ttlUntil(expiresAt);
+        if (expiryTtl == null || expiryTtl.compareTo(defaultTtl) > 0) {
+            return defaultTtl;
+        }
+        return expiryTtl;
     }
 
     private String farePackageKey(String code) {

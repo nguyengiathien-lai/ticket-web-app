@@ -9,6 +9,7 @@ import com.ticketapp.dto.fare.FarePackageResponse;
 import com.ticketapp.entity.FarePackage;
 import com.ticketapp.entity.PhysicalCard;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -27,38 +28,48 @@ public class CardService {
     private static final String CARD_UID_KEY_PREFIX = "cache:cards:uid:";
     private static final String PASSENGER_CARDS_KEY_PREFIX = "cache:cards:passenger:";
     private static final String PASSENGER_CARDS_LOADED_KEY_PREFIX = "cache:cards:loaded:";
-    private static final Duration HISTORY_LOADED_TTL = Duration.ofDays(3);
 
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
     private final Level5Client level5Client;
     private final FarePackageService farePackageService;
+    private final Duration cardCacheTtl;
 
     @Autowired
     public CardService(
             StringRedisTemplate redisTemplate,
             ObjectMapper objectMapper,
             Level5Client level5Client,
-            FarePackageService farePackageService) {
+            FarePackageService farePackageService,
+            @Value("${app.cache.user-data-ttl-seconds:1800}") int userDataCacheTtlSeconds) {
         this.redisTemplate = redisTemplate;
         this.objectMapper = objectMapper;
         this.level5Client = level5Client;
         this.farePackageService = farePackageService;
-    }
-
-    public CardService(
-            StringRedisTemplate redisTemplate,
-            ObjectMapper objectMapper,
-            Level5Client level5Client) {
-        this(redisTemplate, objectMapper, level5Client, null);
+        this.cardCacheTtl = Duration.ofSeconds(userDataCacheTtlSeconds);
     }
 
     public CardService(
             StringRedisTemplate redisTemplate,
             ObjectMapper objectMapper,
             Level5Client level5Client,
-            int ignoredCatalogRefreshTtlSeconds) {
-        this(redisTemplate, objectMapper, level5Client, null);
+            FarePackageService farePackageService) {
+        this(redisTemplate, objectMapper, level5Client, farePackageService, 1800);
+    }
+
+    public CardService(
+            StringRedisTemplate redisTemplate,
+            ObjectMapper objectMapper,
+            Level5Client level5Client) {
+        this(redisTemplate, objectMapper, level5Client, null, 1800);
+    }
+
+    public CardService(
+            StringRedisTemplate redisTemplate,
+            ObjectMapper objectMapper,
+            Level5Client level5Client,
+            int userDataCacheTtlSeconds) {
+        this(redisTemplate, objectMapper, level5Client, null, userDataCacheTtlSeconds);
     }
 
     public List<FarePackageResponse> getActiveFarePackages() {
@@ -75,16 +86,13 @@ public class CardService {
 
         String key = cardKey(card.getExternalCardId());
         String json = writeJson(card, key);
-        Duration ttl = ttlUntil(card.getExpiresAt());
-        if (ttl == null) {
-            redisTemplate.opsForValue().set(key, json);
-            redisTemplate.opsForValue().set(cardUidKey(card.getCardUid()), card.getExternalCardId());
-        } else {
-            redisTemplate.opsForValue().set(key, json, ttl);
-            redisTemplate.opsForValue().set(cardUidKey(card.getCardUid()), card.getExternalCardId(), ttl);
-        }
-        redisTemplate.opsForSet().add(
-                passengerCardsKey(card.getPassengerAccountId()), card.getExternalCardId());
+        Duration ttl = effectiveTtl(card.getExpiresAt(), cardCacheTtl);
+        redisTemplate.opsForValue().set(key, json, ttl);
+        redisTemplate.opsForValue().set(cardUidKey(card.getCardUid()), card.getExternalCardId(), ttl);
+
+        String passengerCardsKey = passengerCardsKey(card.getPassengerAccountId());
+        redisTemplate.opsForSet().add(passengerCardsKey, card.getExternalCardId());
+        redisTemplate.expire(passengerCardsKey, cardCacheTtl);
         return card;
     }
 
@@ -173,6 +181,14 @@ public class CardService {
         return Duration.ofSeconds(Math.max(expiresAtEpoch - nowEpoch, 1));
     }
 
+    private Duration effectiveTtl(LocalDateTime expiresAt, Duration defaultTtl) {
+        Duration expiryTtl = ttlUntil(expiresAt);
+        if (expiryTtl == null || expiryTtl.compareTo(defaultTtl) > 0) {
+            return defaultTtl;
+        }
+        return expiryTtl;
+    }
+
     private String cardKey(String cardId) {
         return CARD_KEY_PREFIX + cardId;
     }
@@ -194,7 +210,7 @@ public class CardService {
     }
 
     private void markHistoryLoaded(String key) {
-        redisTemplate.opsForValue().set(key, "true", HISTORY_LOADED_TTL);
+        redisTemplate.opsForValue().set(key, "true", cardCacheTtl);
     }
 
     private String requireText(String value, String fieldName) {

@@ -35,11 +35,11 @@ public class SingleTripFareQuoteService {
             StringRedisTemplate redisTemplate,
             ObjectMapper objectMapper,
             Level5Client level5Client,
-            @Value("${app.cache.passenger-data-ttl-seconds:86400}") int passengerCacheTtlSeconds) {
+            @Value("${app.cache.catalog-data-ttl-seconds:86400}") int catalogDataCacheTtlSeconds) {
         this.redisTemplate = redisTemplate;
         this.objectMapper = objectMapper;
         this.level5Client = level5Client;
-        this.quoteTtl = Duration.ofSeconds(passengerCacheTtlSeconds);
+        this.quoteTtl = Duration.ofSeconds(catalogDataCacheTtlSeconds);
     }
 
     public SingleTripFareQuoteResponse getQuote(String mode, String fromStationId, String toStationId) {

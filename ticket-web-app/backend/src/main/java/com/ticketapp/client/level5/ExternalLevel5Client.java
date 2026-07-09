@@ -58,7 +58,8 @@ public class ExternalLevel5Client implements Level5Client {
     private final RestClient restClient;
     private final ObjectMapper objectMapper;
     private final StringRedisTemplate redisTemplate;
-    private final Duration passengerCacheTtl;
+    private final Duration userDataCacheTtl;
+    private final Duration catalogDataCacheTtl;
     private final String ticketPurchasePath;
     private final String singleTripTicketPurchasePath;
     private final String passTicketPurchasePath;
@@ -88,12 +89,14 @@ public class ExternalLevel5Client implements Level5Client {
             @Value("${app.level5.passenger-trips-path:/api/passengers/{userId}/trips}") String passengerTripsPath,
             @Value("${app.level5.fare-prices-path:/api/passenger/fare/prices}") String farePricesPath,
             @Value("${app.level5.fare-discounts-path:/api/passenger/fare/discounts}") String fareDiscountsPath,
-            @Value("${app.cache.passenger-data-ttl-seconds:600}") int passengerCacheTtlSeconds,
+            @Value("${app.cache.user-data-ttl-seconds:1800}") int userDataCacheTtlSeconds,
+            @Value("${app.cache.catalog-data-ttl-seconds:86400}") int catalogDataCacheTtlSeconds,
             @Value("${app.level5.mock-enabled:false}") boolean mockEnabled) {
         this.restClient = baseUrl.isBlank() ? builder.build() : builder.baseUrl(baseUrl).build();
         this.objectMapper = objectMapper;
         this.redisTemplate = redisTemplate;
-        this.passengerCacheTtl = Duration.ofSeconds(passengerCacheTtlSeconds);
+        this.userDataCacheTtl = Duration.ofSeconds(userDataCacheTtlSeconds);
+        this.catalogDataCacheTtl = Duration.ofSeconds(catalogDataCacheTtlSeconds);
         this.ticketPurchasePath = ticketPurchasePath;
         this.singleTripTicketPurchasePath = singleTripTicketPurchasePath;
         this.passTicketPurchasePath = passTicketPurchasePath;
@@ -240,7 +243,7 @@ public class ExternalLevel5Client implements Level5Client {
     @Override
     public List<ExternalTravelHistoryResponse> getTravelHistory(String userId) {
         String normalizedUserId = normalizeUserId(userId);
-        return cachedList("passenger:" + normalizedUserId + ":trips", ExternalTravelHistoryResponse.class, () -> {
+        return cachedList("passenger:" + normalizedUserId + ":trips", ExternalTravelHistoryResponse.class, userDataCacheTtl, () -> {
             if (mockEnabled) {
                 Instant now = Instant.now();
                 ExternalTravelHistoryResponse response = new ExternalTravelHistoryResponse();
@@ -263,7 +266,7 @@ public class ExternalLevel5Client implements Level5Client {
 
     @Override
     public List<ExternalPassengerStationResponse> getStations() {
-        return cachedList(STATIONS_CACHE_KEY, ExternalPassengerStationResponse.class, () -> {
+        return cachedList(STATIONS_CACHE_KEY, ExternalPassengerStationResponse.class, catalogDataCacheTtl, () -> {
             if (mockEnabled) {
                 log.warn("Returning mock Level 5 passenger stations because LEVEL5_MOCK_ENABLED is true");
                 Instant now = Instant.now();
@@ -282,7 +285,7 @@ public class ExternalLevel5Client implements Level5Client {
 
     @Override
     public List<ExternalPassengerRouteResponse> getRoutes() {
-        return cachedList(ROUTES_CACHE_KEY, ExternalPassengerRouteResponse.class, () -> {
+        return cachedList(ROUTES_CACHE_KEY, ExternalPassengerRouteResponse.class, catalogDataCacheTtl, () -> {
             if (mockEnabled) {
                 log.warn("Returning mock Level 5 passenger routes because LEVEL5_MOCK_ENABLED is true");
                 Instant now = Instant.now();
@@ -300,7 +303,7 @@ public class ExternalLevel5Client implements Level5Client {
 
     @Override
     public List<ExternalFarePriceResponse> getFarePrices() {
-        return cachedList(FARE_PRICES_CACHE_KEY, ExternalFarePriceResponse.class, () -> {
+        return cachedList(FARE_PRICES_CACHE_KEY, ExternalFarePriceResponse.class, catalogDataCacheTtl, () -> {
             if (mockEnabled) {
                 log.warn("Returning mock Level 5 fare prices because LEVEL5_MOCK_ENABLED is true");
                 return mockFarePrices();
@@ -312,7 +315,7 @@ public class ExternalLevel5Client implements Level5Client {
 
     @Override
     public List<ExternalDiscountResponse> getFareDiscounts() {
-        return cachedList(FARE_DISCOUNTS_CACHE_KEY, ExternalDiscountResponse.class, () -> {
+        return cachedList(FARE_DISCOUNTS_CACHE_KEY, ExternalDiscountResponse.class, catalogDataCacheTtl, () -> {
             if (mockEnabled) {
                 return List.of(new ExternalDiscountResponse(
                         "STUDENT", "PERCENTAGE", new BigDecimal("50"), LocalDate.now(), null));
@@ -447,14 +450,18 @@ public class ExternalLevel5Client implements Level5Client {
         }
     }
 
-    private <T> List<T> cachedList(String cacheKey, Class<T> elementType, Supplier<List<T>> freshLoader) {
+    private <T> List<T> cachedList(
+            String cacheKey,
+            Class<T> elementType,
+            Duration cacheTtl,
+            Supplier<List<T>> freshLoader) {
         List<T> cachedData = readCachedList(cacheKey, elementType);
         if (cachedData != null) {
             return cachedData;
         }
 
         List<T> freshData = freshLoader.get();
-        cacheList(cacheKey, freshData);
+        cacheList(cacheKey, freshData, cacheTtl);
         return freshData;
     }
 
@@ -485,13 +492,13 @@ public class ExternalLevel5Client implements Level5Client {
         }
     }
 
-    private void cacheList(String cacheKey, List<?> data) {
+    private void cacheList(String cacheKey, List<?> data, Duration cacheTtl) {
         try {
-            redisTemplate.opsForValue().set(cacheKey, objectMapper.writeValueAsString(data), passengerCacheTtl);
+            redisTemplate.opsForValue().set(cacheKey, objectMapper.writeValueAsString(data), cacheTtl);
             log.info("Cached fresh Level 5 data in Redis; cacheKey={}, size={}, ttlSeconds={}",
                     cacheKey,
                     data.size(),
-                    passengerCacheTtl.toSeconds());
+                    cacheTtl.toSeconds());
         } catch (JsonProcessingException exception) {
             log.warn("Could not serialize Level 5 Redis cache entry; cacheKey={}, cause={}",
                     cacheKey,

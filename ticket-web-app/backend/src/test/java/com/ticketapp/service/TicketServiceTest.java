@@ -19,6 +19,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -28,6 +29,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -69,7 +71,7 @@ class TicketServiceTest {
         assertThat(result.getCurrency()).isEqualTo("VND");
         assertThat(result.getIssuedAt()).isNotNull();
         assertThat(result.getCachedAt()).isNotNull();
-        verify(values).set(eq("cache:tickets:id:ticket-1"), anyString());
+        verify(values).set(eq("cache:tickets:id:ticket-1"), anyString(), any(Duration.class));
     }
 
     @Test
@@ -189,6 +191,11 @@ class TicketServiceTest {
             @Override
             public SetOperations<String, String> opsForSet() {
                 return setOperations;
+            }
+
+            @Override
+            public Boolean expire(String key, Duration timeout) {
+                return true;
             }
         };
     }

@@ -9,6 +9,12 @@ import { currency } from '../../utils/format';
 
 export function DashboardPage() {
   const account = getStoredAccount();
+  const todayLabel = new Intl.DateTimeFormat('vi-VN', {
+    weekday: 'long',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
+  }).format(new Date());
   const [packages, setPackages] = useState<TicketPackage[]>([]);
   const [error, setError] = useState('');
 
@@ -21,7 +27,10 @@ export function DashboardPage() {
   return (
     <div className="page-grid">
       <Card className="hero-card">
-        <div><h2>Xin chào, {account?.fullName || account?.email || 'Hành khách'}</h2></div>
+        <div>
+          <h2>Xin chào, {account?.fullName || account?.email || 'Hành khách'}</h2>
+          <p className="hero-date">{todayLabel}</p>
+        </div>
       </Card>
       <div className="quick-actions">
         {[

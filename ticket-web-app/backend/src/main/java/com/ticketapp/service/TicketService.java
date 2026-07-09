@@ -15,6 +15,7 @@ import com.ticketapp.client.level5.Level5Client;
 import com.ticketapp.entity.FarePackage;
 import com.ticketapp.entity.Ticket;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -34,13 +35,13 @@ public class TicketService {
     private static final String TICKET_CODE_KEY_PREFIX = "cache:tickets:code:";
     private static final String PASSENGER_TICKETS_KEY_PREFIX = "cache:tickets:passenger:";
     private static final String PASSENGER_TICKETS_LOADED_KEY_PREFIX = "cache:tickets:loaded:";
-    private static final Duration HISTORY_LOADED_TTL = Duration.ofMinutes(10);
 
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
     private final Level5Client level5Client;
     private final Level4Client level4Client;
     private final FarePackageService farePackageService;
+    private final Duration ticketCacheTtl;
 
     @Autowired
     public TicketService(
@@ -48,20 +49,14 @@ public class TicketService {
             ObjectMapper objectMapper,
             Level5Client level5Client,
             Level4Client level4Client,
-            FarePackageService farePackageService) {
+            FarePackageService farePackageService,
+            @Value("${app.cache.user-data-ttl-seconds:1800}") int userDataCacheTtlSeconds) {
         this.redisTemplate = redisTemplate;
         this.objectMapper = objectMapper;
         this.level5Client = level5Client;
         this.level4Client = level4Client;
         this.farePackageService = farePackageService;
-    }
-
-    public TicketService(
-            StringRedisTemplate redisTemplate,
-            ObjectMapper objectMapper,
-            Level5Client level5Client,
-            Level4Client level4Client) {
-        this(redisTemplate, objectMapper, level5Client, level4Client, null);
+        this.ticketCacheTtl = Duration.ofSeconds(userDataCacheTtlSeconds);
     }
 
     public TicketService(
@@ -69,8 +64,25 @@ public class TicketService {
             ObjectMapper objectMapper,
             Level5Client level5Client,
             Level4Client level4Client,
-            int ignoredCatalogRefreshTtlSeconds) {
-        this(redisTemplate, objectMapper, level5Client, level4Client, null);
+            FarePackageService farePackageService) {
+        this(redisTemplate, objectMapper, level5Client, level4Client, farePackageService, 1800);
+    }
+
+    public TicketService(
+            StringRedisTemplate redisTemplate,
+            ObjectMapper objectMapper,
+            Level5Client level5Client,
+            Level4Client level4Client) {
+        this(redisTemplate, objectMapper, level5Client, level4Client, null, 1800);
+    }
+
+    public TicketService(
+            StringRedisTemplate redisTemplate,
+            ObjectMapper objectMapper,
+            Level5Client level5Client,
+            Level4Client level4Client,
+            int userDataCacheTtlSeconds) {
+        this(redisTemplate, objectMapper, level5Client, level4Client, null, userDataCacheTtlSeconds);
     }
 
     public List<FarePackageResponse> getActiveFarePackages() {
@@ -177,18 +189,15 @@ public class TicketService {
     private void cacheTicket(Ticket ticket) {
         String key = ticketKey(ticket.getExternalTicketId());
         String json = writeJson(ticket, key);
-        Duration ttl = ttlUntil(ticket.getExpiresAt());
+        Duration ttl = effectiveTtl(ticket.getExpiresAt(), ticketCacheTtl);
 
-        if (ttl == null) {
-            redisTemplate.opsForValue().set(key, json);
-            redisTemplate.opsForValue().set(ticketCodeKey(ticket.getTicketCode()), ticket.getExternalTicketId());
-        } else {
-            redisTemplate.opsForValue().set(key, json, ttl);
-            redisTemplate.opsForValue().set(
-                    ticketCodeKey(ticket.getTicketCode()), ticket.getExternalTicketId(), ttl);
-        }
-        redisTemplate.opsForSet().add(
-                passengerTicketsKey(ticket.getPassengerAccountId()), ticket.getExternalTicketId());
+        redisTemplate.opsForValue().set(key, json, ttl);
+        redisTemplate.opsForValue().set(
+                ticketCodeKey(ticket.getTicketCode()), ticket.getExternalTicketId(), ttl);
+
+        String passengerTicketsKey = passengerTicketsKey(ticket.getPassengerAccountId());
+        redisTemplate.opsForSet().add(passengerTicketsKey, ticket.getExternalTicketId());
+        redisTemplate.expire(passengerTicketsKey, ticketCacheTtl);
     }
 
     private Optional<Ticket> readTicket(String key) {
@@ -290,12 +299,20 @@ public class TicketService {
         return Duration.ofSeconds(Math.max(expiresAtEpoch - nowEpoch, 1));
     }
 
+    private Duration effectiveTtl(LocalDateTime expiresAt, Duration defaultTtl) {
+        Duration expiryTtl = ttlUntil(expiresAt);
+        if (expiryTtl == null || expiryTtl.compareTo(defaultTtl) > 0) {
+            return defaultTtl;
+        }
+        return expiryTtl;
+    }
+
     private boolean historyLoaded(String key) {
         return "true".equals(redisTemplate.opsForValue().get(key));
     }
 
     private void markHistoryLoaded(String key) {
-        redisTemplate.opsForValue().set(key, "true", HISTORY_LOADED_TTL);
+        redisTemplate.opsForValue().set(key, "true", ticketCacheTtl);
     }
 
     private String requireText(String value, String fieldName) {

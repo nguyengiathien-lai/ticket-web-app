@@ -101,8 +101,9 @@ app:
     fare-discounts-path: ${LEVEL5_FARE_DISCOUNTS_PATH:/api/passenger/fare/discounts}
     mock-enabled: ${LEVEL5_MOCK_ENABLED:false}
   cache:
-    passenger-data-ttl-seconds: ${APP_CACHE_PASSENGER_DATA_TTL_SECONDS:${CATALOG_REFRESH_TTL_SECONDS:600}}
-    catalog-refresh-ttl-seconds: ${CATALOG_REFRESH_TTL_SECONDS:600}
+    user-data-ttl-seconds: ${APP_CACHE_USER_DATA_TTL_SECONDS:1800}
+    catalog-data-ttl-seconds: ${APP_CACHE_CATALOG_DATA_TTL_SECONDS:86400}
+    catalog-refresh-ttl-seconds: ${CATALOG_REFRESH_TTL_SECONDS:${APP_CACHE_CATALOG_DATA_TTL_SECONDS:86400}}
   level4:
     base-url: ${LEVEL4_BASE_URL:}
     qr-code-path: ${LEVEL4_QR_CODE_PATH:/vdt/generate-dynamic-qr}

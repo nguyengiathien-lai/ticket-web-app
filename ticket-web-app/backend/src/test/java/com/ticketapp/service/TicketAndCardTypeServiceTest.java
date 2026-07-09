@@ -11,6 +11,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.util.List;
 import java.util.Set;
 
@@ -116,6 +117,11 @@ class TicketAndCardTypeServiceTest {
 
             @Override
             public Boolean delete(String key) {
+                return true;
+            }
+
+            @Override
+            public Boolean expire(String key, Duration timeout) {
                 return true;
             }
         };

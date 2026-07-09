@@ -39,7 +39,8 @@ public class PassengerController {
     private final Level5Client level5Client;
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
-    private final Duration passengerCacheTtl;
+    private final Duration userDataCacheTtl;
+    private final Duration catalogDataCacheTtl;
     private final CardService cardService;
     private final TicketService ticketService;
     private final SingleTripFareQuoteService singleTripFareQuoteService;
@@ -48,14 +49,16 @@ public class PassengerController {
             Level5Client level5Client,
             StringRedisTemplate redisTemplate,
             ObjectMapper objectMapper,
-            @Value("${app.cache.passenger-data-ttl-seconds:86400}") int passengerCacheTtlSeconds,
+            @Value("${app.cache.user-data-ttl-seconds:1800}") int userDataCacheTtlSeconds,
+            @Value("${app.cache.catalog-data-ttl-seconds:86400}") int catalogDataCacheTtlSeconds,
             CardService cardService,
             TicketService ticketService,
             SingleTripFareQuoteService singleTripFareQuoteService) {
         this.level5Client = level5Client;
         this.redisTemplate = redisTemplate;
         this.objectMapper = objectMapper;
-        this.passengerCacheTtl = Duration.ofSeconds(passengerCacheTtlSeconds);
+        this.userDataCacheTtl = Duration.ofSeconds(userDataCacheTtlSeconds);
+        this.catalogDataCacheTtl = Duration.ofSeconds(catalogDataCacheTtlSeconds);
         this.cardService = cardService;
         this.ticketService = ticketService;
         this.singleTripFareQuoteService = singleTripFareQuoteService;
@@ -67,7 +70,8 @@ public class PassengerController {
                 cachedList(
                         "passenger:stations",
                         ExternalPassengerStationResponse.class,
-                        level5Client::getStations),
+                        level5Client::getStations,
+                        catalogDataCacheTtl),
                 "Passenger stations retrieved successfully"));
     }
 
@@ -77,7 +81,8 @@ public class PassengerController {
                 cachedList(
                         "passenger:routes",
                         ExternalPassengerRouteResponse.class,
-                        level5Client::getRoutes),
+                        level5Client::getRoutes,
+                        catalogDataCacheTtl),
                 "Passenger routes retrieved successfully"));
     }
 
@@ -104,7 +109,8 @@ public class PassengerController {
                 cachedList(
                         "passenger:" + normalizeUserId(userId) + ":trips",
                         ExternalTravelHistoryResponse.class,
-                        () -> level5Client.getTravelHistory(userId)),
+                        () -> level5Client.getTravelHistory(userId),
+                        userDataCacheTtl),
                 "Passenger trips retrieved successfully"));
     }
 
@@ -113,7 +119,8 @@ public class PassengerController {
         List<ExternalFarePriceResponse> farePrices = cachedList(
                 "passenger:fare:prices",
                 ExternalFarePriceResponse.class,
-                level5Client::getFarePrices);
+                level5Client::getFarePrices,
+                catalogDataCacheTtl);
         try {
             singleTripFareQuoteService.refreshQuotes(farePrices);
         } catch (RuntimeException exception) {
@@ -138,15 +145,20 @@ public class PassengerController {
                 cachedList(
                         "passenger:fare:discounts",
                         ExternalDiscountResponse.class,
-                        level5Client::getFareDiscounts),
+                        level5Client::getFareDiscounts,
+                        catalogDataCacheTtl),
                 "Fare discounts retrieved successfully"));
     }
 
-    private <T> List<T> cachedList(String cacheKey, Class<T> elementType, Supplier<List<T>> loader) {
+    private <T> List<T> cachedList(
+            String cacheKey,
+            Class<T> elementType,
+            Supplier<List<T>> loader,
+            Duration cacheTtl) {
         try {
             List<T> freshData = loader.get();
             log.info("Loaded fresh passenger catalog data; cacheKey={}, size={}", cacheKey, freshData.size());
-            cacheList(cacheKey, freshData);
+            cacheList(cacheKey, freshData, cacheTtl);
             return freshData;
         } catch (RuntimeException exception) {
             log.warn("Could not load fresh passenger catalog data; attempting Redis fallback. cacheKey={}, cause={}: {}",
@@ -157,9 +169,9 @@ public class PassengerController {
         }
     }
 
-    private void cacheList(String cacheKey, List<?> data) {
+    private void cacheList(String cacheKey, List<?> data, Duration cacheTtl) {
         try {
-            redisTemplate.opsForValue().set(cacheKey, objectMapper.writeValueAsString(data), passengerCacheTtl);
+            redisTemplate.opsForValue().set(cacheKey, objectMapper.writeValueAsString(data), cacheTtl);
         } catch (JsonProcessingException exception) {
             throw new IllegalStateException("Unable to write passenger cache entry: " + cacheKey, exception);
         }
