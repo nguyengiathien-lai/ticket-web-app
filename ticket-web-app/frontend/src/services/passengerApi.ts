@@ -70,6 +70,20 @@ export interface CardIssuanceResponse {
   };
 }
 
+export interface TicketPurchaseResponse {
+  ticketId?: string;
+  orderId?: string;
+  origin?: string;
+  destination?: string;
+  totalPrice?: number | string;
+  currency?: string;
+  status?: string;
+  confirmationNumber?: string;
+  paymentId?: string;
+  paymentStatus?: string;
+  purchasedAt?: string;
+}
+
 export interface FareDiscount {
   passengerType: string;
   discountType: string;
@@ -294,7 +308,7 @@ export async function getPassengerTrips(accountId = getRequiredAccountId()): Pro
   }));
 }
 
-export async function purchaseSingleTripTicket(input: SingleTripPurchaseInput): Promise<unknown> {
+export async function purchaseSingleTripTicket(input: SingleTripPurchaseInput): Promise<TicketPurchaseResponse> {
   return apiPost('/tickets/purchase', {
     userId: getRequiredAccountId(),
     ticketType: 'SINGLE_TRIP',
@@ -305,7 +319,7 @@ export async function purchaseSingleTripTicket(input: SingleTripPurchaseInput): 
   });
 }
 
-export async function purchasePassTicket(input: PassPurchaseInput): Promise<unknown> {
+export async function purchasePassTicket(input: PassPurchaseInput): Promise<TicketPurchaseResponse> {
   const isMetro = input.mode.toUpperCase() === 'METRO';
   const isSingleRoute = input.scope?.toUpperCase() === 'SINGLE_ROUTE';
 

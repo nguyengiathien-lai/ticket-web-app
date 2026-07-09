@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Bus, CreditCard, TrainFront } from 'lucide-react';
 import { Card } from '../../components/Card';
+import { PurchaseSuccessModal } from '../../components/PurchaseSuccessModal';
 import {
   calculateDiscountedPrice,
   getFareDiscounts,
@@ -32,6 +33,8 @@ export function BuyCardPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [successfulIssuance, setSuccessfulIssuance] =
+    useState<Awaited<ReturnType<typeof issueMonthlyPassCard>> | null>(null);
 
   useEffect(() => {
     Promise.all([getTicketPackages(), getTransitRoutes(), getFareDiscounts()])
@@ -97,6 +100,7 @@ export function BuyCardPage() {
         supportsMetro: transportMode === 'METRO',
         supportsBus: transportMode === 'BUS'
       });
+      setSuccessfulIssuance(issuance);
       setMessage(`Đã phát hành thẻ ${issuance.card?.cardUid ?? issuance.card?.id ?? ''} với vé ${issuance.ticket?.ticketId ?? ''}.`);
       setGeneratedCardUid(generateCardUid());
     } catch (exception) {
@@ -152,6 +156,24 @@ export function BuyCardPage() {
           <CreditCard size={28} />
         </div>
       </Card>
+      {successfulIssuance && (
+        <PurchaseSuccessModal
+          title="Mua thẻ thành công"
+          message="Thẻ và vé gói đi kèm đã được phát hành thành công."
+          onClose={() => setSuccessfulIssuance(null)}
+          details={[
+            { label: 'Mã thẻ', value: successfulIssuance.card?.cardUid ?? successfulIssuance.card?.id },
+            { label: 'Trạng thái thẻ', value: successfulIssuance.card?.status },
+            { label: 'Mã vé', value: successfulIssuance.ticket?.ticketId },
+            { label: 'Gói vé', value: selectedPackage?.name },
+            { label: 'Phương tiện', value: transportMode === 'METRO' ? 'Metro' : 'Xe buýt' },
+            { label: 'Giá vé', value: currency(Number(successfulIssuance.ticket?.price ?? total)) },
+            { label: 'Hiệu lực từ', value: successfulIssuance.ticket?.validFrom ?? validFrom },
+            { label: 'Hiệu lực đến', value: successfulIssuance.ticket?.validTo },
+            { label: 'Trạng thái vé', value: successfulIssuance.ticket?.status }
+          ]}
+        />
+      )}
     </div>
   );
 }

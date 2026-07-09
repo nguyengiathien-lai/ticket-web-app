@@ -8,6 +8,7 @@ import './styles/global.css';
 import './styles/admin.css';
 import './styles/toast.css';
 import './styles/routes.css';
+import './styles/purchase-modal.css';
 
 registerSW({ immediate: true });
 

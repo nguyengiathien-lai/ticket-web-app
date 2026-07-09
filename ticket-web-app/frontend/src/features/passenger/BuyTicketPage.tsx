@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Bus, CreditCard, Landmark, TrainFront, Wallet } from 'lucide-react';
 import { Card } from '../../components/Card';
+import { PurchaseSuccessModal } from '../../components/PurchaseSuccessModal';
 import {
   calculateDiscountedPrice,
   getFareDiscounts,
@@ -10,6 +11,7 @@ import {
   purchasePassTicket,
   purchaseSingleTripTicket
 } from '../../services/passengerApi';
+import type { TicketPurchaseResponse } from '../../services/passengerApi';
 import type { FareDiscount } from '../../services/passengerApi';
 import type { TicketPackage, TransitRoute, TransitStation } from '../../types';
 import { currency } from '../../utils/format';
@@ -58,6 +60,7 @@ export function BuyTicketPage() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('VNPAY');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [successfulPurchase, setSuccessfulPurchase] = useState<TicketPurchaseResponse | null>(null);
 
   useEffect(() => {
     Promise.all([getTicketPackages(), getTransitRoutes(), getTransitStations(), getFareDiscounts()])
@@ -125,10 +128,12 @@ export function BuyTicketPage() {
     setIsSubmitting(true);
     try {
       if (mode === 'single') {
-        await purchaseSingleTripTicket({ mode: transportMode, fromStationId, toStationId, paymentMethod: method });
+        const purchase = await purchaseSingleTripTicket({ mode: transportMode, fromStationId, toStationId, paymentMethod: method });
+        setSuccessfulPurchase(purchase);
         setMessage('Mua vé lượt thành công.');
       } else {
-        await purchasePassTicket(passInput(method));
+        const purchase = await purchasePassTicket(passInput(method));
+        setSuccessfulPurchase(purchase);
         setMessage('Mua vé gói thành công.');
       }
       setIsPaymentOpen(false);
@@ -249,8 +254,32 @@ export function BuyTicketPage() {
           )}
         </div>
       </Card>
+      {successfulPurchase && (
+        <PurchaseSuccessModal
+          title="Mua vé thành công"
+          message="Vé đã được phát hành và sẵn sàng sử dụng."
+          onClose={() => setSuccessfulPurchase(null)}
+          details={[
+            { label: 'Mã vé', value: successfulPurchase.ticketId },
+            { label: 'Loại vé', value: mode === 'single' ? 'Vé lượt' : selectedPackage?.name },
+            { label: 'Mã xác nhận', value: successfulPurchase.confirmationNumber },
+            { label: 'Ga đi', value: successfulPurchase.origin },
+            { label: 'Ga đến', value: successfulPurchase.destination },
+            { label: 'Tổng tiền', value: currency(Number(successfulPurchase.totalPrice ?? total)) },
+            { label: 'Phương thức thanh toán', value: paymentMethod },
+            { label: 'Trạng thái', value: successfulPurchase.paymentStatus ?? successfulPurchase.status },
+            { label: 'Thời gian mua', value: formatPurchaseTime(successfulPurchase.purchasedAt) }
+          ]}
+        />
+      )}
     </div>
   );
+}
+
+function formatPurchaseTime(value?: string) {
+  if (!value) return undefined;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString('vi-VN');
 }
 
 function sameMode(packageMode: string | undefined, selectedMode: string) {

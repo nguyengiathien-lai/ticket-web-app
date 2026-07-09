@@ -61,12 +61,12 @@ public class OtpService {
         int maxAttempts = integer(otp.get("maxAttempts"));
         if (attemptCount >= maxAttempts) {
             redisTemplate.delete(key);
-            throw new IllegalArgumentException("Verification code attempt limit exceeded");
+            throw new IllegalArgumentException("Bạn đã vượt quá số lần thử tối đa. Vui lòng yêu cầu mã xác minh mới.");
         }
 
         if (!String.valueOf(otp.get("code")).equals(code)) {
             redisTemplate.opsForHash().put(key, "attemptCount", String.valueOf(attemptCount + 1));
-            throw new IllegalArgumentException("Verification code is incorrect");
+            throw new IllegalArgumentException("Mã xác minh không đúng. Vui lòng thử lại.");
         }
 
         redisTemplate.delete(key);
