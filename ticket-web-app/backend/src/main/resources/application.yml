@@ -74,6 +74,8 @@ logging:
 
 
 app:
+  otp:
+    email-verification-ttl: ${EMAIL_VERIFICATION_OTP_TTL:2m}
   cors:
     allowed-origins: ${APP_ALLOWED_ORIGINS:http://localhost:5173,http://127.0.0.1:5173}
     allowed-origin-patterns: ${APP_ALLOWED_ORIGIN_PATTERNS:}

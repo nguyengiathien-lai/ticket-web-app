@@ -31,7 +31,6 @@ public class DataInitializer implements CommandLineRunner {
 
     private void ensureCascadeDeleteConstraints() {
         recreateCascadeForeignKey("account_roles", "account_id", "accounts", "id", "fk_account_roles_account");
-        recreateCascadeForeignKey("otp_codes", "account_id", "accounts", "id", "fk_otp_codes_account");
         recreateCascadeForeignKey("orders", "passenger_account_id", "accounts", "id", "fk_orders_passenger_account");
         recreateCascadeForeignKey("payments", "passenger_account_id", "accounts", "id", "fk_payments_passenger_account");
         recreateCascadeForeignKey("order_items", "order_id", "orders", "id", "fk_order_items_order");

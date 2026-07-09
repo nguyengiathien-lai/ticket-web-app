@@ -1,15 +1,14 @@
 package com.ticketapp.service;
 
 import com.ticketapp.entity.Account;
-import com.ticketapp.entity.OtpCode;
-import com.ticketapp.repository.OtpCodeRepository;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
-import java.time.LocalDateTime;
-import java.util.UUID;
+import java.time.Duration;
+import java.util.Map;
 
 @Service
 @Slf4j
@@ -19,76 +18,77 @@ public class OtpService {
 
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
     private static final int OTP_BOUND = 1_000_000;
+    private static final int MAX_ATTEMPTS = 3;
+    private static final String KEY_PREFIX = "ticketapp:otp:email-verification:";
 
-    private final OtpCodeRepository otpCodeRepository;
+    private final StringRedisTemplate redisTemplate;
     private final EmailService emailService;
+    private final Duration emailVerificationTtl;
 
-    public OtpService(OtpCodeRepository otpCodeRepository, EmailService emailService) {
-        this.otpCodeRepository = otpCodeRepository;
+    public OtpService(
+            StringRedisTemplate redisTemplate,
+            EmailService emailService,
+            @Value("${app.otp.email-verification-ttl:2m}") Duration emailVerificationTtl) {
+        this.redisTemplate = redisTemplate;
         this.emailService = emailService;
+        this.emailVerificationTtl = emailVerificationTtl;
     }
 
-    @Transactional
     public void sendEmailVerificationOtp(Account account) {
-        invalidateUnusedCodes(account, EMAIL_VERIFICATION);
-
         String code = String.format("%06d", SECURE_RANDOM.nextInt(OTP_BOUND));
+        String key = key(account.getId());
 
-        OtpCode otpCode = new OtpCode();
-        otpCode.setId(UUID.randomUUID().toString());
-        otpCode.setAccount(account);
-        otpCode.setCode(code);
-        otpCode.setType(EMAIL_VERIFICATION);
-        otpCode.setAttemptCount(0);
-        otpCode.setMaxAttempts(3);
-        otpCode.setIsUsed(false);
-        otpCode.setExpiresAt(LocalDateTime.now().plusMinutes(2));
-        log.info("Saving email verification OTP for {}", account.getEmail());
-        otpCodeRepository.save(otpCode);
+        redisTemplate.delete(key);
+        redisTemplate.opsForHash().putAll(key, Map.of(
+                "code", code,
+                "attemptCount", "0",
+                "maxAttempts", String.valueOf(MAX_ATTEMPTS)));
+        redisTemplate.expire(key, emailVerificationTtl);
+        log.info("Saved email verification OTP in Redis for {}", account.getEmail());
 
         log.info("Sending email verification OTP to {}", account.getEmail());
         emailService.sendEmailVerificationOtp(account.getEmail(), account.getFullName(), code);
     }
 
-    @Transactional
     public boolean verifyEmailOtp(Account account, String code) {
-        OtpCode otpCode = otpCodeRepository
-                .findFirstByAccountAndTypeAndIsUsedFalseOrderByCreatedAtDesc(account, EMAIL_VERIFICATION)
-                .orElseThrow(() -> new IllegalArgumentException("Verification code not found or already used"));
-
-        if (otpCode.getExpiresAt().isBefore(LocalDateTime.now())) {
-            otpCode.setIsUsed(true);
-            otpCode.setUsedAt(LocalDateTime.now());
-            otpCodeRepository.save(otpCode);
-            throw new IllegalArgumentException("Verification code has expired");
+        String key = key(account.getId());
+        Map<Object, Object> otp = redisTemplate.opsForHash().entries(key);
+        if (otp.isEmpty()) {
+            throw new IllegalArgumentException("Verification code not found, expired, or already used");
         }
 
-        if (otpCode.getAttemptCount() >= otpCode.getMaxAttempts()) {
-            otpCode.setIsUsed(true);
-            otpCode.setUsedAt(LocalDateTime.now());
-            otpCodeRepository.save(otpCode);
+        int attemptCount = integer(otp.get("attemptCount"));
+        int maxAttempts = integer(otp.get("maxAttempts"));
+        if (attemptCount >= maxAttempts) {
+            redisTemplate.delete(key);
             throw new IllegalArgumentException("Verification code attempt limit exceeded");
         }
 
-        if (!otpCode.getCode().equals(code)) {
-            otpCode.setAttemptCount(otpCode.getAttemptCount() + 1);
-            otpCodeRepository.save(otpCode);
+        if (!String.valueOf(otp.get("code")).equals(code)) {
+            redisTemplate.opsForHash().put(key, "attemptCount", String.valueOf(attemptCount + 1));
             throw new IllegalArgumentException("Verification code is incorrect");
         }
 
-        otpCode.setIsUsed(true);
-        otpCode.setUsedAt(LocalDateTime.now());
-        otpCodeRepository.save(otpCode);
+        redisTemplate.delete(key);
         return true;
     }
 
-    private void invalidateUnusedCodes(Account account, String type) {
-        LocalDateTime now = LocalDateTime.now();
-        otpCodeRepository.findByAccountAndTypeAndIsUsedFalse(account, type)
-                .forEach(otpCode -> {
-                    otpCode.setIsUsed(true);
-                    otpCode.setUsedAt(now);
-                    otpCodeRepository.save(otpCode);
-                });
+    public void deleteEmailVerificationOtp(String accountId) {
+        redisTemplate.delete(key(accountId));
+    }
+
+    private String key(String accountId) {
+        if (accountId == null || accountId.isBlank()) {
+            throw new IllegalArgumentException("Account ID is required for OTP");
+        }
+        return KEY_PREFIX + accountId;
+    }
+
+    private int integer(Object value) {
+        try {
+            return Integer.parseInt(String.valueOf(value));
+        } catch (NumberFormatException exception) {
+            throw new IllegalStateException("Invalid OTP data in Redis", exception);
+        }
     }
 }

@@ -4,7 +4,6 @@ import com.ticketapp.dto.account.ProfileUpdateRequest;
 import com.ticketapp.entity.Account;
 import com.ticketapp.entity.Role;
 import com.ticketapp.repository.AccountRepository;
-import com.ticketapp.repository.OtpCodeRepository;
 import com.ticketapp.repository.RoleRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,9 +28,6 @@ public class AccountService {
 
     @Autowired
     private RoleRepository roleRepository;
-
-    @Autowired
-    private OtpCodeRepository otpCodeRepository;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -383,7 +379,7 @@ public class AccountService {
         Account account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new IllegalArgumentException("Account not found"));
 
-        otpCodeRepository.deleteByAccount(account);
+        otpService.deleteEmailVerificationOtp(account.getId());
         account.getRoles().clear();
         accountRepository.delete(account);
         log.info("Account deleted: {}", accountId);
