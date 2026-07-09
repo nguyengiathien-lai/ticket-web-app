@@ -12,6 +12,7 @@ vi.stubGlobal('fetch', fetchMock);
 describe('authApi', () => {
   beforeEach(() => {
     localStorage.clear();
+    sessionStorage.clear();
     fetchMock.mockReset();
   });
 
@@ -90,7 +91,7 @@ describe('authApi', () => {
   });
   it('storeSession persists every session field', () => {
     storeSession({ token: 't', tokenType: 'JWT', expiresAt: 42, mustChangePassword: false, account });
-    expect([...Array.from({ length: 4 }, (_, i) => localStorage.key(i))]).toEqual(expect.arrayContaining([
+    expect([...Array.from({ length: 4 }, (_, i) => sessionStorage.key(i))]).toEqual(expect.arrayContaining([
       'transitpass.token', 'transitpass.tokenType', 'transitpass.expiresAt', 'transitpass.account'
     ]));
   });
@@ -101,17 +102,17 @@ describe('authApi', () => {
   it('returns null when no account is stored', () => expect(getStoredAccount()).toBeNull());
   it('clears the session when stored account JSON is malformed', () => {
     setSession();
-    localStorage.setItem('transitpass.account', '{');
+    sessionStorage.setItem('transitpass.account', '{');
     expect(getStoredAccount()).toBeNull();
     expect(getStoredToken()).toBeNull();
   });
   it('returns the stored token', () => {
-    localStorage.setItem('transitpass.token', 'xyz');
+    sessionStorage.setItem('transitpass.token', 'xyz');
     expect(getStoredToken()).toBe('xyz');
   });
   it('accepts a non-expired session', () => {
-    localStorage.setItem('transitpass.token', 'x');
-    localStorage.setItem('transitpass.expiresAt', String(Math.floor(Date.now() / 1000) + 60));
+    sessionStorage.setItem('transitpass.token', 'x');
+    sessionStorage.setItem('transitpass.expiresAt', String(Math.floor(Date.now() / 1000) + 60));
     expect(isSessionValid()).toBe(true);
   });
   it.each([
@@ -119,15 +120,15 @@ describe('authApi', () => {
     ['expired token', 'x', '1'],
     ['invalid expiry', 'x', 'abc']
   ])('rejects session with %s', (_name, token, expiry) => {
-    if (token) localStorage.setItem('transitpass.token', token);
-    localStorage.setItem('transitpass.expiresAt', expiry);
+    if (token) sessionStorage.setItem('transitpass.token', token);
+    sessionStorage.setItem('transitpass.expiresAt', expiry);
     expect(isSessionValid()).toBe(false);
   });
   it('clearSession removes session values', () => {
     setSession();
-    localStorage.setItem('transitpass.expiresAt', '2');
+    sessionStorage.setItem('transitpass.expiresAt', '2');
     clearSession();
-    expect(localStorage.length).toBe(0);
+    expect(sessionStorage.length).toBe(0);
   });
   it.each([
     [['APP_ADMIN'], true],

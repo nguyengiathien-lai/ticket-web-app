@@ -31,7 +31,7 @@ export function brokenJsonResponse(ok = true): Response {
 }
 
 export function setSession(token = 'token', tokenType = 'Bearer') {
-  localStorage.setItem('transitpass.token', token);
-  localStorage.setItem('transitpass.tokenType', tokenType);
-  localStorage.setItem('transitpass.account', JSON.stringify(account));
+  sessionStorage.setItem('transitpass.token', token);
+  sessionStorage.setItem('transitpass.tokenType', tokenType);
+  sessionStorage.setItem('transitpass.account', JSON.stringify(account));
 }

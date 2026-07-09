@@ -21,6 +21,7 @@ describe('passengerApi', () => {
   beforeEach(() => {
     fetchMock.mockReset();
     localStorage.clear();
+    sessionStorage.clear();
   });
 
   it('loads fare prices from the passenger endpoint', async () => {

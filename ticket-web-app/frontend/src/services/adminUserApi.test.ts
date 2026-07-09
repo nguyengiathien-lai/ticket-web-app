@@ -11,6 +11,7 @@ describe('adminUserApi', () => {
   beforeEach(() => {
     fetchMock.mockReset();
     localStorage.clear();
+    sessionStorage.clear();
   });
 
   it('gets all accounts', async () => {
@@ -62,8 +63,8 @@ describe('adminUserApi', () => {
     ['JWT', 'ghi', 'JWT ghi'],
     [null, 'xyz', 'Bearer xyz']
   ])('uses authorization type %s', async (type, token, expected) => {
-    localStorage.setItem('transitpass.token', token);
-    if (type) localStorage.setItem('transitpass.tokenType', type);
+    sessionStorage.setItem('transitpass.token', token);
+    if (type) sessionStorage.setItem('transitpass.tokenType', type);
     fetchMock.mockResolvedValue(response({ success: true, data: [] }));
     await getAdminAccounts();
     expect(fetchMock.mock.calls[0][1].headers.Authorization).toBe(expected);
@@ -99,7 +100,7 @@ describe('adminUserApi', () => {
     expect(fetchMock.mock.calls[0][1].body).toBeUndefined();
   });
   it('keeps authorization on delete', async () => {
-    localStorage.setItem('transitpass.token', 'admin');
+    sessionStorage.setItem('transitpass.token', 'admin');
     fetchMock.mockResolvedValue(response({ success: true }));
     await deleteAdminAccount('1');
     expect(fetchMock.mock.calls[0][1].headers.Authorization).toBe('Bearer admin');

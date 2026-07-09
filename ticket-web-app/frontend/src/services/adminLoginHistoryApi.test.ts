@@ -13,6 +13,7 @@ describe('adminLoginHistoryApi', () => {
   beforeEach(() => {
     fetchMock.mockReset();
     localStorage.clear();
+    sessionStorage.clear();
   });
 
   it('requests login history endpoint', async () => {
@@ -47,8 +48,8 @@ describe('adminLoginHistoryApi', () => {
     ['Basic', 'c', 'Basic c'],
     [null, 'd', 'Bearer d']
   ])('builds authorization for type %s', async (type, token, expected) => {
-    localStorage.setItem('transitpass.token', token);
-    if (type) localStorage.setItem('transitpass.tokenType', type);
+    sessionStorage.setItem('transitpass.token', token);
+    if (type) sessionStorage.setItem('transitpass.tokenType', type);
     fetchMock.mockResolvedValue(response({ success: true, data: items }));
     await getAdminLoginHistory();
     expect(fetchMock.mock.calls[0][1].headers.Authorization).toBe(expected);

@@ -14,6 +14,7 @@ describe('adminApi', () => {
   beforeEach(() => {
     fetchMock.mockReset();
     localStorage.clear();
+    sessionStorage.clear();
   });
 
   it('requests the dashboard summary endpoint', async () => {
@@ -45,8 +46,8 @@ describe('adminApi', () => {
     ['JWT', '123', 'JWT 123'],
     ['', 'abc', 'Bearer abc']
   ])('uses %s token type', (tokenType, token, expected) => {
-    localStorage.setItem('transitpass.token', token);
-    if (tokenType) localStorage.setItem('transitpass.tokenType', tokenType);
+    sessionStorage.setItem('transitpass.token', token);
+    if (tokenType) sessionStorage.setItem('transitpass.tokenType', tokenType);
     fetchMock.mockResolvedValue(response({ success: true, data: summary }));
     return getAdminDashboardSummary().then(() => {
       expect(fetchMock.mock.calls[0][1].headers).toEqual({ Authorization: expected });

@@ -1,6 +1,17 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL 
 // ?? 'https://ticket-web-app-production.up.railway.app/api';
 
+const SESSION_KEYS = [
+  'transitpass.token',
+  'transitpass.tokenType',
+  'transitpass.expiresAt',
+  'transitpass.account'
+] as const;
+
+// Sessions used to be persisted across application restarts.
+// Remove those legacy values once so closing the app now signs the user out.
+SESSION_KEYS.forEach((key) => localStorage.removeItem(key));
+
 export interface ApiResponse<T> {
   success: boolean;
   message?: string;
@@ -136,18 +147,18 @@ export async function updateProfile(accountId: string, request: ProfileUpdateReq
 }
 
 export function storeSession(session: LoginResponse) {
-  localStorage.setItem('transitpass.token', session.token);
-  localStorage.setItem('transitpass.tokenType', session.tokenType);
-  localStorage.setItem('transitpass.expiresAt', String(session.expiresAt));
-  localStorage.setItem('transitpass.account', JSON.stringify(session.account));
+  sessionStorage.setItem('transitpass.token', session.token);
+  sessionStorage.setItem('transitpass.tokenType', session.tokenType);
+  sessionStorage.setItem('transitpass.expiresAt', String(session.expiresAt));
+  sessionStorage.setItem('transitpass.account', JSON.stringify(session.account));
 }
 
 export function updateStoredAccount(account: AccountResponse) {
-  localStorage.setItem('transitpass.account', JSON.stringify(account));
+  sessionStorage.setItem('transitpass.account', JSON.stringify(account));
 }
 
 export function getStoredAccount(): AccountResponse | null {
-  const accountJson = localStorage.getItem('transitpass.account');
+  const accountJson = sessionStorage.getItem('transitpass.account');
   if (!accountJson) {
     return null;
   }
@@ -161,26 +172,26 @@ export function getStoredAccount(): AccountResponse | null {
 }
 
 export function getStoredToken(): string | null {
-  return localStorage.getItem('transitpass.token');
+  return sessionStorage.getItem('transitpass.token');
 }
 
 function authorizationHeader(): Record<string, string> {
   const token = getStoredToken();
-  const tokenType = localStorage.getItem('transitpass.tokenType') || 'Bearer';
+  const tokenType = sessionStorage.getItem('transitpass.tokenType') || 'Bearer';
   return token ? { Authorization: `${tokenType} ${token}` } : {};
 }
 
 export function isSessionValid() {
   const token = getStoredToken();
-  const expiresAt = Number(localStorage.getItem('transitpass.expiresAt'));
+  const expiresAt = Number(sessionStorage.getItem('transitpass.expiresAt'));
   return Boolean(token) && Number.isFinite(expiresAt) && expiresAt > Math.floor(Date.now() / 1000);
 }
 
 export function clearSession() {
-  localStorage.removeItem('transitpass.token');
-  localStorage.removeItem('transitpass.tokenType');
-  localStorage.removeItem('transitpass.expiresAt');
-  localStorage.removeItem('transitpass.account');
+  SESSION_KEYS.forEach((key) => {
+    sessionStorage.removeItem(key);
+    localStorage.removeItem(key);
+  });
 }
 
 export function isAdmin(account: AccountResponse | null) {

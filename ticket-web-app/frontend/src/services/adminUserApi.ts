@@ -43,6 +43,6 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 
 function authorizationHeader(): Record<string, string> {
   const token = getStoredToken();
-  const tokenType = localStorage.getItem('transitpass.tokenType') || 'Bearer';
+  const tokenType = sessionStorage.getItem('transitpass.tokenType') || 'Bearer';
   return token ? { Authorization: `${tokenType} ${token}` } : {};
 }
