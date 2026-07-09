@@ -30,11 +30,11 @@ class DeviceInformationPackageServiceTest {
         DeviceConfigPackageRepository deviceConfigRepository = mock(DeviceConfigPackageRepository.class);
         StationContextPackageRepository stationContextRepository = mock(StationContextPackageRepository.class);
         MediaAccessRulesPackageRepository mediaAccessRulesRepository = mock(MediaAccessRulesPackageRepository.class);
-        when(deviceConfigRepository.findByStationCode("station-1")).thenReturn(Optional.empty());
+        when(deviceConfigRepository.findByStationAndDeviceCode("station-1", "device-1")).thenReturn(Optional.empty());
         when(stationContextRepository.findByStationCode("station-1")).thenReturn(Optional.empty());
         when(mediaAccessRulesRepository.findByStationCode("station-1")).thenReturn(Optional.empty());
         DeviceInformationPackageService service = new DeviceInformationPackageService(
-                new DeviceProperties("device-1", "station-1"),
+                new DeviceProperties("device-1", "station-1", null),
                 objectMapper,
                 deviceConfigRepository,
                 stationContextRepository,
@@ -122,7 +122,7 @@ class DeviceInformationPackageServiceTest {
     @Test
     void rejectsPackageForAnotherStation() throws Exception {
         DeviceInformationPackageService service = new DeviceInformationPackageService(
-                new DeviceProperties("device-1", "station-1"),
+                new DeviceProperties("device-1", "station-1", null),
                 objectMapper,
                 mock(DeviceConfigPackageRepository.class),
                 mock(StationContextPackageRepository.class),
@@ -136,7 +136,7 @@ class DeviceInformationPackageServiceTest {
 
         assertThatThrownBy(() -> service.storePackage(message))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Package station code does not match this gate device");
+                .hasMessage("Package station code is not configured for this validation service");
     }
 
     @Test
@@ -145,11 +145,12 @@ class DeviceInformationPackageServiceTest {
         StationContextPackageRepository stationContextRepository = mock(StationContextPackageRepository.class);
         MediaAccessRulesPackageRepository mediaAccessRulesRepository = mock(MediaAccessRulesPackageRepository.class);
         MediaAccessRulesPackage existingRules = existingMediaRulesPackage();
-        when(deviceConfigRepository.findByStationCode("station-1")).thenReturn(Optional.of(new DeviceConfigPackage()));
+        when(deviceConfigRepository.findByStationAndDeviceCode("station-1", "device-1"))
+                .thenReturn(Optional.of(new DeviceConfigPackage()));
         when(stationContextRepository.findByStationCode("station-1")).thenReturn(Optional.of(new StationContextPackage()));
         when(mediaAccessRulesRepository.findByStationCode("station-1")).thenReturn(Optional.of(existingRules));
         DeviceInformationPackageService service = new DeviceInformationPackageService(
-                new DeviceProperties("device-1", "station-1"),
+                new DeviceProperties("device-1", "station-1", null),
                 objectMapper,
                 deviceConfigRepository,
                 stationContextRepository,

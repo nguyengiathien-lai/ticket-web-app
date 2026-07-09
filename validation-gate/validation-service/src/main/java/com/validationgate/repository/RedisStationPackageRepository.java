@@ -32,7 +32,11 @@ abstract class RedisStationPackageRepository<T extends BaseEntity> {
     }
 
     public Optional<T> findByStationCode(String stationCode) {
-        String json = redisTemplate.opsForValue().get(key(stationCode));
+        return findByCacheKey(stationCode);
+    }
+
+    protected Optional<T> findByCacheKey(String cacheKey) {
+        String json = redisTemplate.opsForValue().get(key(cacheKey));
         if (json == null || json.isBlank()) {
             return Optional.empty();
         }
@@ -41,7 +45,7 @@ abstract class RedisStationPackageRepository<T extends BaseEntity> {
             afterRead(entity);
             return Optional.of(entity);
         } catch (JsonProcessingException exception) {
-            throw new IllegalStateException("Unable to read validation package cache entry: " + key(stationCode), exception);
+            throw new IllegalStateException("Unable to read validation package cache entry: " + key(cacheKey), exception);
         }
     }
 
@@ -53,10 +57,10 @@ abstract class RedisStationPackageRepository<T extends BaseEntity> {
         entity.setUpdatedAt(now);
 
         try {
-            redisTemplate.opsForValue().set(key(stationCode(entity)), objectMapper.writeValueAsString(entity), ttl);
+            redisTemplate.opsForValue().set(key(cacheKey(entity)), objectMapper.writeValueAsString(entity), ttl);
             return entity;
         } catch (JsonProcessingException exception) {
-            throw new IllegalStateException("Unable to write validation package cache entry: " + key(stationCode(entity)), exception);
+            throw new IllegalStateException("Unable to write validation package cache entry: " + key(cacheKey(entity)), exception);
         }
     }
 
@@ -65,10 +69,14 @@ abstract class RedisStationPackageRepository<T extends BaseEntity> {
 
     protected abstract String stationCode(T entity);
 
-    private String key(String stationCode) {
-        if (stationCode == null || stationCode.isBlank()) {
-            throw new IllegalArgumentException("Station code is required");
+    protected String cacheKey(T entity) {
+        return stationCode(entity);
+    }
+
+    private String key(String cacheKey) {
+        if (cacheKey == null || cacheKey.isBlank()) {
+            throw new IllegalArgumentException("Validation package cache key is required");
         }
-        return keyPrefix + stationCode.trim();
+        return keyPrefix + cacheKey.trim();
     }
 }

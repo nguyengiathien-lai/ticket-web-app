@@ -48,19 +48,29 @@ public class DeviceInformationPackageService {
     @Transactional
     public void storePackage(DeviceInformationPackageMessage message) {
         requirePackageForThisStation(message);
+        String station = stationCode(message);
+        storePackage(message, deviceProperties.deviceCodeForStation(station.trim()));
+    }
+
+    @Transactional
+    public void storePackage(DeviceInformationPackageMessage message, String deviceCode) {
+        requirePackageForThisStation(message);
 
         String stationCode = stationCode(message).trim();
         String packageId = hasText(message.publishedAt()) ? message.publishedAt().trim() : UUID.randomUUID().toString();
-        String deviceCode = deviceProperties.code();
+        if (!deviceProperties.supports(stationCode, deviceCode)) {
+            throw new IllegalArgumentException("Package queue device is not configured for station " + stationCode);
+        }
         LocalDateTime receivedAt = LocalDateTime.now();
 
-        upsertDeviceConfig(packageId, deviceCode, stationCode, message.deviceConfig(), receivedAt);
+        upsertDeviceConfig(packageId, message.syncId(), deviceCode, stationCode, message.deviceConfig(), receivedAt);
         upsertStationContext(packageId, deviceCode, stationCode, message.stationContext(), receivedAt);
         upsertMediaAccessRules(packageId, deviceCode, stationCode, message.mediaAccessRules(), receivedAt);
     }
 
     public Long getSyncId() {
-        return this.deviceConfigRepository.findByStationCode(deviceProperties.stationCode())
+        return this.deviceConfigRepository.findByStationAndDeviceCode(
+                        deviceProperties.stationCode(), deviceProperties.code())
                 .map(DeviceConfigPackage::getSyncId)
                 .orElse(null)   ;
     }
@@ -75,14 +85,14 @@ public class DeviceInformationPackageService {
         if (!hasText(stationCode(message))) {
             throw new IllegalArgumentException("Device information package stationContext.stationCode is required");
         }
-        if (!deviceProperties.stationCode().equals(stationCode(message))) {
-            throw new IllegalArgumentException("Package station code does not match this gate device");
+        if (!deviceProperties.supportsStation(stationCode(message).trim())) {
+            throw new IllegalArgumentException("Package station code is not configured for this validation service");
         }
     }
 
     private void upsertDeviceConfig(
-            String packageId, String deviceCode, String stationCode, JsonNode payload, LocalDateTime receivedAt) {
-        DeviceConfigPackage entity = deviceConfigRepository.findByStationCode(stationCode)
+            String packageId, Long syncId, String deviceCode, String stationCode, JsonNode payload, LocalDateTime receivedAt) {
+        DeviceConfigPackage entity = deviceConfigRepository.findByStationAndDeviceCode(stationCode, deviceCode)
                 .orElseGet(DeviceConfigPackage::new);
         entity.setPackageId(packageId);
         entity.setDeviceCode(deviceCode);
@@ -96,7 +106,7 @@ public class DeviceInformationPackageService {
         entity.setQrMaxTtlSeconds(integer(payload, "qrMaxTtlSeconds"));
         entity.setMaxClockDriftSeconds(integer(payload, "maxClockDriftSeconds"));
         entity.setHeartbeatIntervalSeconds(integer(payload, "heartbeatIntervalSeconds"));
-        entity.setSyncId(Long.valueOf(integer(payload, "syncId")));
+        entity.setSyncId(syncId);
         entity.setPayloadJson(toJson(payload));
         entity.setReceivedAt(receivedAt);
         deviceConfigRepository.save(entity);

@@ -13,6 +13,7 @@ import com.ticketapp.dto.external.ExternalTravelHistoryResponse;
 import com.ticketapp.dto.ticket.TicketResponse;
 import com.ticketapp.service.CardService;
 import com.ticketapp.service.TicketService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.ResponseEntity;
@@ -27,6 +28,7 @@ import java.util.List;
 import java.util.function.Supplier;
 
 @RestController
+@Tag(name = "Passengers", description = "Passenger stations, routes, cards, tickets, trips, and fares")
 public class PassengerController {
 
     private static final Logger log = LoggerFactory.getLogger(PassengerController.class);

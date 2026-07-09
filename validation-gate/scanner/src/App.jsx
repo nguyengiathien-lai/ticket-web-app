@@ -1,21 +1,43 @@
-import { useCallback, useMemo, useState } from "react";
-import { validateTicket } from "./api/gateApi";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { getScannerOptions, validateTicket } from "./api/gateApi";
 import ScannerView from "./components/ScannerView";
 import ValidationResult from "./components/ValidationResult";
-
-const DEVICE_CODE = import.meta.env.VITE_DEVICE_CODE ?? "gate-device-1";
-const STATION_CODE = import.meta.env.VITE_STATION_CODE ?? "station-1";
-const EVENT_TYPE = import.meta.env.VITE_GATE_EVENT_TYPE ?? "TAP_IN";
 
 export default function App() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [history, setHistory] = useState([]);
+  const [scannerOptions, setScannerOptions] = useState([]);
+  const [configError, setConfigError] = useState("");
   const [scannerContext, setScannerContext] = useState({
-    deviceCode: DEVICE_CODE,
-    stationCode: STATION_CODE,
-    eventType: EVENT_TYPE
+    deviceCode: "",
+    stationCode: "",
+    eventType: "TAP_IN"
   });
+
+  useEffect(() => {
+    let active = true;
+
+    getScannerOptions()
+      .then(options => {
+        if (!active) return;
+        setScannerOptions(options);
+        if (options.length > 0) {
+          setScannerContext(current => ({
+            ...current,
+            stationCode: options[0].stationCode,
+            deviceCode: options[0].deviceCode
+          }));
+        }
+      })
+      .catch(error => {
+        if (active) setConfigError(error.message);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const gateLabel = useMemo(
     () => `${scannerContext.stationCode} / ${scannerContext.deviceCode}`,
@@ -28,8 +50,8 @@ export default function App() {
     try {
       const validation = await validateTicket({
         qrPayload,
-        deviceCode: scannerContext.deviceCode,
-        stationCode: scannerContext.stationCode,
+        deviceCode: scannerContext.deviceCode.trim(),
+        stationCode: scannerContext.stationCode.trim(),
         eventType: scannerContext.eventType
       });
 
@@ -40,8 +62,8 @@ export default function App() {
         status: "ERROR",
         ticketId: qrPayload,
         qrPayload,
-        deviceCode: scannerContext.deviceCode,
-        stationCode: scannerContext.stationCode,
+        deviceCode: scannerContext.deviceCode.trim(),
+        stationCode: scannerContext.stationCode.trim(),
         eventType: scannerContext.eventType,
         message: error.message
       };
@@ -57,6 +79,8 @@ export default function App() {
     <main className="app-shell">
       <ScannerView
         disabled={loading}
+        scannerOptions={scannerOptions}
+        configError={configError}
         scannerContext={scannerContext}
         onScannerContextChange={setScannerContext}
         onScan={handleScan}

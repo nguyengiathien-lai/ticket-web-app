@@ -1,5 +1,16 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8081";
 
+export async function getScannerOptions() {
+  const response = await fetch(`${API_BASE_URL}/api/gate/scanner-options`);
+  const payload = await response.json();
+
+  if (!response.ok) {
+    throw new Error(payload.message || "Could not load scanner configuration");
+  }
+
+  return payload;
+}
+
 export async function validateTicket({ qrPayload, deviceCode, stationCode, eventType }) {
   const response = await fetch(`${API_BASE_URL}/api/gate/validate-ticket`, {
     method: "POST",

@@ -2,6 +2,7 @@ package com.validationgate.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.validationgate.client.Level4Client;
+import com.validationgate.config.DeviceProperties;
 import com.validationgate.dto.SubmitBatchRequest;
 import com.validationgate.dto.SubmitBatchResponse;
 import com.validationgate.dto.TapEventType;
@@ -48,7 +49,7 @@ class GateValidationServiceTest {
         TapEventRepository repository = mock(TapEventRepository.class);
         DeviceConfigPackageRepository deviceConfigRepository = mock(DeviceConfigPackageRepository.class);
         MediaAccessRulesPackageRepository mediaAccessRulesRepository = mock(MediaAccessRulesPackageRepository.class);
-        when(deviceConfigRepository.findByStationCode("station-1")).thenReturn(Optional.of(deviceConfig()));
+        when(deviceConfigRepository.findByStationAndDeviceCode("station-1", "device-1")).thenReturn(Optional.of(deviceConfig()));
         GateValidationService service = service(client, repository, deviceConfigRepository, mediaAccessRulesRepository);
         ValidationRequest request = request("ticket-42");
         LocalDateTime beforeRecord = LocalDateTime.now();
@@ -64,6 +65,34 @@ class GateValidationServiceTest {
         assertThat(captor.getValue().getRecordedAt()).isBetween(beforeRecord, afterRecord);
         assertThat(captor.getValue().getDeliveryStatus()).isEqualTo("PENDING");
         verify(client, never()).sendBatch(any(SubmitBatchRequest.class));
+    }
+
+    @Test
+    void usesStationAndDeviceCodesFromTheValidationRequestInsteadOfEnvironmentDefaults() {
+        TapEventRepository repository = mock(TapEventRepository.class);
+        DeviceConfigPackageRepository deviceConfigRepository = mock(DeviceConfigPackageRepository.class);
+        DeviceConfigPackage requestedDeviceConfig = deviceConfig();
+        requestedDeviceConfig.setStationCode("station-from-scanner");
+        requestedDeviceConfig.setDeviceCode("device-from-scanner");
+        when(deviceConfigRepository.findByStationAndDeviceCode("station-from-scanner", "device-from-scanner"))
+                .thenReturn(Optional.of(requestedDeviceConfig));
+        GateValidationService service = service(
+                mock(Level4Client.class),
+                repository,
+                deviceConfigRepository,
+                mock(MediaAccessRulesPackageRepository.class));
+        ValidationRequest request = request("ticket-42");
+        request.setStationCode("station-from-scanner");
+        request.setDeviceCode("device-from-scanner");
+        request.setEventType(TapEventType.TAP_OUT);
+
+        Boolean valid = service.validateTicket(request);
+
+        assertThat(valid).isTrue();
+        verify(deviceConfigRepository).findByStationAndDeviceCode("station-from-scanner", "device-from-scanner");
+        ArgumentCaptor<TapEvent> eventCaptor = ArgumentCaptor.forClass(TapEvent.class);
+        verify(repository).save(eventCaptor.capture());
+        assertThat(eventCaptor.getValue().getEventType()).isEqualTo(TapEventType.TAP_OUT);
     }
 
     @Test
@@ -86,7 +115,7 @@ class GateValidationServiceTest {
         TapEventRepository repository = mock(TapEventRepository.class);
         DeviceConfigPackageRepository deviceConfigRepository = mock(DeviceConfigPackageRepository.class);
         MediaAccessRulesPackageRepository mediaAccessRulesRepository = mock(MediaAccessRulesPackageRepository.class);
-        when(deviceConfigRepository.findByStationCode("station-1")).thenReturn(Optional.of(deviceConfig()));
+        when(deviceConfigRepository.findByStationAndDeviceCode("station-1", "device-1")).thenReturn(Optional.of(deviceConfig()));
         GateValidationService service = service(mock(Level4Client.class), repository,
                 deviceConfigRepository, mediaAccessRulesRepository);
         ValidationRequest request = new ValidationRequest();
@@ -106,7 +135,7 @@ class GateValidationServiceTest {
         TapEventRepository repository = mock(TapEventRepository.class);
         DeviceConfigPackageRepository deviceConfigRepository = mock(DeviceConfigPackageRepository.class);
         MediaAccessRulesPackageRepository mediaAccessRulesRepository = mock(MediaAccessRulesPackageRepository.class);
-        when(deviceConfigRepository.findByStationCode("station-1")).thenReturn(Optional.of(deviceConfig()));
+        when(deviceConfigRepository.findByStationAndDeviceCode("station-1", "device-1")).thenReturn(Optional.of(deviceConfig()));
         GateValidationService service = service(mock(Level4Client.class), repository,
                 deviceConfigRepository, mediaAccessRulesRepository);
         ValidationRequest request = request("ticket-42");
@@ -123,7 +152,7 @@ class GateValidationServiceTest {
         TapEventRepository repository = mock(TapEventRepository.class);
         DeviceConfigPackageRepository deviceConfigRepository = mock(DeviceConfigPackageRepository.class);
         MediaAccessRulesPackageRepository mediaAccessRulesRepository = mock(MediaAccessRulesPackageRepository.class);
-        when(deviceConfigRepository.findByStationCode("station-1")).thenReturn(Optional.of(deviceConfig()));
+        when(deviceConfigRepository.findByStationAndDeviceCode("station-1", "device-1")).thenReturn(Optional.of(deviceConfig()));
         when(mediaAccessRulesRepository.findByStationCode("station-1")).thenReturn(Optional.of(mediaRules("card-42")));
         GateValidationService service = service(mock(Level4Client.class), repository,
                 deviceConfigRepository, mediaAccessRulesRepository);
@@ -194,6 +223,7 @@ class GateValidationServiceTest {
                 mock(Level4Client.class),
                 repository,
                 mock(DeviceConfigPackageRepository.class),
+                new DeviceProperties("device-1", "station-1", null),
                 objectMapper,
                 100,
                 Duration.ofHours(2));
@@ -236,6 +266,7 @@ class GateValidationServiceTest {
                 client,
                 tapEventRepository,
                 deviceConfigRepository,
+                new DeviceProperties("device-1", "station-1", null),
                 objectMapper,
                 batchSize,
                 SENT_EVENT_RETENTION);

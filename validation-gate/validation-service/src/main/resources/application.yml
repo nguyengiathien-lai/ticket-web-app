@@ -41,11 +41,20 @@ server:
   servlet:
     context-path: /api
 
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger
+    operations-sorter: method
+    tags-sorter: alpha
+
 app:
   device:
     code: ${DEVICE_CODE:gate-device-1}
     secret: ${DEVICE_SECRET:}
     station-code: ${DEVICE_STATION_CODE:station-1}
+    registrations: ${DEVICE_REGISTRATIONS:}
   rabbitmq:
     device-package-exchange: ${DEVICE_PACKAGE_EXCHANGE:level4.device.packages}
   cors:

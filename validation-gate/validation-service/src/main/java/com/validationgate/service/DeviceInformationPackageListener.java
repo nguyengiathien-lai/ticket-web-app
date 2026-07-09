@@ -31,7 +31,7 @@ public class DeviceInformationPackageListener {
         this.level4Client = level4Client;
     }
 
-    @RabbitListener(queues = "#{devicePackageQueue.name}")
+    @RabbitListener(queues = "#{@devicePackageQueueNames}")
     public void receive(Message message) {
         String packageJson = new String(message.getBody(), StandardCharsets.UTF_8);
         log.info("Received device information package message, routingKey='{}', payloadLength={}",
@@ -46,7 +46,7 @@ public class DeviceInformationPackageListener {
         }
 
         try {
-            packageService.storePackage(packageMessage);
+            packageService.storePackage(packageMessage, deviceCode(message));
         } catch (RuntimeException exception) {
             log.error("Could not store device information package", exception);
             ackFailure(packageMessage.syncId(), exception.getMessage());
@@ -54,12 +54,20 @@ public class DeviceInformationPackageListener {
         }
 
         try {
-            level4Client.ackControlPackageApply(packageService.getSyncId(), "APPLIED", null);
+            level4Client.ackControlPackageApply(packageMessage.syncId(), "APPLIED", null);
         } catch (RuntimeException exception) {
             log.error("Could not ack applied device information package; syncId={}", packageMessage.syncId(), exception);
             throw exception;
         }
         log.info("Stored device information package successfully");
+    }
+
+    private String deviceCode(Message message) {
+        String queue = message.getMessageProperties().getConsumerQueue();
+        if (queue == null || !queue.startsWith("device.") || queue.length() == "device.".length()) {
+            throw new IllegalArgumentException("Could not resolve device code from consumer queue");
+        }
+        return queue.substring("device.".length());
     }
 
     private void ackFailure(Long syncId, String errorMessage) {

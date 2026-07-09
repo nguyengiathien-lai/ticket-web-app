@@ -87,7 +87,9 @@ class DeviceInformationPackageListenerTest {
     }
 
     private Message message(String json) {
-        return new Message(json.getBytes(StandardCharsets.UTF_8), new MessageProperties());
+        MessageProperties properties = new MessageProperties();
+        properties.setConsumerQueue("device.device-1");
+        return new Message(json.getBytes(StandardCharsets.UTF_8), properties);
     }
 
     private static class StubPackageService extends DeviceInformationPackageService {
@@ -104,6 +106,11 @@ class DeviceInformationPackageListenerTest {
                 throw failure;
             }
             storedMessages.add(message);
+        }
+
+        @Override
+        public void storePackage(DeviceInformationPackageMessage message, String deviceCode) {
+            storePackage(message);
         }
     }
 

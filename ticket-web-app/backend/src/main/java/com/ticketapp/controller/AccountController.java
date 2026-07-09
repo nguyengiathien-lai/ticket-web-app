@@ -17,6 +17,7 @@ import com.ticketapp.service.AuthorizationService;
 import com.ticketapp.service.CardService;
 import com.ticketapp.service.TicketService;
 import com.ticketapp.service.TravelHistoryService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -33,6 +34,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/accounts")
+@Tag(name = "Accounts", description = "Account profile, roles, tickets, cards, and travel history")
 public class AccountController {
 
     private final AccountService accountService;

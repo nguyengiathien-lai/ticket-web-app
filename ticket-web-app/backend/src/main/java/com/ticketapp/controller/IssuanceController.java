@@ -3,6 +3,7 @@ package com.ticketapp.controller;
 import com.ticketapp.dto.purchase.CardPurchaseRequest;
 import com.ticketapp.dto.purchase.CardPurchaseResponse;
 import com.ticketapp.service.PurchaseService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -12,6 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/issuance")
+@Tag(name = "Issuance", description = "Card issuance APIs")
 public class IssuanceController {
 
     private final PurchaseService purchaseService;

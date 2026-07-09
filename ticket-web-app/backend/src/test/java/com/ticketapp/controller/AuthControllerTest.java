@@ -54,7 +54,8 @@ class AuthControllerTest {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().isSuccess()).isFalse();
-        assertThat(response.getBody().getMessage()).isEqualTo("Invalid credentials or account is not ready for login");
+        assertThat(response.getBody().getMessage())
+                .isEqualTo("Thông tin đăng nhập không đúng hoặc tài khoản chưa sẵn sàng để đăng nhập");
     }
 
     @Test

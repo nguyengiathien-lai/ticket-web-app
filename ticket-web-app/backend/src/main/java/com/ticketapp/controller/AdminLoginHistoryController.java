@@ -6,6 +6,7 @@ import com.ticketapp.entity.Account;
 import com.ticketapp.service.AdminLoginHistoryService;
 import com.ticketapp.service.AuthenticationService;
 import com.ticketapp.service.AuthorizationService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -16,6 +17,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/admin/login-history")
+@Tag(name = "Administration", description = "Administrative login history APIs")
 public class AdminLoginHistoryController {
 
     private final AdminLoginHistoryService adminLoginHistoryService;

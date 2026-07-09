@@ -8,6 +8,7 @@ import com.ticketapp.dto.purchase.TicketPurchaseRequest;
 import com.ticketapp.dto.purchase.TicketPurchaseResponse;
 import com.ticketapp.service.PurchaseService;
 import com.ticketapp.service.TicketService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -21,6 +22,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/tickets")
+@Tag(name = "Tickets", description = "Ticket fare packages and purchase APIs")
 public class TicketController {
 
     private final TicketService ticketService;

@@ -5,6 +5,8 @@ import { extractTicketCode } from "../api/ticketPayload";
 
 export default function ScannerView({
   disabled,
+  scannerOptions,
+  configError,
   scannerContext,
   onScannerContextChange,
   onScan
@@ -17,6 +19,10 @@ export default function ScannerView({
   const [lastPayload, setLastPayload] = useState("");
   const [manualCode, setManualCode] = useState("");
   const [running, setRunning] = useState(true);
+  const hasScannerContext =
+    scannerContext.deviceCode.trim() !== "" &&
+    scannerContext.stationCode.trim() !== "" &&
+    scannerContext.eventType !== "";
 
   const emitScan = useCallback(
     rawPayload => {
@@ -24,7 +30,7 @@ export default function ScannerView({
       const normalizedCode = extractTicketCode(rawPayload);
       const now = Date.now();
 
-      if (!normalizedCode || disabled) {
+      if (!normalizedCode || disabled || !hasScannerContext) {
         return;
       }
 
@@ -42,7 +48,7 @@ export default function ScannerView({
       // onScan(normalizedCode);
       onScan(rawPayload);
     },
-    [disabled, onScan]
+    [disabled, hasScannerContext, onScan]
   );
 
   useEffect(() => {
@@ -122,11 +128,27 @@ export default function ScannerView({
   }
 
   function updateScannerContext(field, value) {
-    onScannerContextChange(current => ({
-      ...current,
-      [field]: value
-    }));
+    onScannerContextChange(current => {
+      if (field === "stationCode") {
+        const firstDevice = scannerOptions.find(
+          option => option.stationCode === value
+        );
+        return {
+          ...current,
+          stationCode: value,
+          deviceCode: firstDevice?.deviceCode ?? ""
+        };
+      }
+      return { ...current, [field]: value };
+    });
   }
+
+  const stationCodes = [
+    ...new Set(scannerOptions.map(option => option.stationCode))
+  ];
+  const deviceCodes = scannerOptions
+    .filter(option => option.stationCode === scannerContext.stationCode)
+    .map(option => option.deviceCode);
 
   return (
     <section className="scanner-shell">
@@ -150,20 +172,36 @@ export default function ScannerView({
       <section className="scanner-context" aria-label="Scanner context">
         <label>
           <span>Mã thiết bị</span>
-          <input
+          <select
             value={scannerContext.deviceCode}
             onChange={event => updateScannerContext("deviceCode", event.target.value)}
-            disabled={disabled}
-          />
+            disabled={disabled || deviceCodes.length === 0}
+            required
+          >
+            {deviceCodes.length === 0 && <option value="">Không có thiết bị</option>}
+            {deviceCodes.map(deviceCode => (
+              <option key={deviceCode} value={deviceCode}>
+                {deviceCode}
+              </option>
+            ))}
+          </select>
         </label>
 
         <label>
           <span>Mã trạm</span>
-          <input
+          <select
             value={scannerContext.stationCode}
             onChange={event => updateScannerContext("stationCode", event.target.value)}
-            disabled={disabled}
-          />
+            disabled={disabled || stationCodes.length === 0}
+            required
+          >
+            {stationCodes.length === 0 && <option value="">Không có trạm</option>}
+            {stationCodes.map(stationCode => (
+              <option key={stationCode} value={stationCode}>
+                {stationCode}
+              </option>
+            ))}
+          </select>
         </label>
 
         <label>
@@ -184,6 +222,7 @@ export default function ScannerView({
           <span>{scannerContext.deviceCode}</span>
         </div>
       </section>
+      {configError && <div className="camera-error">{configError}</div>}
 
       <div className="camera-frame">
         <video ref={videoRef} className="camera-feed" muted playsInline />
@@ -207,7 +246,10 @@ export default function ScannerView({
           placeholder="Nhập mã vé"
           disabled={disabled}
         />
-        <button type="submit" disabled={disabled || !manualCode.trim()}>
+        <button
+          type="submit"
+          disabled={disabled || !hasScannerContext || !manualCode.trim()}
+        >
           Kiểm tra
         </button>
       </form>

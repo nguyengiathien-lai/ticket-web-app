@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.validationgate.client.Level4Client;
+import com.validationgate.config.DeviceProperties;
 import com.validationgate.dto.SubmitBatchRequest;
 import com.validationgate.dto.ValidationRequest;
 import com.validationgate.dto.SubmitBatchResponse;
@@ -50,6 +51,7 @@ public class GateValidationService {
     private final Level4Client level4Client;
     private final TapEventRepository tapEventRepository;
     private final DeviceConfigPackageRepository deviceConfigRepository;
+    private final DeviceProperties deviceProperties;
     private final ObjectMapper objectMapper;
     private final int batchSize;
     private final Duration sentEventRetention;
@@ -58,12 +60,14 @@ public class GateValidationService {
             Level4Client level4Client,
             TapEventRepository tapEventRepository,
             DeviceConfigPackageRepository deviceConfigRepository,
+            DeviceProperties deviceProperties,
             ObjectMapper objectMapper,
             @Value("${app.level4.scan-record-batch-size:2}") int batchSize,
             @Value("${app.level4.sent-event-retention:2d}") Duration sentEventRetention) {
         this.level4Client = level4Client;
         this.tapEventRepository = tapEventRepository;
         this.deviceConfigRepository = deviceConfigRepository;
+        this.deviceProperties = deviceProperties;
         this.objectMapper = objectMapper;
         this.batchSize = Math.max(1, batchSize);
         this.sentEventRetention = sentEventRetention.isNegative() ? Duration.ZERO : sentEventRetention;
@@ -351,7 +355,8 @@ public class GateValidationService {
     private DeviceConfig loadDeviceConfig(ScanContext scanContext) {
         log.debug("Loading device config package; stationCode={}, deviceCode={}",
                 scanContext.stationCode(), scanContext.deviceCode());
-        return deviceConfigRepository.findByStationCode(scanContext.stationCode())
+        return deviceConfigRepository.findByStationAndDeviceCode(
+                        scanContext.stationCode(), scanContext.deviceCode())
                 .map(packageEntity -> {
                     log.debug("Device config package found by station; stationCode={}, packageDeviceCode={}, requestedDeviceCode={}, packageId={}",
                             scanContext.stationCode(),
@@ -470,8 +475,7 @@ public class GateValidationService {
         }
 
         private boolean allowsQrValidation() {
-            return allowOfflineValidation
-                    && QR_ALGORITHM_HMAC_SHA256.equals(qrVerificationAlgorithm)
+            return  QR_ALGORITHM_HMAC_SHA256.equals(qrVerificationAlgorithm)
                     && qrVerificationKey != null
                     && !qrVerificationKey.isBlank();
         }

@@ -24,4 +24,22 @@ public class RedisDeviceConfigPackageRepository
     protected String stationCode(DeviceConfigPackage entity) {
         return entity.getStationCode();
     }
+
+    @Override
+    protected String cacheKey(DeviceConfigPackage entity) {
+        return deviceCacheKey(entity.getStationCode(), entity.getDeviceCode());
+    }
+
+    @Override
+    public java.util.Optional<DeviceConfigPackage> findByStationAndDeviceCode(
+            String stationCode, String deviceCode) {
+        return findByCacheKey(deviceCacheKey(stationCode, deviceCode));
+    }
+
+    private String deviceCacheKey(String stationCode, String deviceCode) {
+        if (stationCode == null || stationCode.isBlank() || deviceCode == null || deviceCode.isBlank()) {
+            throw new IllegalArgumentException("Station code and device code are required");
+        }
+        return stationCode.trim() + ":device:" + deviceCode.trim();
+    }
 }

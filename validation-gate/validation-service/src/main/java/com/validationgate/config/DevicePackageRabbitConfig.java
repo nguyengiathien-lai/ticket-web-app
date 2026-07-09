@@ -2,6 +2,8 @@ package com.validationgate.config;
 
 import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;
+import org.springframework.amqp.core.Declarable;
+import org.springframework.amqp.core.Declarables;
 import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.core.TopicExchange;
 import org.springframework.boot.ApplicationRunner;
@@ -10,6 +12,10 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 @Configuration
 public class DevicePackageRabbitConfig {
@@ -26,21 +32,19 @@ public class DevicePackageRabbitConfig {
             @Value("${spring.rabbitmq.ssl.enabled:false}") boolean sslEnabled,
             @Value("${app.rabbitmq.device-package-exchange:level4.device.packages}") String exchangeName) {
         return args -> log.info(
-                "RabbitMQ settings resolved; host={}, port={}, username={}, virtualHost={}, sslEnabled={}, exchange={}, queue={}",
+                "RabbitMQ settings resolved; host={}, port={}, username={}, virtualHost={}, sslEnabled={}, exchange={}, queues={}",
                 host,
                 port,
                 username,
                 virtualHost,
                 sslEnabled,
                 exchangeName,
-                deviceProperties.packageQueueName());
+                Arrays.toString(deviceProperties.packageQueueNames()));
     }
 
-    @Bean
-    public Queue devicePackageQueue(DeviceProperties deviceProperties) {
-        String queueName = deviceProperties.packageQueueName();
-        log.info("Declaring device package queue '{}'", queueName);
-        return new Queue(queueName, true);
+    @Bean("devicePackageQueueNames")
+    public String[] devicePackageQueueNames(DeviceProperties deviceProperties) {
+        return deviceProperties.packageQueueNames();
     }
 
     @Bean
@@ -51,11 +55,20 @@ public class DevicePackageRabbitConfig {
     }
 
     @Bean
-    public Binding devicePackageBinding(Queue devicePackageQueue, TopicExchange devicePackageExchange) {
-        log.info("Binding device package queue '{}' to exchange '{}' with routing key '{}'",
-                devicePackageQueue.getName(), devicePackageExchange.getName(), devicePackageQueue.getName());
-        return BindingBuilder.bind(devicePackageQueue)
-                .to(devicePackageExchange)
-                .with(devicePackageQueue.getName());
+    public Declarables devicePackageBindings(
+            DeviceProperties deviceProperties,
+            TopicExchange devicePackageExchange) {
+        List<Declarable> declarables = new ArrayList<>();
+        for (DeviceProperties.DeviceRegistration registration : deviceProperties.devices()) {
+            String queueName = "device." + registration.deviceCode();
+            String bindingKey = "device." + registration.stationCode();
+            Queue queue = new Queue(queueName, true);
+            Binding binding = BindingBuilder.bind(queue).to(devicePackageExchange).with(bindingKey);
+            declarables.add(queue);
+            declarables.add(binding);
+            log.info("Declaring device package queue '{}' and binding it to exchange '{}' with key '{}'",
+                    queueName, devicePackageExchange.getName(), bindingKey);
+        }
+        return new Declarables(declarables);
     }
 }

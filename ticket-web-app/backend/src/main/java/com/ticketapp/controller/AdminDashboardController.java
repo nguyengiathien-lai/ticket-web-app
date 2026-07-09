@@ -6,6 +6,7 @@ import com.ticketapp.entity.Account;
 import com.ticketapp.service.AdminDashboardService;
 import com.ticketapp.service.AuthenticationService;
 import com.ticketapp.service.AuthorizationService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/admin/dashboard")
+@Tag(name = "Administration", description = "Administrative dashboard APIs")
 public class AdminDashboardController {
 
     private final AdminDashboardService adminDashboardService;

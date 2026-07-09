@@ -14,6 +14,7 @@ import com.ticketapp.dto.auth.VerifyEmailRequest;
 import com.ticketapp.entity.Account;
 import com.ticketapp.service.AccountService;
 import com.ticketapp.service.AuthenticationService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -30,6 +31,7 @@ import java.util.Optional;
 
 @RestController
 @RequestMapping("/auth")
+@Tag(name = "Authentication", description = "Registration, login, token, email verification, and password APIs")
 public class AuthController {
 
     private final AuthenticationService authenticationService;

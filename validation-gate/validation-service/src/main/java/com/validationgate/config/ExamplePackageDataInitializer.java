@@ -47,7 +47,7 @@ public class ExamplePackageDataInitializer implements CommandLineRunner {
         String stationCode = deviceProperties.stationCode();
         LocalDateTime receivedAt = LocalDateTime.now();
 
-        deviceConfigRepository.findByStationCode(stationCode)
+        deviceConfigRepository.findByStationAndDeviceCode(stationCode, deviceCode)
                 .orElseGet(() -> deviceConfigRepository.save(deviceConfig(deviceCode, stationCode, receivedAt)));
         stationContextRepository.findByStationCode(stationCode)
                 .orElseGet(() -> stationContextRepository.save(stationContext(deviceCode, stationCode, receivedAt)));
