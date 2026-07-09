@@ -27,8 +27,8 @@
 }
 
 .warning-button {
-  background: #fff7ed;
-  color: #d97706;
+  background: #eff6ff;
+  color: #1d4ed8;
 }
 
 .danger-button {
@@ -50,9 +50,9 @@
   align-items: center;
   margin-bottom: 16px;
   padding: 14px;
-  border: 1px solid #fecaca;
+  border: 1px solid #bfdbfe;
   border-radius: 14px;
-  background: #fff7f7;
+  background: #eff6ff;
 }
 
 .confirm-notification p {
