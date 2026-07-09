@@ -1,3 +1,19 @@
+.compact-grid textarea {
+  width: 100%;
+  resize: vertical;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  background: #fff;
+  font: inherit;
+  outline: none;
+}
+
+.compact-grid textarea:focus {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 4px rgba(15, 98, 254, 0.1);
+}
+
 .purchase-modal-backdrop {
   position: fixed;
   inset: 0;

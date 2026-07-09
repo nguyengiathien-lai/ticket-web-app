@@ -1,6 +1,7 @@
 package com.ticketapp.dto.purchase;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
@@ -18,6 +19,9 @@ public class CardPurchaseRequest {
     @Valid
     @NotNull
     private TicketDetails ticket;
+
+    @NotBlank
+    private String deliveryAddress;
 
     @Getter
     @Setter

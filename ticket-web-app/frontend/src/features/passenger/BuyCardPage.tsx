@@ -28,6 +28,9 @@ export function BuyCardPage() {
   const [validFrom, setValidFrom] = useState(today);
   const [durationType, setDurationType] = useState('MONTHLY');
   const [durationMonths, setDurationMonths] = useState(1);
+  const [shippingAddress, setShippingAddress] = useState(
+    () => getStoredAccount()?.address ?? ''
+  );
   const [generatedCardUid, setGeneratedCardUid] = useState(() => generateCardUid());
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -98,7 +101,8 @@ export function BuyCardPage() {
         durationMonths,
         cardUid: generatedCardUid,
         supportsMetro: transportMode === 'METRO',
-        supportsBus: transportMode === 'BUS'
+        supportsBus: transportMode === 'BUS',
+        deliveryAddress: shippingAddress.trim()
       });
       setSuccessfulIssuance(issuance);
       setMessage(`Đã phát hành thẻ ${issuance.card?.cardUid ?? issuance.card?.id ?? ''} với vé ${issuance.ticket?.ticketId ?? ''}.`);
@@ -132,6 +136,19 @@ export function BuyCardPage() {
           <label>Hiệu lực từ<input type="date" value={validFrom} onChange={(event) => setValidFrom(event.target.value)} /></label>
           <label>Loại thời hạn<select value={durationType} onChange={(event) => setDurationType(event.target.value)}><option value="MONTHLY">Theo tháng</option><option value="DAILY">Theo ngày</option></select></label>
           <label>Số tháng<input type="number" min="1" max="12"value={durationMonths} onChange={(event) => setDurationMonths(Number(event.target.value) || 1)} /></label>
+          <label style={{ gridColumn: '1 / -1' }}>
+            Địa chỉ nhận thẻ
+            <textarea
+              value={shippingAddress}
+              onChange={(event) => setShippingAddress(event.target.value)}
+              placeholder="Nhập địa chỉ nhận thẻ"
+              rows={3}
+              required
+            />
+            <small style={{ color: 'var(--muted)', fontWeight: 500 }}>
+              Thông tin minh họa, chưa được gửi sang hệ thống giao vận.
+            </small>
+          </label>
         </div>
 
         <div className="total">
@@ -141,7 +158,7 @@ export function BuyCardPage() {
             <b>{currency(total)}</b>
           </span>
         </div>
-        <button className="primary-button" disabled={isLoading || isSubmitting || (requiresRoute && !routeId) || packages.length === 0} onClick={handleSubmit}>
+        <button className="primary-button" disabled={isLoading || isSubmitting || !shippingAddress.trim() || (requiresRoute && !routeId) || packages.length === 0} onClick={handleSubmit}>
           {isSubmitting ? 'Đang phát hành...' : 'Phát hành thẻ'}
         </button>
       </Card>
@@ -167,6 +184,7 @@ export function BuyCardPage() {
             { label: 'Mã vé', value: successfulIssuance.ticket?.ticketId },
             { label: 'Gói vé', value: selectedPackage?.name },
             { label: 'Phương tiện', value: transportMode === 'METRO' ? 'Metro' : 'Xe buýt' },
+            { label: 'Địa chỉ nhận thẻ', value: shippingAddress.trim() },
             { label: 'Phạm vi', value: scope === 'MULTI_ROUTE' ? 'Liên tuyến' : undefined },
             {
               label: 'Tuyến',

@@ -125,6 +125,7 @@ public class EmailService {
 
                         Đăng ký mua thẻ vật lý của bạn đã được xác nhận. 
 
+                        Mã đơn hàng: %s
                         Mã thẻ: %s
                         Gói thẻ: %s
                         Địa chỉ giao hàng: %s

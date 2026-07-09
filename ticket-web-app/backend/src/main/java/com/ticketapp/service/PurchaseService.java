@@ -278,7 +278,7 @@ public class PurchaseService {
                 order.getExternalOrderId(),
                 savedCard.getExternalCardId(),
                 "MONTHLY_PASS",
-                null,
+                request.getDeliveryAddress().trim(),
                 order.getTotalAmount(),
                 order.getCurrency()));
 

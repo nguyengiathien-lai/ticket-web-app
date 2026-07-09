@@ -205,7 +205,8 @@ describe('passengerApi', () => {
     ok({ card: { id: 'c' } });
     await issueMonthlyPassCard({
       mode: 'BUS', scope: 'SINGLE_ROUTE', routeId: 'r', passengerType: 'ADULT',
-      validFrom: '2026-01-01', durationType: 'MONTH', supportsMetro: false, supportsBus: true
+      validFrom: '2026-01-01', durationType: 'MONTH', supportsMetro: false, supportsBus: true,
+      deliveryAddress: '123 Test Street'
     });
     expect(postedBody()).toEqual(expect.objectContaining({
       card: expect.objectContaining({ userId: account.id, supportsBus: true }),
@@ -217,7 +218,8 @@ describe('passengerApi', () => {
     ok({});
     await issueMonthlyPassCard({
       mode: 'METRO', passengerType: 'ADULT', validFrom: '2026-01-01',
-      durationType: 'MONTH', cardUid: '', supportsMetro: true, supportsBus: false
+      durationType: 'MONTH', cardUid: '', supportsMetro: true, supportsBus: false,
+      deliveryAddress: '123 Test Street'
     });
     expect(postedBody().card).not.toHaveProperty('cardUid');
   });

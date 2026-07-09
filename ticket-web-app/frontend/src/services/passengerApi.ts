@@ -214,6 +214,7 @@ export interface CardPurchaseInput extends PassPurchaseInput {
   cardUid?: string;
   supportsMetro: boolean;
   supportsBus: boolean;
+  deliveryAddress: string;
 }
 
 export async function getTicketPackages(): Promise<TicketPackage[]> {
@@ -343,6 +344,7 @@ export async function issueMonthlyPassCard(input: CardPurchaseInput): Promise<Ca
   const isSingleRoute = input.scope?.toUpperCase() === 'SINGLE_ROUTE';
 
   return apiPost('/cards/purchase', {
+    deliveryAddress: input.deliveryAddress,
     card: {
       cardUid: input.cardUid || undefined,
       userId,
