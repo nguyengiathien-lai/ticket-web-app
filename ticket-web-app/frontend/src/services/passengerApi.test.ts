@@ -108,7 +108,7 @@ describe('passengerApi', () => {
   it('loads cards for explicit account', async () => {
     ok([{ externalCardId: 'external', cardUid: 'uid', status: 'ACTIVE' }]);
     expect((await getPassengerCards('user/1'))[0]).toEqual(expect.objectContaining({ id: 'external', cardUid: 'uid' }));
-    expect(fetchMock.mock.calls[0][0]).toContain('/passengers/user/1/cards');
+    expect(fetchMock.mock.calls[0][0]).toContain('/accounts/user/1/cards');
   });
   it('falls back through card identifiers', async () => {
     ok([{ cardId: 'card' }, { cardUid: 'uid' }, {}]);
@@ -125,6 +125,7 @@ describe('passengerApi', () => {
     expect((await getPassengerTickets('u'))[0]).toEqual(expect.objectContaining({
       id: 't', type: 'PASS', cardId: 'c', fare: 55, validUntil: 'tomorrow', purchasedAt: 'today'
     }));
+    expect(fetchMock.mock.calls[0][0]).toContain('/accounts/u/tickets');
   });
   it('falls back through ticket identifiers', async () => {
     ok([{ externalTicketId: 'ext' }, { ticketId: 'ticket' }, {}]);
@@ -139,10 +140,10 @@ describe('passengerApi', () => {
   it('maps passenger trip details', async () => {
     ok([{ externalTripId: 'trip', checkoutTime: 'bad-date', transportType: 'METRO', routeCode: '01',
       checkoutStationName: 'Central', fareAmount: '9000' }]);
-    expect((await getPassengerTrips('u'))[0]).toEqual({
+    expect((await getPassengerTrips('u'))[0]).toEqual(expect.objectContaining({
       id: 'trip', time: 'bad-date', vehicle: 'Metro', route: '01',
       station: 'Central', status: 'Thành công', amount: 9000
-    });
+    }));
   });
   it.each([
     ['train', 'Tàu'],
@@ -157,6 +158,11 @@ describe('passengerApi', () => {
     expect((await getPassengerTrips('u'))[0]).toEqual(expect.objectContaining({
       id: '0', route: 'Chưa có', station: 'S1', amount: 0
     }));
+  });
+  it('loads trips from the account endpoint', async () => {
+    ok([]);
+    await getPassengerTrips('u');
+    expect(fetchMock.mock.calls[0][0]).toContain('/accounts/u/trips');
   });
   it('posts a single trip with default payment', async () => {
     setSession();

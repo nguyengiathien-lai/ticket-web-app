@@ -349,12 +349,12 @@ export async function getTransitStations(): Promise<TransitStation[]> {
 }
 
 export async function getPassengerCards(accountId = getRequiredAccountId()): Promise<PassengerCard[]> {
-  const cards = await apiGet<CardResponse[]>(`/passengers/${accountId}/cards`, true);
+  const cards = await apiGet<CardResponse[]>(`/accounts/${accountId}/cards`, true);
   return cards.map(mapCard);
 }
 
 export async function getPassengerTickets(accountId = getRequiredAccountId()): Promise<PassengerTicket[]> {
-  const tickets = await apiGet<TicketResponse[]>(`/passengers/${accountId}/tickets`, true);
+  const tickets = await apiGet<TicketResponse[]>(`/accounts/${accountId}/tickets`, true);
   return tickets.map(mapTicket);
 }
 
@@ -363,7 +363,7 @@ export async function getTicketQr(ticketId: string, accountId = getRequiredAccou
 }
 
 export async function getPassengerTrips(accountId = getRequiredAccountId()): Promise<TravelHistory[]> {
-  const trips = await apiGet<TravelHistoryResponse[]>(`/passengers/${accountId}/trips`, true);
+  const trips = await apiGet<TravelHistoryResponse[]>(`/accounts/${accountId}/trips`, true);
   return trips.map((trip, index) => ({
     id: trip.externalTripId ?? String(index),
     ticketId: trip.ticketExternalId ?? trip.externalTicketId ?? trip.ticketId,

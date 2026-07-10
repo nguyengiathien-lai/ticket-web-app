@@ -10,6 +10,7 @@ import {
   Settings,
   Shield,
   Ticket,
+  TrainFront,
   User,
   Users
 } from 'lucide-react';
@@ -48,10 +49,10 @@ export function Sidebar({ role }: SidebarProps) {
 
   return (
     <aside className="sidebar">
-      <div className="brand"><Bus size={28}/><span>TransitPass</span></div>
+      <div className="brand"><TrainFront size={28}/><span>TransitPass</span></div>
       <div className="hero-copy">
         <h1>{role === 'admin' ? 'Bảng quản trị TransitPass' : 'Cổng hành khách TransitPass'}</h1>
-        <p>{role === 'admin' ? 'Vận hành - Kiểm soát' : 'Tiện lợi - Nhanh chóng - An toàn'}</p>
+        {/* <p>{role === 'admin' ? 'Vận hành - Kiểm soát' : 'Tiện lợi - Nhanh chóng - An toàn'}</p> */}
       </div>
       <div className="city-art"><div className="train"/><div className="bus"/></div>
       <nav>
